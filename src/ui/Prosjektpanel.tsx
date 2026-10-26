@@ -202,6 +202,7 @@ function Deltakere({ doc, endre, kanSkrive }: { doc: Register; endre: Props['end
 const LISTE_TITLER: [keyof Lister, string][] = [
   ['kategorier', 'Kategorier'],
   ['egendef', 'Egendefinert kolonne'],
+  ['egendef2', 'Egendefinert kolonne 2'],
   ['statusTiltak', 'Status tiltak'],
   ['statusRisk', 'Status risk'],
   ['rollerProsjekt', 'Rolle i prosjektet'],
@@ -217,9 +218,19 @@ function ListerRed({ doc, endre, kanSkrive }: { doc: Register; endre: Props['end
         <span>Navn på den egendefinerte kolonnen</span>
         <Inn verdi={doc.lister.egendefNavn} disabled={!kanSkrive} onLagre={(v) => endre({ t: 'setListe', key: 'egendefNavn', verdi: v })} />
       </label>
+      <label className="avkrysning">
+        <input type="checkbox" checked={doc.lister.egendef2Aktiv} disabled={!kanSkrive} onChange={(e) => endre({ t: 'setListe', key: 'egendef2Aktiv', verdi: e.target.checked })} />
+        Bruk en egendefinert kolonne nr. 2
+      </label>
+      {doc.lister.egendef2Aktiv && (
+        <label className="felt">
+          <span>Navn på egendefinert kolonne nr. 2</span>
+          <Inn verdi={doc.lister.egendef2Navn} disabled={!kanSkrive} onLagre={(v) => endre({ t: 'setListe', key: 'egendef2Navn', verdi: v })} />
+        </label>
+      )}
       <div className="liste-rutenett">
-        {LISTE_TITLER.map(([k, t]) => (
-          <ListeBoks key={k} tittel={k === 'egendef' ? doc.lister.egendefNavn : t} verdier={doc.lister[k] as string[]} laast={k === 'statusRisk' || !kanSkrive} onLagre={(v) => endre({ t: 'setListe', key: k, verdi: v })} />
+        {LISTE_TITLER.filter(([k]) => k !== 'egendef2' || doc.lister.egendef2Aktiv).map(([k, t]) => (
+          <ListeBoks key={k} tittel={k === 'egendef' ? doc.lister.egendefNavn : k === 'egendef2' ? doc.lister.egendef2Navn : t} verdier={doc.lister[k] as string[]} laast={k === 'statusRisk' || !kanSkrive} onLagre={(v) => endre({ t: 'setListe', key: k, verdi: v })} />
         ))}
       </div>
       <p className="liten">«Status risk» er låst fordi «Lukket» styrer hvilke risker som vises under Åpne og Lukkede.</p>

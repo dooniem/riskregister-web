@@ -49,6 +49,7 @@ export const KOLONNER: Kolonne[] = [
   { key: 'status', tittel: () => 'Status risk', nivaa: 'risk', type: 'valg', bredde: 96, gruppe: 'eierskap', felt: 'status', valg: (d) => d.lister.statusRisk, verdi: (r) => r.status },
   { key: 'kategori', tittel: () => 'Kategori', nivaa: 'risk', type: 'valg', bredde: 140, gruppe: 'eierskap', felt: 'kategori', valg: (d) => d.lister.kategorier, verdi: (r) => r.kategori },
   { key: 'egendef', tittel: (d) => d.lister.egendefNavn || '<egendefinert>', nivaa: 'risk', type: 'valg', bredde: 120, gruppe: 'eierskap', felt: 'egendef', valg: (d) => d.lister.egendef, fri: true, verdi: (r) => r.egendef },
+  { key: 'egendef2', tittel: (d) => d.lister.egendef2Navn || '<egendefinert 2>', nivaa: 'risk', type: 'valg', bredde: 120, gruppe: 'eierskap', felt: 'egendef2', valg: (d) => d.lister.egendef2, fri: true, verdi: (r) => r.egendef2 ?? '' },
   { key: 'sannsynlighet', tittel: () => 'Sannsynlighet', nivaa: 'risk', type: 'valg', bredde: 126, gruppe: 'vurdering', felt: 'sannsynlighet', valg: () => SANNSYNLIGHET, verdi: (r) => r.sannsynlighet },
   { key: 'konsekvens', tittel: () => 'Konsekvens', nivaa: 'risk', type: 'valg', bredde: 118, gruppe: 'vurdering', felt: 'konsekvens', valg: () => KONSEKVENS, verdi: (r) => r.konsekvens },
   { key: 'eksponering', tittel: () => 'Eksponering', nivaa: 'risk', type: 'beregnet', bredde: 104, gruppe: 'vurdering', verdi: (r) => eksponering(r), hoyre: true },

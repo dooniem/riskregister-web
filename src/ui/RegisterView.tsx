@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { GRUPPER, KOLONNER } from '../columns'
-import { eksporterExcel, skariskRader } from '../excel'
+import { eksporterExcel } from '../excel'
+import { SkariskVisning } from './Skarisk'
 import type { Register } from '../model'
 import { nyRisk } from '../model'
 import type { Konflikt, Op } from '../ops'
@@ -87,7 +88,6 @@ export function RegisterView({ okt, tilbake }: Props) {
   const [kolVelger, setKolVelger] = useState(false)
   const [meny, setMeny] = useState(false)
   const [nyttReg, setNyttReg] = useState(false)
-  const [skarisk, setSkarisk] = useState(false)
   const [meldinger, setMeldinger] = useState<Melding[]>([])
   const [sim, setSim] = useState<SimulertKollega | null>(null)
   const angreStabel = useRef<Op[][]>([])
@@ -153,6 +153,7 @@ export function RegisterView({ okt, tilbake }: Props) {
       aapne: doc.risker.filter((r) => r.status !== 'Lukket').length,
       lukkede: doc.risker.filter((r) => r.status === 'Lukket').length,
       alle: doc.risker.length,
+      skarisk: doc.risker.filter((r) => r.tilSkarisk && r.status !== 'Lukket').length,
       vist: filtrer(doc, visning).length,
     }),
     [doc, visning],
@@ -216,7 +217,7 @@ export function RegisterView({ okt, tilbake }: Props) {
           {meny && (
             <div className="nedtrekk" onClick={() => setMeny(false)}>
               <button onClick={() => eksporterExcel(doc)}>Eksporter til Excel (.xlsx)</button>
-              <button onClick={() => setSkarisk(true)}>Poster til Skarisk…</button>
+              <button onClick={() => setVisning((v) => ({ ...v, fane: 'skarisk' }))}>Poster til Skarisk</button>
               <button onClick={() => window.print()}>Skriv ut / lagre som PDF</button>
               <hr />
               <button onClick={() => setProsjekt('lister')}>Lister og valg…</button>
@@ -268,6 +269,7 @@ export function RegisterView({ okt, tilbake }: Props) {
               ['aapne', 'Åpne', antall.aapne],
               ['lukkede', 'Lukkede', antall.lukkede],
               ['alle', 'Alle', antall.alle],
+              ['skarisk', 'Til Skarisk', antall.skarisk],
             ] as const
           ).map(([k, t, n]) => (
             <button key={k} className={visning.fane === k ? 'valgt' : ''} onClick={() => setVisning((v) => ({ ...v, fane: k }))}>
@@ -275,27 +277,31 @@ export function RegisterView({ okt, tilbake }: Props) {
             </button>
           ))}
         </nav>
-        <input className="sok" placeholder="Søk i alle felt…" value={visning.sok} onChange={(e) => setVisning((v) => ({ ...v, sok: e.target.value }))} />
-        <label className="velg">
-          Grupper etter
-          <select value={visning.gruppering} onChange={(e) => setVisning((v) => ({ ...v, gruppering: e.target.value }))}>
-            {GRUPPERINGER.map((g) => (
-              <option key={g.key} value={g.key}>
-                {g.tittel}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="meny-holder">
-          <button className="knapp" onClick={() => setKolVelger(!kolVelger)}>
-            Kolonner ▾
-          </button>
-          {kolVelger && <Kolonnevelger doc={doc} visning={visning} setVisning={setVisning} lukk={() => setKolVelger(false)} />}
-        </div>
+        {visning.fane !== 'skarisk' && (
+          <>
+          <input className="sok" placeholder="Søk i alle felt…" value={visning.sok} onChange={(e) => setVisning((v) => ({ ...v, sok: e.target.value }))} />
+          <label className="velg">
+            Grupper etter
+            <select value={visning.gruppering} onChange={(e) => setVisning((v) => ({ ...v, gruppering: e.target.value }))}>
+              {GRUPPERINGER.map((g) => (
+                <option key={g.key} value={g.key}>
+                  {g.tittel}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="meny-holder">
+            <button className="knapp" onClick={() => setKolVelger(!kolVelger)}>
+              Kolonner ▾
+            </button>
+            {kolVelger && <Kolonnevelger doc={doc} visning={visning} setVisning={setVisning} lukk={() => setKolVelger(false)} />}
+          </div>
+          </>
+        )}
         <button className="knapp" onClick={() => setVisning((v) => ({ ...v, visOversikt: !v.visOversikt }))}>
           {visning.visOversikt ? 'Skjul oversikt' : 'Vis oversikt'}
         </button>
-        {filterAktivt && (
+        {filterAktivt && visning.fane !== 'skarisk' && (
           <span className="filterinfo">
             Viser {antall.vist} av {antall[visning.fane]}
             <button className="lenkeknapp" onClick={() => setVisning((v) => ({ ...v, sok: '', filter: { verdier: {}, tekst: {} } }))}>
@@ -306,7 +312,9 @@ export function RegisterView({ okt, tilbake }: Props) {
       </div>
 
       <div className="hovedflate">
-        {mobil ? (
+        {visning.fane === 'skarisk' ? (
+          <SkariskVisning doc={doc} aapneDetalj={setDetalj} melding={melding} />
+        ) : mobil ? (
           <div className="mobilflate">
             {b.kanSkrive && (
               <button
@@ -341,7 +349,6 @@ export function RegisterView({ okt, tilbake }: Props) {
 
       {prosjekt && <Prosjektpanel doc={doc} endre={endre} lukk={() => setProsjekt(false)} kanSkrive={b.kanSkrive} start={prosjekt} />}
       {nyttReg && <NyttRegisterDialog kilde={doc} backendType={b.type} lukk={() => setNyttReg(false)} />}
-      {skarisk && <SkariskDialog doc={doc} lukk={() => setSkarisk(false)} />}
 
       <div className="meldinger">
         {meldinger.map((m) => (
@@ -401,7 +408,7 @@ function Kolonnevelger({ doc, visning, setVisning, lukk }: { doc: Register; visn
             />
             <strong>{g.tittel}</strong>
           </label>
-          {KOLONNER.filter((k) => k.gruppe === g.key).map((k) => (
+          {KOLONNER.filter((k) => k.gruppe === g.key && (k.key !== 'egendef2' || doc.lister.egendef2Aktiv)).map((k) => (
             <label key={k.key} className="kollabel">
               <input
                 type="checkbox"
@@ -423,50 +430,3 @@ function Kolonnevelger({ doc, visning, setVisning, lukk }: { doc: Register; visn
   )
 }
 
-function SkariskDialog({ doc, lukk }: { doc: Register; lukk: () => void }) {
-  const rader = skariskRader(doc)
-  const tsv = rader.map((r) => r.join('\t')).join('\n')
-  return (
-    <div className="modal-bakgrunn" onMouseDown={(e) => e.target === e.currentTarget && lukk()}>
-      <div className="modal">
-        <header>
-          <h2>Poster til Skarisk</h2>
-          <button className="ikonknapp" onClick={lukk}>
-            ✕
-          </button>
-        </header>
-        <div className="modal-innhold">
-          <p>
-            Åpne risker merket «Til Skarisk»: <strong>{rader.length}</strong>
-          </p>
-          <table className="enkel-tabell">
-            <thead>
-              <tr>
-                <th>Nr.</th>
-                <th>R&M</th>
-                <th>Årsak</th>
-                <th>Hendelse</th>
-                <th>BC</th>
-                <th>ML</th>
-                <th>WC</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rader.map((r) => (
-                <tr key={String(r[0])}>
-                  {r.map((c, i) => (
-                    <td key={i}>{String(c)}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <button className="knapp primær" onClick={() => void navigator.clipboard.writeText(tsv)}>
-            Kopier til utklippstavlen
-          </button>
-          <p className="liten">Limes rett inn i Skarisk eller Excel. Kolonnene er de samme som i dagens eksport.</p>
-        </div>
-      </div>
-    </div>
-  )
-}

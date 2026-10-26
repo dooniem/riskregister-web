@@ -24,6 +24,7 @@ export interface Risk {
   status: string // 'Åpen' | 'Lukket'
   kategori: string
   egendef: string
+  egendef2?: string // egendefinert kolonne 2, brukes bare når lister.egendef2Aktiv er satt
   sannsynlighet: number // 0 = ikke satt, ellers 1–5
   konsekvens: number // 0 = ikke satt, ellers 1–5
   bc: number
@@ -60,6 +61,9 @@ export interface Lister {
   virksomhet: string[]
   egendefNavn: string
   egendef: string[]
+  egendef2Aktiv: boolean
+  egendef2Navn: string
+  egendef2: string[]
 }
 
 export interface Prosjekt {
@@ -110,6 +114,9 @@ export const DEFAULT_LISTER: Lister = {
   virksomhet: ['Anlegg', 'Bygg'],
   egendefNavn: '<egendefinert>',
   egendef: ['BH', 'Internt'],
+  egendef2Aktiv: false,
+  egendef2Navn: '<egendefinert 2>',
+  egendef2: [],
 }
 
 export function uid(): string {

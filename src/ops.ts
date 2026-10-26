@@ -18,7 +18,7 @@ export type Op =
   | { t: 'deleteDeltaker'; id: string }
   | { t: 'upsertGjennomgang'; gjennomgang: Gjennomgang }
   | { t: 'deleteGjennomgang'; id: string }
-  | { t: 'setListe'; key: keyof Lister; verdi: string[] | string }
+  | { t: 'setListe'; key: keyof Lister; verdi: string[] | string | boolean }
   | { t: 'setHjem'; hjem: Hjem }
   | { t: 'erstatt'; doc: Register }
 
