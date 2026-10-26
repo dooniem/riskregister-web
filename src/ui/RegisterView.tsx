@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { GRUPPER, KOLONNER } from '../columns'
 import { eksporterExcel } from '../excel'
 import { SkariskVisning } from './Skarisk'
+import { FagMeny, fagForNyRisk } from './Fag'
 import type { Register } from '../model'
 import { nyRisk } from '../model'
 import type { Konflikt, Op } from '../ops'
@@ -167,7 +168,7 @@ export function RegisterView({ okt, tilbake }: Props) {
     if (manglerHjem && b.kanSkrive) okt.utfor({ t: 'setHjem', hjem: hjem! })
   }, [manglerHjem, b.kanSkrive, okt, hjem])
 
-  const filterAktivt = !!visning.sok || Object.keys(visning.filter.verdier).length > 0 || Object.values(visning.filter.tekst).some(Boolean) || !!visning.filter.matrise
+  const filterAktivt = !!visning.sok || Object.keys(visning.filter.verdier).length > 0 || Object.values(visning.filter.tekst).some(Boolean) || !!visning.filter.matrise || !!visning.fag?.length
   const tittel = [doc.prosjekt.nummer, doc.prosjekt.navn].filter(Boolean).join(' ') || 'Riskregister uten navn'
   const statusTekst = { laster: 'Laster…', lagret: 'Alle endringer er lagret', lagrer: 'Lagrer…', frakoblet: 'Frakoblet, prøver igjen', feil: 'Lagring feilet' }[status]
 
@@ -290,6 +291,7 @@ export function RegisterView({ okt, tilbake }: Props) {
               ))}
             </select>
           </label>
+          <FagMeny doc={doc} visning={visning} setVisning={setVisning} endre={endre} kanSkrive={b.kanSkrive} />
           <div className="meny-holder">
             <button className="knapp" onClick={() => setKolVelger(!kolVelger)}>
               Kolonner ▾
@@ -304,7 +306,7 @@ export function RegisterView({ okt, tilbake }: Props) {
         {filterAktivt && visning.fane !== 'skarisk' && (
           <span className="filterinfo">
             Viser {antall.vist} av {antall[visning.fane]}
-            <button className="lenkeknapp" onClick={() => setVisning((v) => ({ ...v, sok: '', filter: { verdier: {}, tekst: {} } }))}>
+            <button className="lenkeknapp" onClick={() => setVisning((v) => ({ ...v, sok: '', fag: [], filter: { verdier: {}, tekst: {} } }))}>
               Fjern alle filtre
             </button>
           </span>
@@ -321,6 +323,7 @@ export function RegisterView({ okt, tilbake }: Props) {
                 className="knapp primær ny-risk-mobil"
                 onClick={() => {
                   const r = nyRisk(0)
+                  r.fag = fagForNyRisk(doc, visning)
                   endre({ t: 'addRisk', risk: r })
                   setDetalj(r.id)
                 }}

@@ -72,5 +72,11 @@ export function eksempelRegister(navn = 'Demo – Nytt kontorbygg'): Register {
       ['Midlertidig grøft og pumpekum', 'Tone Solberg', '2026-09-15', 'Etablert', 'Utført'],
     ], '', false, 'Lukket'),
   ]
+  // Fag med farger, og hvilke risker som hører til hvilket fag
+  const fag = ['Grunnarbeid', 'Betong', 'Stål', 'Tekniske fag', 'Innredning', 'HMS'].map((navn, farge) => ({ id: uid(), navn, kort: navn.slice(0, 3).toUpperCase(), farge }))
+  reg.lister.fag = fag
+  const fordeling: Record<number, number> = { 1: 0, 2: 2, 3: 5, 4: 3, 5: 3, 7: 0, 8: 1, 9: 0, 10: 4, 11: 3, 12: 0 }
+  for (const r of reg.risker) if (fordeling[r.nr] !== undefined) r.fag = fag[fordeling[r.nr]].id
+  reg.nesteNr = 13
   return reg
 }

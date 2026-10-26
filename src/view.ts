@@ -30,6 +30,7 @@ export interface Visning {
   bredder: Record<string, number>
   kunFiltrerteSummer: boolean
   visOversikt: boolean
+  fag?: string[] // valgte fag-id-er, UTEN_FAG for risker uten fag. Tom = alle
 }
 
 export const STANDARD_VISNING: Visning = {
@@ -45,8 +46,15 @@ export const STANDARD_VISNING: Visning = {
   visOversikt: true,
 }
 
+export const UTEN_FAG = '_uten'
+
+export function fagNavn(r: Risk, doc: Register): string {
+  return doc.lister.fag.find((f) => f.id === r.fag)?.navn ?? ''
+}
+
 export const GRUPPERINGER: { key: string; tittel: string; verdi: (r: Risk, doc: Register) => string }[] = [
   { key: '', tittel: 'Ingen gruppering', verdi: () => '' },
+  { key: 'fag', tittel: 'Fag', verdi: (r, doc) => fagNavn(r, doc) || '(uten fag)' },
   { key: 'kategori', tittel: 'Kategori', verdi: (r) => r.kategori || '(ingen kategori)' },
   { key: 'eier', tittel: 'Risikoeier', verdi: (r) => r.eier || '(ingen eier)' },
   { key: 'rm', tittel: 'Risiko / mulighet', verdi: (r) => (r.rm === 'R' ? 'Risiko' : r.rm === 'M' ? 'Mulighet' : '(ikke angitt)') },
@@ -85,6 +93,7 @@ export function filtrer(doc: Register, v: Visning, ignorer?: string): Risk[] {
   const sok = v.sok.trim().toLowerCase()
   return doc.risker.filter((r) => {
     if (!iFane(r, v.fane)) return false
+    if (v.fag?.length && !v.fag.includes(doc.lister.fag.some((f) => f.id === r.fag) ? r.fag! : UTEN_FAG)) return false
     if (sok) {
       const hay = [r.nr, r.aarsak, r.hendelse, r.konsekvenser, r.eier, r.kategori, r.egendef, r.egendef2, ...r.tiltak.flatMap((t) => [t.tekst, t.eier, t.beskrivelse])]
         .join(' ')

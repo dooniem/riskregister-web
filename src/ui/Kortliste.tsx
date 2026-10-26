@@ -6,6 +6,7 @@ import type { Tilstede } from '../store/backend'
 import type { Okt } from '../sync'
 import type { Visning } from '../view'
 import { filtrer, grupper, sorter } from '../view'
+import { FagMerke } from './Fag'
 import { Laas } from './Ikoner'
 
 // Mobilvisning: ett kort per risk. Trykk åpner risken i panelet, der alt kan redigeres.
@@ -23,6 +24,7 @@ export function Kortliste({ okt, doc, andre, visning, aapne }: { okt: Okt; doc: 
           )}
           {g.risker.map((r) => {
             const e = eksponering(r)
+            const fag = doc.lister.fag.find((x) => x.id === r.fag)
             const f = eksponeringFarge(r.rm, e)
             const her = andre.filter((t) => t.riskId === r.id)
             const laast = okt.laastAv(r.id)
@@ -32,6 +34,7 @@ export function Kortliste({ okt, doc, andre, visning, aapne }: { okt: Okt; doc: 
               <button key={r.id} className={'riskkort' + (laast ? ' laast' : '')} onClick={() => aapne(r.id)} style={her[0] ? { borderLeftColor: her[0].farge } : undefined}>
                 <div className="riskkort-topp">
                   <span className="nr">{r.nr}</span>
+                  {fag && <FagMerke fag={fag} />}
                   <span className={'rm rm-' + r.rm}>{r.rm === '-' ? '' : r.rm}</span>
                   <span className="eksp-merke" style={{ background: f?.bg, color: f?.fg }} title="Eksponering">
                     {e || '–'}
