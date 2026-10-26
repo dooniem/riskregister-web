@@ -89,6 +89,49 @@ export function formatDato(iso: string): string {
   return d && m && y ? `${d}.${m}.${y}` : iso
 }
 
+const iso = (y: number, m: number, d: number) => {
+  const dt = new Date(Date.UTC(y, m - 1, d))
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null
+  return dt.toISOString().slice(0, 10)
+}
+
+// ISO-ukenummer (uka med årets første torsdag er uke 1)
+export function isoUke(isoDato: string): { aar: number; uke: number } {
+  const d = new Date(isoDato + 'T00:00:00Z')
+  const dag = (d.getUTCDay() + 6) % 7
+  d.setUTCDate(d.getUTCDate() - dag + 3)
+  const aar = d.getUTCFullYear()
+  return { aar, uke: Math.floor((d.getTime() - Date.UTC(aar, 0, 1)) / 86400000 / 7) + 1 }
+}
+
+// Fredag i en ISO-uke, brukt når noen skriver «uke 12» som frist
+function fredagIUke(aar: number, uke: number): string | null {
+  if (uke < 1 || uke > 53) return null
+  const jan4 = new Date(Date.UTC(aar, 0, 4))
+  const mandag = new Date(jan4.getTime() - ((jan4.getUTCDay() + 6) % 7) * 86400000 + (uke - 1) * 7 * 86400000)
+  const fredag = new Date(mandag.getTime() + 4 * 86400000).toISOString().slice(0, 10)
+  return isoUke(fredag).uke === uke ? fredag : null
+}
+
+// Tolker datoer slik folk skriver dem: 31.12.2026, 31.12.26, 31.12, 311226, 2026-12-31, «uke 12», «i dag».
+// Gir ISO-dato, '' for tom tekst og null når teksten ikke er en dato.
+export function parseDato(s: string, idag = new Date()): string | null {
+  const t = s.trim().toLowerCase()
+  if (!t) return ''
+  const iAar = idag.getFullYear()
+  const aarFra = (a?: string) => (!a ? iAar : a.length <= 2 ? 2000 + Number(a) : Number(a))
+  if (t === 'i dag' || t === 'idag') return iso(iAar, idag.getMonth() + 1, idag.getDate())
+  let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+  if (m) return iso(+m[1], +m[2], +m[3])
+  m = t.match(/^(\d{1,2})[./\- ](\d{1,2})(?:[./\- ](\d{2}|\d{4}))?\.?$/)
+  if (m) return iso(aarFra(m[3]), +m[2], +m[1])
+  m = t.match(/^(\d{2})(\d{2})(\d{2}|\d{4})$/)
+  if (m) return iso(aarFra(m[3]), +m[2], +m[1])
+  m = t.match(/^(?:uke|u|w|week)\s*(\d{1,2})(?:[\s/.-]+(\d{2}|\d{4}))?$/)
+  if (m) return fredagIUke(aarFra(m[2]), +m[1])
+  return null
+}
+
 export function parseTall(s: string): number {
   const n = Number(s.replace(/\s/g, '').replace(',', '.'))
   return Number.isFinite(n) ? n : 0
@@ -97,6 +140,7 @@ export function parseTall(s: string): number {
 // Gjør inntastet tekst om til verdien som lagres i feltet
 export function tolkInput(k: Kolonne, s: string): unknown {
   if (k.type === 'tall') return parseTall(s)
+  if (k.type === 'dato') return parseDato(s) ?? ''
   if (k.key === 'sannsynlighet' || k.key === 'konsekvens') {
     const n = parseInt(s, 10)
     return n >= 1 && n <= 5 ? n : 0
@@ -115,5 +159,6 @@ export function editorTekst(k: Kolonne, r: Risk, t?: Tiltak): string {
   if (k.key === 'rm') return r.rm === '-' ? '' : r.rm
   const v = k.verdi(r, t)
   if (k.type === 'tall') return v ? String(v) : ''
+  if (k.type === 'dato') return formatDato(v as string)
   return String(v ?? '')
 }

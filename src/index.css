@@ -1354,3 +1354,115 @@ table.enkel-tabell {
     overflow-x: auto;
   }
 }
+
+/* Nedtrekkspil og kalender i celler */
+td .valgpil {
+  position: absolute;
+  right: 3px;
+  top: 4px;
+  width: 16px;
+  height: 16px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--dempet);
+  background: var(--hode);
+  border: 1px solid var(--linje);
+  border-radius: 3px;
+  pointer-events: none;
+}
+td:hover .valgpil,
+td .valgpil.synlig {
+  display: flex;
+}
+.celle-editor.ugyldig {
+  background: #fdecea;
+  color: #8a1c12;
+}
+.kalender {
+  padding: 6px 8px 4px;
+  border-top: 1px solid var(--linje);
+  user-select: none;
+}
+.kal-topp {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.kal-topp span::first-letter {
+  text-transform: uppercase;
+}
+.kal-topp button,
+.kal-bunn button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 16px;
+  color: var(--tekst);
+}
+.kal-bunn {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+.kal-bunn button {
+  font-size: 12px;
+  color: var(--aksent);
+}
+.kal-topp button:hover,
+.kal-bunn button:hover {
+  background: var(--hode);
+}
+.kal-rutenett {
+  display: grid;
+  grid-template-columns: 30px repeat(7, 1fr);
+  gap: 1px;
+  align-items: center;
+  text-align: center;
+}
+.kal-hode {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--dempet);
+  padding: 2px 0;
+}
+.kal-uke {
+  font-size: 10.5px;
+  color: var(--dempet);
+  border-right: 1px solid var(--linje);
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.kal-rutenett button {
+  width: 26px;
+  height: 24px;
+  border: none;
+  background: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--tekst);
+}
+.kal-rutenett button:hover {
+  background: var(--aksent-lys);
+}
+.kal-rutenett button.helg {
+  color: var(--dempet);
+}
+.kal-rutenett button.annen {
+  opacity: 0.4;
+}
+.kal-rutenett button.idag {
+  box-shadow: inset 0 0 0 1px var(--aksent);
+}
+.kal-rutenett button.valgt {
+  background: var(--aksent);
+  color: #fff;
+}
