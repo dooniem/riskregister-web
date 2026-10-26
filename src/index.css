@@ -1731,3 +1731,53 @@ td .valgpil.synlig {
 .felt.tillatelse label input {
   margin-top: 3px;
 }
+
+/* Kompakt visning på PC: kortene i et rutenett som fyller bredden */
+.kompaktflate {
+  overflow: auto;
+  padding: 12px 16px;
+}
+.kompaktflate .ny-risk-mobil {
+  width: auto;
+}
+.kortliste-pc section {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+.kortliste-pc .kort-gruppe {
+  grid-column: 1 / -1;
+}
+.kortliste-pc .riskkort:hover {
+  border-color: var(--linje-sterk);
+}
+/* Langt trykk på berøringsskjerm skal åpne menyen, ikke markere tekst */
+@media (hover: none) {
+  .riskkort {
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+}
+.meny-bakgrunn {
+  position: fixed;
+  inset: 0;
+  z-index: 59;
+}
+
+/* Hvem som opprettet og endret risken, øverst i høyreklikkmenyen */
+.riskinfo {
+  padding: 2px 4px 6px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--linje);
+}
+.riskinfo-linje {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.riskinfo-linje span:first-child {
+  color: var(--dempet);
+}

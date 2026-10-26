@@ -60,6 +60,10 @@ export interface Risk {
   tiltak: Tiltak[]
   endret?: string
   endretAv?: string
+  opprettet?: string
+  opprettetAv?: string
+  lukket?: string // når status sist ble satt til Lukket
+  lukketAv?: string
 }
 
 export interface Deltaker {
