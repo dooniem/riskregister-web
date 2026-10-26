@@ -10,6 +10,7 @@ import type { Gruppe, Visning } from '../view'
 import { filtrer, filterVerdier, grupper, sorter, summer } from '../view'
 import type { Flytt } from './Editor'
 import { CelleEditor } from './Editor'
+import { FagMerke, FagVelger, fagForNyRisk } from './Fag'
 import { Laas } from './Ikoner'
 
 interface Posisjon {
@@ -59,6 +60,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   const [redigerer, setRedigerer] = useState<(Posisjon & { start: string; erstatt: boolean }) | null>(null)
   const [meny, setMeny] = useState<{ kol: string; x: number; y: number } | null>(null)
   const [kontekst, setKontekst] = useState<{ x: number; y: number; pos: Posisjon } | null>(null)
+  const [fagVelger, setFagVelger] = useState<{ riskId: string; x: number; y: number } | null>(null)
   const [lukketGrupper, setLukketGrupper] = useState<string[]>([])
   const boks = useRef<HTMLDivElement>(null)
 
@@ -228,8 +230,18 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   const nyRad = () => {
     const r = nyRisk(0)
     if (visning.fane === 'lukkede') r.status = 'Lukket'
+    // Står fag-filteret på, havner den nye risken i samme fag
+    r.fag = fagForNyRisk(doc, visning)
     endre({ t: 'addRisk', risk: r })
     setAktiv({ riskId: r.id, tiltakId: r.tiltak[0].id, kol: kolonner.find((k) => k.key === 'hendelse') ? 'hendelse' : kolonner[1]?.key ?? 'nr' })
+  }
+
+  const settFag = (riskId: string, fag: string) => {
+    const r = doc.risker.find((x) => x.id === riskId)
+    if (!r || (r.fag ?? '') === fag) return
+    const av = okt.laastAv(r.id)
+    if (av) return melding(`Risk ${r.nr} redigeres av ${av.navn} akkurat nå.`)
+    endre({ t: 'setRisk', riskId: r.id, felt: 'fag', verdi: fag, fra: r.fag ?? '' })
   }
 
   const nyttTiltakUnder = (p: Posisjon) => {
@@ -498,6 +510,12 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   ferdig={ferdigRedigert}
                   avbryt={avbrytRedigering}
                   nyttTiltak={(p) => nyttTiltakUnder(p)}
+                  fagVelger={(riskId, e) => {
+                    e.stopPropagation()
+                    e.preventDefault()
+                    const b = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                    setFagVelger({ riskId, x: b.left, y: b.bottom + 4 })
+                  }}
                   kanSkrive={kanSkrive}
                 />
               ))}
@@ -533,11 +551,23 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
           lukk={() => setMeny(null)}
         />
       )}
+      {fagVelger && (
+        <FagVelger
+          doc={doc}
+          valgt={doc.risker.find((r) => r.id === fagVelger.riskId)?.fag}
+          x={fagVelger.x}
+          y={fagVelger.y}
+          endre={endre}
+          velg={(id) => settFag(fagVelger.riskId, id)}
+          lukk={() => setFagVelger(null)}
+        />
+      )}
       {kontekst && (
-        <div className="kontekstmeny" style={{ left: kontekst.x, top: kontekst.y }} onMouseLeave={() => setKontekst(null)}>
+        <div className="kontekstmeny" style={{ left: Math.min(kontekst.x, window.innerWidth - 230), top: Math.min(kontekst.y, window.innerHeight - 250) }} onMouseLeave={() => setKontekst(null)}>
           <button onClick={() => (aapneDetalj(kontekst.pos.riskId), setKontekst(null))}>Åpne risk i eget panel</button>
           {kanSkrive && (
             <>
+              <button onClick={() => (setFagVelger({ riskId: kontekst.pos.riskId, x: kontekst.x, y: kontekst.y }), setKontekst(null))}>Sett fag…</button>
               <button onClick={() => (nyttTiltakUnder(kontekst.pos), setKontekst(null))}>Nytt tiltak under</button>
               {kontekst.pos.tiltakId && <button onClick={() => (slettTiltak(kontekst.pos), setKontekst(null))}>Slett tiltaket</button>}
               <hr />
@@ -590,6 +620,7 @@ interface RaderProps {
   avbryt: () => void
   nyttTiltak: (p: Posisjon) => void
   kanSkrive: boolean
+  fagVelger: (riskId: string, e: React.MouseEvent) => void
 }
 
 function RiskRader(p: RaderProps) {
@@ -600,6 +631,7 @@ function RiskRader(p: RaderProps) {
   const laasFarge = p.laastAv ? p.tilstede.find((t) => t.navn === p.laastAv)?.farge : undefined
   const klasser = ['risk', p.laastAv ? 'laast' : '', p.minLaas ? 'min-laas' : '', r.status === 'Lukket' ? 'lukket' : ''].join(' ')
   const stripe = p.tilstede[0]?.farge
+  const fag = r.fag ? p.doc.lister.fag.find((f) => f.id === r.fag) : undefined
 
   const celle = (k: Kolonne, t: Tiltak | undefined, rad: number) => {
     const pos: Posisjon = { riskId: r.id, tiltakId: k.nivaa === 'risk' ? r.tiltak[0]?.id : t?.id, kol: k.key }
@@ -615,6 +647,7 @@ function RiskRader(p: RaderProps) {
     if (andreHer.length) stil.boxShadow = `inset 0 0 0 2px ${andreHer[0].farge}`
     const kl = [
       k.frosset ? 'frosset' : '',
+      k.key === 'nr' ? 'nr-td' : '',
       k.hoyre ? 'hoyre' : '',
       k.type === 'langtekst' ? 'langtekst' : '',
       k.key === 'rm' ? 'rm-' + r.rm : '',
@@ -630,7 +663,16 @@ function RiskRader(p: RaderProps) {
       innhold = (
         <div className="nr-celle">
           {stripe && <span className="tilstede-prikk" style={{ background: stripe }} title={p.tilstede.map((x) => x.navn).join(', ')} />}
-          {r.nr}
+          {fag ? (
+            <FagMerke fag={fag} onClick={p.kanSkrive ? (ev) => p.fagVelger(r.id, ev) : undefined} />
+          ) : (
+            p.kanSkrive && (
+              <span className="fagmerke tom legg-til" title="Sett fag" onMouseDown={(ev) => p.fagVelger(r.id, ev)}>
+                + fag
+              </span>
+            )
+          )}
+          <span className="nr-tall">{r.nr}</span>
         </div>
       )
     if (k.key === 'tilSkarisk') innhold = r.tilSkarisk ? <span className="hake">✓</span> : <span className="kryss">✗</span>

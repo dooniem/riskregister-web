@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { KOL, formatTall } from '../columns'
 import type { Register, Tiltak } from '../model'
-import { KONSEKVENS, SANNSYNLIGHET, eksponering, eksponeringFarge, fv, nyttTiltak } from '../model'
+import { KONSEKVENS, SANNSYNLIGHET, eksponering, eksponeringFarge, fagFarge, fv, nyttTiltak } from '../model'
 import type { Op, RiskFelt, TiltakFelt } from '../ops'
 import type { Okt } from '../sync'
 import { Laas } from './Ikoner'
@@ -58,7 +58,23 @@ export function Detaljpanel({ okt, doc, riskId, endre, lukk, kanSkrive }: Props)
         </div>
       )}
       <div className="skjema">
-        <div className="rad3">
+        <div className="rad4">
+          <label className="felt">
+            <span>Fag</span>
+            <select
+              value={r.fag && doc.lister.fag.some((f) => f.id === r.fag) ? r.fag : ''}
+              disabled={sperret}
+              onChange={(ev) => fokus() && (settRisk('fag', ev.target.value), okt.slippLaas())}
+              style={fagStil(doc, r.fag)}
+            >
+              <option value="">Ingen fag</option>
+              {doc.lister.fag.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.navn}
+                </option>
+              ))}
+            </select>
+          </label>
           <Valg tittel="R&M" verdi={r.rm} valg={['R', 'M', '-']} sperret={sperret} onFokus={fokus} onBlur={() => okt.slippLaas()} onEndre={(v) => settRisk('rm', v)} />
           <Valg tittel="Status risk" verdi={r.status} valg={doc.lister.statusRisk} sperret={sperret} onFokus={fokus} onBlur={() => okt.slippLaas()} onEndre={(v) => settRisk('status', v)} />
           <label className="felt">
@@ -264,3 +280,8 @@ function FriValg({ id, verdi, valg, sperret, onFokus, onBlur, onEndre }: Omit<Fe
   )
 }
 
+// Fag-feltet får fagets farge som en stripe til venstre
+function fagStil(doc: Register, id?: string): React.CSSProperties | undefined {
+  const f = doc.lister.fag.find((x) => x.id === id)
+  return f ? { boxShadow: `inset 4px 0 0 ${fagFarge(f).bg}` } : undefined
+}

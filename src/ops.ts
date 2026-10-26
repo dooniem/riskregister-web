@@ -18,7 +18,7 @@ export type Op =
   | { t: 'deleteDeltaker'; id: string }
   | { t: 'upsertGjennomgang'; gjennomgang: Gjennomgang }
   | { t: 'deleteGjennomgang'; id: string }
-  | { t: 'setListe'; key: keyof Lister; verdi: string[] | string | boolean }
+  | { t: 'setListe'; key: keyof Lister; verdi: Lister[keyof Lister] }
   | { t: 'setHjem'; hjem: Hjem }
   | { t: 'erstatt'; doc: Register }
 
@@ -40,13 +40,16 @@ function merk(r: Risk, bruker: Bruker) {
 }
 
 // Bruker operasjonen på doc (muterer). Returnerer en konflikt hvis feltet er endret av andre.
+// Felt som mangler (eldre registre) regnes som tomme, så de ikke gir falske konflikter
+const lik = (a: unknown, b: unknown) => (a ?? '') === (b ?? '')
+
 export function brukOp(doc: Register, op: Op, bruker: Bruker): Konflikt | null {
   switch (op.t) {
     case 'setRisk': {
       const r = doc.risker.find((x) => x.id === op.riskId)
       if (!r) return null
       const naa = r[op.felt]
-      const konflikt = naa !== op.fra && naa !== op.verdi ? { riskNr: r.nr, felt: op.felt, deres: naa, min: op.verdi } : null
+      const konflikt = !lik(naa, op.fra) && !lik(naa, op.verdi) ? { riskNr: r.nr, felt: op.felt, deres: naa, min: op.verdi } : null
       ;(r as unknown as Record<string, unknown>)[op.felt] = op.verdi
       merk(r, bruker)
       return konflikt
@@ -56,7 +59,7 @@ export function brukOp(doc: Register, op: Op, bruker: Bruker): Konflikt | null {
       const t = r?.tiltak.find((x) => x.id === op.tiltakId)
       if (!r || !t) return null
       const naa = t[op.felt]
-      const konflikt = naa !== op.fra && naa !== op.verdi ? { riskNr: r.nr, felt: 'tiltak.' + op.felt, deres: naa, min: op.verdi } : null
+      const konflikt = !lik(naa, op.fra) && !lik(naa, op.verdi) ? { riskNr: r.nr, felt: 'tiltak.' + op.felt, deres: naa, min: op.verdi } : null
       ;(t as unknown as Record<string, unknown>)[op.felt] = op.verdi
       merk(r, bruker)
       return konflikt
@@ -64,7 +67,9 @@ export function brukOp(doc: Register, op: Op, bruker: Bruker): Konflikt | null {
     case 'addRisk': {
       if (doc.risker.some((x) => x.id === op.risk.id)) return null
       const risk = structuredClone(op.risk)
-      if (!op.beholdNr || doc.risker.some((x) => x.nr === risk.nr)) risk.nr = doc.risker.reduce((m, x) => Math.max(m, x.nr), 0) + 1
+      const neste = Math.max(doc.nesteNr ?? 1, doc.risker.reduce((m, x) => Math.max(m, x.nr), 0) + 1)
+      if (!op.beholdNr || doc.risker.some((x) => x.nr === risk.nr)) risk.nr = neste
+      doc.nesteNr = Math.max(neste, risk.nr + 1)
       merk(risk, bruker)
       doc.risker.push(risk)
       return null

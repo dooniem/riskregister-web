@@ -203,6 +203,7 @@ function riskArk(reg: Register, risker: Risk[]): Ark {
   const hode = [...HODE]
   hode[8] = reg.lister.egendefNavn
   if (reg.lister.egendef2Aktiv) hode.push(reg.lister.egendef2Navn)
+  if (reg.lister.fag.length) hode.push('Fag')
   const rader: unknown[][] = [hode]
   const merges: XLSX.Range[] = []
   for (const r of [...risker].sort((a, b) => a.nr - b.nr)) {
@@ -217,9 +218,10 @@ function riskArk(reg: Register, risker: Risk[]): Ark {
       const rad = [...riskdel, t?.tekst ?? '', t?.eier ?? '', t?.frist ?? '', t?.beskrivelse ?? '', t?.status ?? '', i === 0 ? (r.tilSkarisk ? 1 : 0) : '']
       // Egendefinert kolonne 2 finnes ikke i Excel-malen, så den legges sist for at filen fortsatt kan importeres
       if (reg.lister.egendef2Aktiv) rad.push(i === 0 ? (r.egendef2 ?? '') : '')
+      if (reg.lister.fag.length) rad.push(i === 0 ? (reg.lister.fag.find((f) => f.id === r.fag)?.navn ?? '') : '')
       rader.push(rad)
     }
-    if (n > 1) for (const c of [...Array(16).keys(), 21, ...(reg.lister.egendef2Aktiv ? [22] : [])]) merges.push({ s: { r: start, c }, e: { r: start + n - 1, c } })
+    if (n > 1) for (const c of [...Array(16).keys(), ...Array.from({ length: hode.length - 21 }, (_, i) => 21 + i)]) merges.push({ s: { r: start, c }, e: { r: start + n - 1, c } })
   }
   const ws = XLSX.utils.aoa_to_sheet(rader)
   ws['!merges'] = merges

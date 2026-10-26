@@ -13,6 +13,31 @@ export interface Tiltak {
   status: string // valg fra lister.statusTiltak (kolonne W)
 }
 
+// Fag er en farget merkelapp på risken, vist i Nr.-kolonnen
+export interface Fag {
+  id: string
+  navn: string
+  kort: string // vises i merket, maks 4 tegn
+  farge: number // indeks i FAG_FARGER
+}
+
+// Ti farger som skiller seg godt fra hverandre og er lesbare med tekst oppå
+export const FAG_FARGER: { navn: string; bg: string; fg: string }[] = [
+  { navn: 'Blå', bg: '#1d4ed8', fg: '#fff' },
+  { navn: 'Rød', bg: '#b91c1c', fg: '#fff' },
+  { navn: 'Grønn', bg: '#15803d', fg: '#fff' },
+  { navn: 'Oransje', bg: '#ea580c', fg: '#fff' },
+  { navn: 'Lilla', bg: '#7e22ce', fg: '#fff' },
+  { navn: 'Turkis', bg: '#0e7490', fg: '#fff' },
+  { navn: 'Rosa', bg: '#db2777', fg: '#fff' },
+  { navn: 'Brun', bg: '#78350f', fg: '#fff' },
+  { navn: 'Gul', bg: '#facc15', fg: '#1d2733' },
+  { navn: 'Grå', bg: '#475569', fg: '#fff' },
+]
+
+export const fagFarge = (f: Fag) => FAG_FARGER[f.farge % FAG_FARGER.length]
+export const kortFag = (navn: string) => navn.replace(/[^\p{L}\p{N}]/gu, '').slice(0, 3).toUpperCase()
+
 export interface Risk {
   id: string
   nr: number
@@ -25,6 +50,7 @@ export interface Risk {
   kategori: string
   egendef: string
   egendef2?: string // egendefinert kolonne 2, brukes bare når lister.egendef2Aktiv er satt
+  fag?: string // id i lister.fag
   sannsynlighet: number // 0 = ikke satt, ellers 1–5
   konsekvens: number // 0 = ikke satt, ellers 1–5
   bc: number
@@ -64,6 +90,7 @@ export interface Lister {
   egendef2Aktiv: boolean
   egendef2Navn: string
   egendef2: string[]
+  fag: Fag[]
 }
 
 export interface Prosjekt {
@@ -92,6 +119,8 @@ export interface Register {
   gjennomganger: Gjennomgang[]
   lister: Lister
   risker: Risk[]
+  // Neste ledige risknummer. Nummer brukes aldri på nytt, heller ikke etter at en risk er slettet.
+  nesteNr?: number
 }
 
 export const SANNSYNLIGHET = ['1 Veldig lav', '2 Lav', '3 Medium', '4 Høy', '5 Veldig høy']
@@ -117,6 +146,7 @@ export const DEFAULT_LISTER: Lister = {
   egendef2Aktiv: false,
   egendef2Navn: '<egendefinert 2>',
   egendef2: [],
+  fag: [],
 }
 
 export function uid(): string {
