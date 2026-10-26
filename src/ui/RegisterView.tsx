@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { GRUPPER, KOLONNER } from '../columns'
 import { eksporterExcel, skariskRader } from '../excel'
 import type { Register } from '../model'
+import { nyRisk } from '../model'
 import type { Konflikt, Op } from '../ops'
 import { SimulertKollega } from '../sim'
 import type { Okt } from '../sync'
@@ -9,6 +10,7 @@ import type { Visning } from '../view'
 import { GRUPPERINGER, STANDARD_VISNING, filtrer } from '../view'
 import { Detaljpanel } from './Detaljpanel'
 import { Grid } from './Grid'
+import { Kortliste } from './Kortliste'
 import { Laas } from './Ikoner'
 import { NyttRegisterDialog } from './NyttRegister'
 import { Oversikt } from './Oversikt'
@@ -25,13 +27,27 @@ interface Melding {
   handling?: { tekst: string; gjor: () => void }
 }
 
+const MOBIL = '(max-width: 760px)'
+
 function lesVisning(key: string): Visning {
+  const standard = { ...STANDARD_VISNING, visOversikt: !window.matchMedia(MOBIL).matches }
   try {
     const v = JSON.parse(localStorage.getItem(key) || 'null')
-    return v ? { ...STANDARD_VISNING, ...v, sok: '', filter: { verdier: {}, tekst: {} } } : STANDARD_VISNING
+    return v ? { ...standard, ...v, sok: '', filter: { verdier: {}, tekst: {} } } : standard
   } catch {
-    return STANDARD_VISNING
+    return standard
   }
+}
+
+function useMobil() {
+  const [mobil, setMobil] = useState(() => window.matchMedia(MOBIL).matches)
+  useEffect(() => {
+    const m = window.matchMedia(MOBIL)
+    const h = () => setMobil(m.matches)
+    m.addEventListener('change', h)
+    return () => m.removeEventListener('change', h)
+  }, [])
+  return mobil
 }
 
 // Lager operasjonen som opphever en endring, for Ctrl+Z
@@ -75,6 +91,7 @@ export function RegisterView({ okt, tilbake }: Props) {
   const [meldinger, setMeldinger] = useState<Melding[]>([])
   const [sim, setSim] = useState<SimulertKollega | null>(null)
   const angreStabel = useRef<Op[][]>([])
+  const mobil = useMobil()
 
   const setVisning = useCallback((f: (v: Visning) => Visning) => setVisningRaw((v) => f(v)), [])
   useEffect(() => {
@@ -289,6 +306,23 @@ export function RegisterView({ okt, tilbake }: Props) {
       </div>
 
       <div className="hovedflate">
+        {mobil ? (
+          <div className="mobilflate">
+            {b.kanSkrive && (
+              <button
+                className="knapp primær ny-risk-mobil"
+                onClick={() => {
+                  const r = nyRisk(0)
+                  endre({ t: 'addRisk', risk: r })
+                  setDetalj(r.id)
+                }}
+              >
+                + Ny risk
+              </button>
+            )}
+            <Kortliste okt={okt} doc={doc} andre={andre} visning={visning} aapne={setDetalj} />
+          </div>
+        ) : (
         <Grid
           okt={okt}
           doc={doc}
@@ -301,6 +335,7 @@ export function RegisterView({ okt, tilbake }: Props) {
           melding={melding}
           kanSkrive={b.kanSkrive}
         />
+        )}
         {detalj && <Detaljpanel okt={okt} doc={doc} riskId={detalj} endre={endre} lukk={() => setDetalj(null)} kanSkrive={b.kanSkrive} />}
       </div>
 
