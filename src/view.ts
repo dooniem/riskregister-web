@@ -31,6 +31,7 @@ export interface Visning {
   kunFiltrerteSummer: boolean
   visOversikt: boolean
   fag?: string[] // valgte fag-id-er, UTEN_FAG for risker uten fag. Tom = alle
+  kompakt?: boolean // kortvisning i stedet for tabell på PC (mobil viser alltid kort)
 }
 
 export const STANDARD_VISNING: Visning = {

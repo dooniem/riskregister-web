@@ -12,6 +12,7 @@ import type { Flytt } from './Editor'
 import { CelleEditor } from './Editor'
 import { FagMerke, FagVelger, fagForNyRisk } from './Fag'
 import { Laas } from './Ikoner'
+import { RiskInfo } from './RiskInfo'
 
 interface Posisjon {
   riskId: string
@@ -563,7 +564,11 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
         />
       )}
       {kontekst && (
-        <div className="kontekstmeny" style={{ left: Math.min(kontekst.x, window.innerWidth - 230), top: Math.min(kontekst.y, window.innerHeight - 250) }} onMouseLeave={() => setKontekst(null)}>
+        <div className="kontekstmeny" style={{ left: Math.min(kontekst.x, window.innerWidth - 270), top: Math.max(8, Math.min(kontekst.y, window.innerHeight - 340)) }} onMouseLeave={() => setKontekst(null)}>
+          {(() => {
+            const r = doc.risker.find((x) => x.id === kontekst.pos.riskId)
+            return r && <RiskInfo r={r} />
+          })()}
           <button onClick={() => (aapneDetalj(kontekst.pos.riskId), setKontekst(null))}>Åpne risk i eget panel</button>
           {kanSkrive && (
             <>

@@ -93,6 +93,7 @@ export function RegisterView({ okt, tilbake }: Props) {
   const [sim, setSim] = useState<SimulertKollega | null>(null)
   const angreStabel = useRef<Op[][]>([])
   const mobil = useMobil()
+  const kompakt = mobil || !!visning.kompakt
 
   const setVisning = useCallback((f: (v: Visning) => Visning) => setVisningRaw((v) => f(v)), [])
   useEffect(() => {
@@ -296,12 +297,23 @@ export function RegisterView({ okt, tilbake }: Props) {
             </select>
           </label>
           <FagMeny doc={doc} visning={visning} setVisning={setVisning} endre={endre} kanSkrive={b.kanSkrive} />
-          <div className="meny-holder">
-            <button className="knapp" onClick={() => setKolVelger(!kolVelger)}>
-              Kolonner ▾
+          {!kompakt && (
+            <div className="meny-holder">
+              <button className="knapp" onClick={() => setKolVelger(!kolVelger)}>
+                Kolonner ▾
+              </button>
+              {kolVelger && <Kolonnevelger doc={doc} visning={visning} setVisning={setVisning} lukk={() => setKolVelger(false)} />}
+            </div>
+          )}
+          {!mobil && (
+            <button
+              className={'knapp' + (visning.kompakt ? ' aktivt-filter' : '')}
+              title={visning.kompakt ? 'Tilbake til tabellen' : 'Vis riskene som kort, som på mobil'}
+              onClick={() => setVisning((v) => ({ ...v, kompakt: !v.kompakt }))}
+            >
+              {visning.kompakt ? 'Tabell' : 'Kompakt'}
             </button>
-            {kolVelger && <Kolonnevelger doc={doc} visning={visning} setVisning={setVisning} lukk={() => setKolVelger(false)} />}
-          </div>
+          )}
           </>
         )}
         <button className="knapp" onClick={() => setVisning((v) => ({ ...v, visOversikt: !v.visOversikt }))}>
@@ -320,8 +332,8 @@ export function RegisterView({ okt, tilbake }: Props) {
       <div className="hovedflate">
         {visning.fane === 'skarisk' ? (
           <SkariskVisning doc={doc} aapneDetalj={setDetalj} melding={melding} />
-        ) : mobil ? (
-          <div className="mobilflate">
+        ) : kompakt ? (
+          <div className={'mobilflate' + (mobil ? '' : ' kompaktflate')}>
             {b.kanSkrive && (
               <button
                 className="knapp primær ny-risk-mobil"
@@ -335,7 +347,7 @@ export function RegisterView({ okt, tilbake }: Props) {
                 + Ny risk
               </button>
             )}
-            <Kortliste okt={okt} doc={doc} andre={andre} visning={visning} aapne={setDetalj} />
+            <Kortliste okt={okt} doc={doc} andre={andre} visning={visning} aapne={setDetalj} endre={endre} kanSkrive={b.kanSkrive} melding={melding} pc={!mobil} />
           </div>
         ) : (
         <Grid

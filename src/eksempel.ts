@@ -78,5 +78,17 @@ export function eksempelRegister(navn = 'Demo – Nytt kontorbygg'): Register {
   const fordeling: Record<number, number> = { 1: 0, 2: 2, 3: 5, 4: 3, 5: 3, 7: 0, 8: 1, 9: 0, 10: 4, 11: 3, 12: 0 }
   for (const r of reg.risker) if (fordeling[r.nr] !== undefined) r.fag = fag[fordeling[r.nr]].id
   reg.nesteNr = 13
+  // Oppdiktet historikk, så info i høyreklikkmenyen har noe å vise
+  const dagerSiden = (n: number) => new Date(Date.now() - n * 86400000).toISOString()
+  reg.risker.forEach((r, i) => {
+    r.opprettet = dagerSiden(60 - i * 3)
+    r.opprettetAv = 'Magnus'
+    r.endret = dagerSiden(12 - i)
+    r.endretAv = r.eier || 'Magnus'
+    if (r.status === 'Lukket') {
+      r.lukket = r.endret
+      r.lukketAv = r.endretAv
+    }
+  })
   return reg
 }

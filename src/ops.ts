@@ -3,7 +3,7 @@
 import type { Deltaker, Gjennomgang, Hjem, Lister, Prosjekt, Register, Risk, Tiltak } from './model'
 import { migrer } from './model'
 
-export type RiskFelt = Exclude<keyof Risk, 'id' | 'nr' | 'tiltak' | 'endret' | 'endretAv'>
+export type RiskFelt = Exclude<keyof Risk, 'id' | 'nr' | 'tiltak' | 'endret' | 'endretAv' | 'opprettet' | 'opprettetAv' | 'lukket' | 'lukketAv'>
 export type TiltakFelt = Exclude<keyof Tiltak, 'id'>
 
 export type Op =
@@ -52,6 +52,10 @@ export function brukOp(doc: Register, op: Op, bruker: Bruker): Konflikt | null {
       const konflikt = !lik(naa, op.fra) && !lik(naa, op.verdi) ? { riskNr: r.nr, felt: op.felt, deres: naa, min: op.verdi } : null
       ;(r as unknown as Record<string, unknown>)[op.felt] = op.verdi
       merk(r, bruker)
+      if (op.felt === 'status' && op.verdi !== naa) {
+        r.lukket = op.verdi === 'Lukket' ? r.endret : undefined
+        r.lukketAv = op.verdi === 'Lukket' ? bruker.navn : undefined
+      }
       return konflikt
     }
     case 'setTiltak': {
@@ -71,6 +75,9 @@ export function brukOp(doc: Register, op: Op, bruker: Bruker): Konflikt | null {
       if (!op.beholdNr || doc.risker.some((x) => x.nr === risk.nr)) risk.nr = neste
       doc.nesteNr = Math.max(neste, risk.nr + 1)
       merk(risk, bruker)
+      // Kopier og importer beholder opprinnelig opprettet-info hvis den finnes
+      risk.opprettet ??= risk.endret
+      risk.opprettetAv ??= bruker.navn
       doc.risker.push(risk)
       return null
     }
