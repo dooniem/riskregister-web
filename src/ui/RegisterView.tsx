@@ -219,7 +219,9 @@ export function RegisterView({ okt, tilbake }: Props) {
           </button>
           {meny && (
             <div className="nedtrekk" onClick={() => setMeny(false)}>
-              <button onClick={() => eksporterExcel(doc)}>Eksporter til Excel (.xlsx)</button>
+              <button onClick={() => eksporterExcel(doc)} title="Samme oppsett som Excel-registeret. Åpne et tomt Excel-register og bruk Oppgrader for å hente inn filen.">
+                Eksporter til Excel (.xlsx)
+              </button>
               <button onClick={() => setVisning((v) => ({ ...v, fane: 'skarisk' }))}>Poster til Skarisk</button>
               <button onClick={() => window.print()}>Skriv ut / lagre som PDF</button>
               <hr />

@@ -123,6 +123,8 @@ export interface Register {
   nesteNr?: number
   // Antall lagringer siden register.json sist ble arkivert, og datoen den ble startet. Se GraphBackend.lagre.
   lagring?: { antall: number; dato: string }
+  // Nøkkelen Excel-registeret bygger UnikID av (cellene AC2 og AC3 i Riskregister-arket). Tas vare på ved import fra Excel.
+  excelNokkel?: { ac2: string; ac3: string }
 }
 
 export const SANNSYNLIGHET = ['1 Veldig lav', '2 Lav', '3 Medium', '4 Høy', '5 Veldig høy']
