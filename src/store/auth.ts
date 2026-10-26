@@ -2,12 +2,20 @@
 // den henter et token for den innloggede brukeren og får bare tilgang til det brukeren har tilgang til i SharePoint.
 import { InteractionRequiredAuthError, PublicClientApplication, type AccountInfo } from '@azure/msal-browser'
 
+// Hvilken Graph-tillatelse appen ber om ved innlogging. Må stemme med det IT har lagt inn i appregistreringen.
+// files: Files.ReadWrite.All, appen når alle filer brukeren selv har tilgang til (standard).
+// sites: Sites.Selected, appen når bare SharePoint-områdene IT har gitt den tilgang til. Tenkt for en pilot.
+// Innstillingen er midlertidig, til vi vet hva IT velger.
+export type Tillatelse = 'files' | 'sites'
+
 export interface AuthConfig {
   clientId: string
   tenantId: string
+  tillatelse?: Tillatelse
 }
 
-export const SCOPES = ['Files.ReadWrite.All', 'User.Read']
+const SCOPE: Record<Tillatelse, string> = { files: 'Files.ReadWrite.All', sites: 'Sites.Selected' }
+let scopes = [SCOPE.files, 'User.Read']
 const CONFIG_KEY = 'rr-auth-config'
 const RETUR_KEY = 'rr-retur-url'
 
@@ -24,7 +32,11 @@ export async function hentConfig(): Promise<AuthConfig | null> {
   } catch {
     /* ignorer */
   }
-  const env = { clientId: import.meta.env.VITE_AZURE_CLIENT_ID ?? '', tenantId: import.meta.env.VITE_AZURE_TENANT_ID ?? '' }
+  const env: AuthConfig = {
+    clientId: import.meta.env.VITE_AZURE_CLIENT_ID ?? '',
+    tenantId: import.meta.env.VITE_AZURE_TENANT_ID ?? '',
+    tillatelse: import.meta.env.VITE_AZURE_TILLATELSE === 'sites' ? 'sites' : 'files',
+  }
   if (env.clientId && env.tenantId) return env
   try {
     const r = await fetch(import.meta.env.BASE_URL + 'config.json', { cache: 'no-store' })
@@ -58,6 +70,7 @@ export function redirectUri() {
 
 // Kalles ved oppstart. Fullfører en innlogging som kom tilbake fra Microsoft.
 export async function initAuth(c: AuthConfig): Promise<AccountInfo | null> {
+  scopes = [SCOPE[c.tillatelse ?? 'files'], 'User.Read']
   pca = new PublicClientApplication({
     auth: {
       clientId: c.clientId,
@@ -88,7 +101,7 @@ export function aktivKonto() {
 export async function loggInn() {
   if (!pca) throw new Error('Innlogging er ikke konfigurert')
   sessionStorage.setItem(RETUR_KEY, window.location.href)
-  await pca.loginRedirect({ scopes: SCOPES, prompt: 'select_account' })
+  await pca.loginRedirect({ scopes, prompt: 'select_account' })
 }
 
 export async function loggUt() {
@@ -99,12 +112,12 @@ export async function loggUt() {
 export async function token(): Promise<string> {
   if (!pca || !konto) throw new Error('Ikke logget inn')
   try {
-    const r = await pca.acquireTokenSilent({ scopes: SCOPES, account: konto })
+    const r = await pca.acquireTokenSilent({ scopes, account: konto })
     return r.accessToken
   } catch (e) {
     if (e instanceof InteractionRequiredAuthError) {
       sessionStorage.setItem(RETUR_KEY, window.location.href)
-      await pca.acquireTokenRedirect({ scopes: SCOPES, account: konto })
+      await pca.acquireTokenRedirect({ scopes, account: konto })
     }
     throw e
   }

@@ -1707,3 +1707,27 @@ td .valgpil.synlig {
   font-weight: 700;
   font-size: 14px;
 }
+
+/* Valg av Graph-tillatelse i tilkoblingsinnstillingene */
+.felt.tillatelse {
+  border: 1px solid var(--linje, #d0d7de);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 0;
+}
+.felt.tillatelse legend {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0 4px;
+}
+.felt.tillatelse label {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 6px 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.felt.tillatelse label input {
+  margin-top: 3px;
+}
