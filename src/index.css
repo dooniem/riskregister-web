@@ -1700,3 +1700,10 @@ td .valgpil.synlig {
     max-width: calc(100vw - 24px);
   }
 }
+
+/* Risknummeret skal stå tydelig fram */
+.nr-tall,
+.riskkort-topp .nr {
+  font-weight: 700;
+  font-size: 14px;
+}
