@@ -16,7 +16,17 @@ Appen trenger én appregistrering i Entra ID. Den har ingen egen server, databas
 
 Delegerte tillatelser betyr at appen aldri får tilgang til mer enn den innloggede brukeren har i SharePoint. Har en bruker ikke tilgang til et prosjektområde, svarer Graph 403 og appen viser «ingen tilgang».
 
-`Sites.Selected` er mulig, men krever at IT gir tilgang per prosjektområde, og da faller selvbetjeningen bort. Det kan likevel passe godt for en pilot på ett eller to prosjektområder.
+### Alternativ for pilot: Sites.Selected
+
+I stedet for `Files.ReadWrite.All` kan appen få delegert `Sites.Selected`. Da når appen bare de SharePoint-områdene IT eksplisitt gir den tilgang til, og fortsatt bare det den innloggede brukeren selv har tilgang til der. Selvbetjeningen faller bort, siden hvert nytt prosjektområde må legges til av IT, men det passer godt for en pilot på ett eller to områder.
+
+1. API permissions › Microsoft Graph › **Delegated** › `Sites.Selected` (og `User.Read`), og grant admin consent.
+2. Gi appen skrivetilgang til hvert pilotområde, f.eks. med Graph: `POST /sites/{site-id}/permissions` med `{"roles": ["write"], "grantedToIdentities": [{"application": {"id": "<client id>", "displayName": "Riskregister"}}]}`, eller PowerShell `Grant-PnPAzureADAppSitePermission -AppId <client id> -DisplayName Riskregister -Site <område-url> -Permissions Write`.
+3. I appen velges **Sites.Selected** under Tilkoblingsinnstillinger på startsiden (eller repo-variabelen `AZURE_TILLATELSE=sites` ved bygg).
+
+Med Sites.Selected åpnes registre med adressen fra nettleserens adresselinje. Delingslenker («Kopier kobling») virker ikke alltid.
+
+Valget av tillatelse i appen er midlertidig og fjernes når det er avklart hva som skal brukes.
 
 ## Hosting
 

@@ -30,6 +30,8 @@ jobs:
           # Settes under Settings › Secrets and variables › Actions › Variables når IT har laget appregistreringen
           VITE_AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
           VITE_AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          # files (standard) eller sites (Sites.Selected), se docs/IT-oppsett.md
+          VITE_AZURE_TILLATELSE: ${{ vars.AZURE_TILLATELSE }}
       - uses: actions/upload-pages-artifact@v3
         if: github.ref == 'refs/heads/main'
         with:

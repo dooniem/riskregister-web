@@ -87,6 +87,38 @@ interface DriveItem {
   '@microsoft.graph.downloadUrl'?: string
 }
 
+// Reserve når /shares-oppslaget ikke virker, f.eks. med tillatelsen Sites.Selected:
+// finn området, så biblioteket og så mappen ut fra selve adressen. Virker med adressen fra nettleserens adresselinje
+// (https://firma.sharepoint.com/sites/Prosjekt/Delte dokumenter/Riskregister) og med visningslenker som har ?id=.
+// Delingslenker (…/:f:/s/…) kan ikke tolkes slik.
+async function finnViaAdresse(ref: string, opprinneligFeil: unknown): Promise<DriveItem> {
+  let url: URL
+  try {
+    url = new URL(ref)
+  } catch {
+    throw opprinneligFeil
+  }
+  const id = url.searchParams.get('id')
+  const sti = decodeURIComponent(id ?? url.pathname).replace(/\/+$/, '')
+  const deler = sti.split('/').filter(Boolean)
+  if (/^:\w:$/.test(deler[0] ?? ''))
+    throw new Error('Delingslenker kan ikke brukes med denne tilkoblingen. Åpne mappen i SharePoint og kopier adressen fra nettleserens adresselinje i stedet.')
+  const omraadeSti = deler[0] === 'sites' || deler[0] === 'teams' ? '/' + deler.slice(0, 2).join('/') : ''
+  const site = await graphJson<{ id: string }>(`/sites/${url.hostname}:${omraadeSti || '/'}`).catch(() => {
+    throw opprinneligFeil
+  })
+  const drives = await graphJson<{ value: { id: string; webUrl: string }[] }>(`/sites/${site.id}/drives?$select=id,webUrl`)
+  const full = `${url.origin}${sti}`.toLowerCase()
+  // Lengste treff vinner, i tilfelle et bibliotek heter det samme som starten på et annet
+  const drive = drives.value
+    .map((d) => ({ ...d, sti: decodeURIComponent(d.webUrl).replace(/\/+$/, '').toLowerCase() }))
+    .filter((d) => full === d.sti || full.startsWith(d.sti + '/'))
+    .sort((a, b) => b.sti.length - a.sti.length)[0]
+  if (!drive) throw opprinneligFeil
+  const rest = `${url.origin}${sti}`.slice(drive.sti.length).replace(/^\/+/, '')
+  return graphJson<DriveItem>(rest ? `/drives/${drive.id}/root:/${rest.split('/').map(encodeURIComponent).join('/')}` : `/drives/${drive.id}/root`)
+}
+
 export interface Plassering {
   driveId: string
   mappeId: string
@@ -101,7 +133,7 @@ export async function finnPlassering(ref: string): Promise<Plassering> {
     const [, driveId, itemId] = ref.split(':')
     item = await graphJson<DriveItem>(`/drives/${driveId}/items/${itemId}`)
   } else {
-    item = await graphJson<DriveItem>(`/shares/${shareId(ref.trim())}/driveItem`)
+    item = await graphJson<DriveItem>(`/shares/${shareId(ref.trim())}/driveItem`).catch((e) => finnViaAdresse(ref.trim(), e))
   }
   if (item.folder) return { driveId: item.parentReference.driveId, mappeId: item.id, mappeNavn: item.name, webUrl: item.webUrl }
   const forelder = await graphJson<DriveItem>(`/drives/${item.parentReference.driveId}/items/${item.parentReference.id}`)

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { eksempelRegister } from '../eksempel'
 import { importerExcel } from '../excel'
 import type { Register } from '../model'
-import type { AuthConfig } from '../store/auth'
+import type { AuthConfig, Tillatelse } from '../store/auth'
 import { lagreConfig, loggInn, loggUt, redirectUri } from '../store/auth'
 import { demoRegistre, opprettDemo, slettDemo, demoFinnes } from '../store/demoBackend'
 import { NyttRegisterDialog } from './NyttRegister'
@@ -183,6 +183,7 @@ export function Start({ config, konto }: Props) {
 function Oppsett({ config }: { config: AuthConfig | null }) {
   const [clientId, setClientId] = useState(config?.clientId ?? '')
   const [tenantId, setTenantId] = useState(config?.tenantId ?? '')
+  const [tillatelse, setTillatelse] = useState<Tillatelse>(config?.tillatelse ?? 'files')
   return (
     <div className="oppsett">
       <p className="liten">
@@ -197,11 +198,29 @@ function Oppsett({ config }: { config: AuthConfig | null }) {
         <span>Directory (tenant) ID</span>
         <input value={tenantId} onChange={(e) => setTenantId(e.target.value.trim())} />
       </label>
+      {/* Midlertidig valg til vi vet hvilken tillatelse IT gir appen. Kan fjernes når det er avklart. */}
+      <fieldset className="felt tillatelse">
+        <legend>Tillatelse appen ber om ved innlogging</legend>
+        <label>
+          <input type="radio" name="tillatelse" checked={tillatelse === 'files'} onChange={() => setTillatelse('files')} />
+          <span>
+            <b>Files.ReadWrite.All</b> (standard). Appen kan åpne registre i alle SharePoint-mapper du selv har tilgang til.
+          </span>
+        </label>
+        <label>
+          <input type="radio" name="tillatelse" checked={tillatelse === 'sites'} onChange={() => setTillatelse('sites')} />
+          <span>
+            <b>Sites.Selected</b>. Appen kan bare åpne registre på SharePoint-områdene IT har gitt den tilgang til, f.eks. i en pilot. Lim inn adressen fra nettleserens
+            adresselinje når du åpner et register. Delingslenker («Kopier kobling») virker ikke alltid med dette valget.
+          </span>
+        </label>
+        <p className="liten">Velg det samme som IT har lagt inn under API permissions i appregistreringen. Feil valg gir en feilmelding ved innlogging.</p>
+      </fieldset>
       <div className="knapperad">
         <button
           className="knapp primær"
           onClick={() => {
-            lagreConfig(clientId && tenantId ? { clientId, tenantId } : null)
+            lagreConfig(clientId && tenantId ? { clientId, tenantId, tillatelse } : null)
             window.location.reload()
           }}
         >
