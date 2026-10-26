@@ -73,6 +73,9 @@ export function Detaljpanel({ okt, doc, riskId, endre, lukk, kanSkrive }: Props)
           <Valg tittel="Risikoeier" verdi={r.eier} valg={KOL.eier.valg!(doc)} fri sperret={sperret} onFokus={fokus} onBlur={() => okt.slippLaas()} onEndre={(v) => settRisk('eier', v)} />
           <Valg tittel="Kategori" verdi={r.kategori} valg={doc.lister.kategorier} sperret={sperret} onFokus={fokus} onBlur={() => okt.slippLaas()} onEndre={(v) => settRisk('kategori', v)} />
           <Valg tittel={doc.lister.egendefNavn} verdi={r.egendef} valg={doc.lister.egendef} fri sperret={sperret} onFokus={fokus} onBlur={() => okt.slippLaas()} onEndre={(v) => settRisk('egendef', v)} />
+          {doc.lister.egendef2Aktiv && (
+            <Valg tittel={doc.lister.egendef2Navn} verdi={r.egendef2 ?? ''} valg={doc.lister.egendef2} fri sperret={sperret} onFokus={fokus} onBlur={() => okt.slippLaas()} onEndre={(v) => settRisk('egendef2', v)} />
+          )}
         </div>
         <div className="rad3">
           <Valg

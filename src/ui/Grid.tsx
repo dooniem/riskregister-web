@@ -45,8 +45,9 @@ const Kalenderikon = () => (
   </svg>
 )
 
-export function synligeKolonner(v: Visning): Kolonne[] {
+export function synligeKolonner(v: Visning, egendef2Aktiv = false): Kolonne[] {
   return KOLONNER.filter((k) => {
+    if (k.key === 'egendef2' && !egendef2Aktiv) return false
     if (v.skjulteKolonner.includes(k.key)) return false
     if (v.skjulteGrupper.includes(k.gruppe)) return GRUPPER.find((g) => g.key === k.gruppe)?.hoved === k.key
     return true
@@ -61,7 +62,8 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   const [lukketGrupper, setLukketGrupper] = useState<string[]>([])
   const boks = useRef<HTMLDivElement>(null)
 
-  const kolonner = useMemo(() => synligeKolonner(visning), [visning])
+  const egendef2 = doc.lister.egendef2Aktiv
+  const kolonner = useMemo(() => synligeKolonner(visning, egendef2), [visning, egendef2])
   const bredde = useCallback((k: Kolonne) => visning.bredder[k.key] ?? k.bredde, [visning.bredder])
 
   const risker = useMemo(() => sorter(filtrer(doc, visning), visning.sortering), [doc, visning])
@@ -505,12 +507,15 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
           <tbody>
             <tr className="ny-rad">
               <td colSpan={kolonner.length}>
-                <button className="lenkeknapp" onClick={nyRad}>
-                  + Ny risk
-                </button>
-                <span className="hint">
-                  Skriv rett i cellene · Enter/F2 redigerer · Klikk på valgceller og datoer for liste/kalender · Ctrl+Enter nytt tiltak · Høyreklikk for flere valg · Ctrl+Z angrer
-                </span>
+                {/* Står fast til venstre når tabellen skrolles sidelengs */}
+                <div className="ny-rad-innhold">
+                  <button className="lenkeknapp" onClick={nyRad}>
+                    + Ny risk
+                  </button>
+                  <span className="hint">
+                    Skriv rett i cellene · Enter/F2 redigerer · Klikk på valgceller og datoer for liste/kalender · Ctrl+Enter nytt tiltak · Høyreklikk for flere valg · Ctrl+Z angrer
+                  </span>
+                </div>
               </td>
             </tr>
           </tbody>

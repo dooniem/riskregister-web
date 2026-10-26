@@ -1466,3 +1466,67 @@ td .valgpil.synlig {
   background: var(--aksent);
   color: #fff;
 }
+
+/* «+ Ny risk» følger med når tabellen skrolles sidelengs */
+.grid .ny-rad td {
+  overflow: visible;
+}
+.ny-rad-innhold {
+  position: sticky;
+  left: 10px;
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 0;
+}
+
+/* Poster til Skarisk */
+.skarisk-flate {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.skarisk-topp {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.skarisk-topp h2 {
+  margin: 0 0 2px;
+  font-size: 18px;
+}
+.skarisk-topp p {
+  margin: 0;
+}
+.grid.skarisk .gruppe-rad th {
+  text-align: center;
+}
+.grid.skarisk .undertekst {
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--dempet);
+}
+.grid.skarisk .kol-rad th {
+  cursor: default;
+}
+.grid.skarisk td.langtekst {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.grid.skarisk tr.klikkbar td {
+  cursor: pointer;
+}
+.grid.skarisk tbody tr:hover td {
+  background: #f8fafc;
+}
+.grid.skarisk tbody td {
+  border-bottom-color: var(--linje-sterk);
+}
+.id-merke {
+  color: var(--dempet);
+  font-variant-numeric: tabular-nums;
+}

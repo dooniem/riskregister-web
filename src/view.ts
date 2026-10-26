@@ -5,7 +5,7 @@ import { KOL, visTekst } from './columns'
 import type { Register, Risk } from './model'
 import { eksponering, eksponeringNivaa, fv } from './model'
 
-export type Fane = 'aapne' | 'lukkede' | 'alle'
+export type Fane = 'aapne' | 'lukkede' | 'alle' | 'skarisk'
 
 export interface Sortering {
   key: string
@@ -77,6 +77,7 @@ export function filterVerdier(k: Kolonne, r: Risk): string[] {
 
 export function iFane(r: Risk, fane: Fane) {
   if (fane === 'alle') return true
+  if (fane === 'skarisk') return r.tilSkarisk && r.status !== 'Lukket'
   return fane === 'lukkede' ? r.status === 'Lukket' : r.status !== 'Lukket'
 }
 
@@ -85,7 +86,7 @@ export function filtrer(doc: Register, v: Visning, ignorer?: string): Risk[] {
   return doc.risker.filter((r) => {
     if (!iFane(r, v.fane)) return false
     if (sok) {
-      const hay = [r.nr, r.aarsak, r.hendelse, r.konsekvenser, r.eier, r.kategori, r.egendef, ...r.tiltak.flatMap((t) => [t.tekst, t.eier, t.beskrivelse])]
+      const hay = [r.nr, r.aarsak, r.hendelse, r.konsekvenser, r.eier, r.kategori, r.egendef, r.egendef2, ...r.tiltak.flatMap((t) => [t.tekst, t.eier, t.beskrivelse])]
         .join(' ')
         .toLowerCase()
       if (!hay.includes(sok)) return false
