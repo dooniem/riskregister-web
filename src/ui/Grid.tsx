@@ -38,6 +38,13 @@ interface Props {
   kanSkrive: boolean
 }
 
+const Kalenderikon = () => (
+  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <rect x="2" y="3" width="12" height="11" rx="1.5" />
+    <path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" />
+  </svg>
+)
+
 export function synligeKolonner(v: Visning): Kolonne[] {
   return KOLONNER.filter((k) => {
     if (v.skjulteKolonner.includes(k.key)) return false
@@ -290,6 +297,12 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
       })
       return
     }
+    // Alt+pil ned åpner lista, som i Excel
+    if (e.altKey && e.key === 'ArrowDown' && (k?.type === 'valg' || k?.type === 'dato')) {
+      e.preventDefault()
+      startRedigering(aktiv)
+      return
+    }
     switch (e.key) {
       case 'ArrowDown':
       case 'ArrowUp':
@@ -326,7 +339,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
         setAktiv(null)
         return
     }
-    if (e.key.length === 1 && !mod && !e.altKey && k?.felt && k.type !== 'avkrysning' && k.type !== 'dato') {
+    if (e.key.length === 1 && !mod && !e.altKey && k?.felt && k.type !== 'avkrysning') {
       e.preventDefault()
       startRedigering(aktiv, e.key)
     }
@@ -344,6 +357,10 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
     }
     setAktiv(p)
     boks.current?.focus()
+    // Som nedtrekkslistene i Excel-arket: ett klikk på en valgcelle eller en dato åpner lista eller kalenderen.
+    // Venter til en eventuell åpen editor har lagret seg selv (den lukkes når den mister fokus).
+    const { k } = hentCelle(p)
+    if (kanSkrive && k?.felt && (k.type === 'valg' || k.type === 'dato') && !e.shiftKey && !e.ctrlKey && !e.metaKey) setTimeout(() => startRedigering(p), 0)
   }
 
   // ---- Kolonneoverskrifter ----
@@ -492,7 +509,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   + Ny risk
                 </button>
                 <span className="hint">
-                  Skriv rett i cellene · Enter/F2 redigerer · Ctrl+Enter nytt tiltak · Høyreklikk for flere valg · Ctrl+Z angrer
+                  Skriv rett i cellene · Enter/F2 redigerer · Klikk på valgceller og datoer for liste/kalender · Ctrl+Enter nytt tiltak · Høyreklikk for flere valg · Ctrl+Z angrer
                 </span>
               </td>
             </tr>
@@ -633,6 +650,11 @@ function RiskRader(p: RaderProps) {
         {k.key === 'hendelse' && p.laastAv && (
           <span className="laas-merke" style={{ background: laasFarge }}>
             <Laas /> {p.laastAv} skriver
+          </span>
+        )}
+        {(k.type === 'valg' || k.type === 'dato') && k.felt && p.kanSkrive && !redigeres && (
+          <span className={'valgpil' + (erAktiv ? ' synlig' : '')} aria-hidden>
+            {k.type === 'dato' ? <Kalenderikon /> : '▾'}
           </span>
         )}
         {k.key === 'tiltak' && erAktiv && p.kanSkrive && !redigeres && (
