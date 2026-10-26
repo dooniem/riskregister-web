@@ -108,7 +108,11 @@ export class Okt {
     this.oppdaterSnap()
     // Hver lagring blir en ny filversjon i SharePoint, så endringer som kommer tett samles i én lagring
     if (!this.backend.samleMs) void this.lagre()
-    else this.samleTimer ??= window.setTimeout(() => {
+    else this.planleggLagring()
+  }
+
+  private planleggLagring() {
+    this.samleTimer ??= window.setTimeout(() => {
       this.samleTimer = undefined
       void this.lagre()
     }, this.backend.samleMs)
@@ -117,6 +121,7 @@ export class Okt {
   private async lagre() {
     if (this.lagrer) return
     this.lagrer = true
+    let senere = false
     try {
       for (let forsok = 0; this.ventende.length && forsok < 8; forsok++) {
         this.status = 'lagrer'
@@ -129,6 +134,11 @@ export class Okt {
           this.etag = svar.etag
           this.ventende.splice(0, n)
           if (konflikter.length) this.onKonflikt?.(konflikter)
+          // Endringer som kom mens vi lagret, venter til neste samlede lagring
+          if (this.backend.samleMs && this.ventende.length) {
+            senere = true
+            break
+          }
           forsok = -1
         } else {
           // Noen andre har lagret i mellomtiden: hent ny versjon og legg endringene oppå
@@ -139,8 +149,10 @@ export class Okt {
         }
         this.visning = brukAlle(this.base, this.ventende, this.backend.bruker).doc
       }
-      this.status = this.ventende.length ? 'feil' : 'lagret'
-      this.feil = this.ventende.length ? 'Klarte ikke å lagre etter flere forsøk' : undefined
+      this.visning = brukAlle(this.base, this.ventende, this.backend.bruker).doc
+      this.status = senere || !this.ventende.length ? 'lagret' : 'feil'
+      this.feil = this.status === 'feil' ? 'Klarte ikke å lagre etter flere forsøk' : undefined
+      if (senere) this.planleggLagring()
     } catch (e) {
       this.status = 'frakoblet'
       this.feil = e instanceof Error ? e.message : String(e)

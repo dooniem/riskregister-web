@@ -170,7 +170,9 @@ export function RegisterView({ okt, tilbake }: Props) {
 
   const filterAktivt = !!visning.sok || Object.keys(visning.filter.verdier).length > 0 || Object.values(visning.filter.tekst).some(Boolean) || !!visning.filter.matrise || !!visning.fag?.length
   const tittel = [doc.prosjekt.nummer, doc.prosjekt.navn].filter(Boolean).join(' ') || 'Riskregister uten navn'
-  const statusTekst = { laster: 'Laster…', lagret: 'Alle endringer er lagret', lagrer: 'Lagrer…', frakoblet: 'Frakoblet, prøver igjen', feil: 'Lagring feilet' }[status]
+  // Endringer samles noen sekunder før de lagres. Så lenge noen venter, sier vi det i stedet for «lagret».
+  const visStatus = status === 'lagret' && snap.ventende ? 'lagrer' : status
+  const statusTekst = { laster: 'Laster…', lagret: 'Alle endringer er lagret', lagrer: 'Lagrer…', frakoblet: 'Frakoblet, prøver igjen', feil: 'Lagring feilet' }[visStatus]
 
   return (
     <div className="app">
@@ -185,7 +187,7 @@ export function RegisterView({ okt, tilbake }: Props) {
             {!b.kanSkrive && ' · bare lesetilgang'}
           </div>
         </div>
-        <div className={'lagrestatus ' + status} title={snap.feil}>
+        <div className={'lagrestatus ' + visStatus} title={snap.feil}>
           <span className="prikk" /> {statusTekst}
         </div>
         <div className="tilstede">

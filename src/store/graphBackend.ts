@@ -143,7 +143,7 @@ export class GraphBackend implements Backend {
   readonly type = 'sharepoint' as const
   readonly pollMs = 3000
   readonly hjerteslagMs = 10000
-  readonly samleMs = 1200
+  readonly samleMs = 5000
   kanSkrive = true
   readonly bruker: Bruker
   readonly tittel: string
