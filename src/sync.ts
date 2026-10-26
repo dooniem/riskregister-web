@@ -36,6 +36,7 @@ export class Okt {
   private meg: Tilstede
   private sistPublisert = 0
   private publiserTimer?: number
+  private samleTimer?: number
   onKonflikt?: (k: Konflikt[]) => void
   onLaasTapt?: (riskId: string, av: string) => void
 
@@ -59,8 +60,15 @@ export class Okt {
     this.publiser(true)
   }
 
-  private vedLukk = () => {
+  private vedLukk = (e: BeforeUnloadEvent) => {
     void this.backend.fjernTilstede()
+    // Endringer som ikke er lagret ennå: lagre med en gang og be nettleseren spørre før fanen lukkes
+    if (this.ventende.length) {
+      window.clearTimeout(this.samleTimer)
+      this.samleTimer = undefined
+      void this.lagre()
+      e.preventDefault()
+    }
   }
 
   stopp() {
@@ -98,7 +106,12 @@ export class Okt {
     this.ventende.push(...ops)
     this.visning = brukAlle(this.base, this.ventende, this.backend.bruker).doc
     this.oppdaterSnap()
-    void this.lagre()
+    // Hver lagring blir en ny filversjon i SharePoint, så endringer som kommer tett samles i én lagring
+    if (!this.backend.samleMs) void this.lagre()
+    else this.samleTimer ??= window.setTimeout(() => {
+      this.samleTimer = undefined
+      void this.lagre()
+    }, this.backend.samleMs)
   }
 
   private async lagre() {

@@ -25,6 +25,8 @@ export interface Backend {
   readonly tittel: string // vises i toppen, f.eks. mappesti
   readonly pollMs: number
   readonly hjerteslagMs: number
+  // Endringer som kommer tettere enn dette samles i én lagring
+  readonly samleMs?: number
   kanSkrive: boolean
   hent(): Promise<Versjon>
   sjekk(): Promise<string> // gjeldende etag, billig kall
