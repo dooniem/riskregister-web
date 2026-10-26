@@ -121,6 +121,8 @@ export interface Register {
   risker: Risk[]
   // Neste ledige risknummer. Nummer brukes aldri på nytt, heller ikke etter at en risk er slettet.
   nesteNr?: number
+  // Antall lagringer siden register.json sist ble arkivert, og datoen den ble startet. Se GraphBackend.lagre.
+  lagring?: { antall: number; dato: string }
 }
 
 export const SANNSYNLIGHET = ['1 Veldig lav', '2 Lav', '3 Medium', '4 Høy', '5 Veldig høy']

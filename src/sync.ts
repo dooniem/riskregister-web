@@ -36,6 +36,7 @@ export class Okt {
   private meg: Tilstede
   private sistPublisert = 0
   private publiserTimer?: number
+  private samleTimer?: number
   onKonflikt?: (k: Konflikt[]) => void
   onLaasTapt?: (riskId: string, av: string) => void
 
@@ -59,8 +60,15 @@ export class Okt {
     this.publiser(true)
   }
 
-  private vedLukk = () => {
+  private vedLukk = (e: BeforeUnloadEvent) => {
     void this.backend.fjernTilstede()
+    // Endringer som ikke er lagret ennå: lagre med en gang og be nettleseren spørre før fanen lukkes
+    if (this.ventende.length) {
+      window.clearTimeout(this.samleTimer)
+      this.samleTimer = undefined
+      void this.lagre()
+      e.preventDefault()
+    }
   }
 
   stopp() {
@@ -98,12 +106,22 @@ export class Okt {
     this.ventende.push(...ops)
     this.visning = brukAlle(this.base, this.ventende, this.backend.bruker).doc
     this.oppdaterSnap()
-    void this.lagre()
+    // Hver lagring blir en ny filversjon i SharePoint, så endringer som kommer tett samles i én lagring
+    if (!this.backend.samleMs) void this.lagre()
+    else this.planleggLagring()
+  }
+
+  private planleggLagring() {
+    this.samleTimer ??= window.setTimeout(() => {
+      this.samleTimer = undefined
+      void this.lagre()
+    }, this.backend.samleMs)
   }
 
   private async lagre() {
     if (this.lagrer) return
     this.lagrer = true
+    let senere = false
     try {
       for (let forsok = 0; this.ventende.length && forsok < 8; forsok++) {
         this.status = 'lagrer'
@@ -116,6 +134,11 @@ export class Okt {
           this.etag = svar.etag
           this.ventende.splice(0, n)
           if (konflikter.length) this.onKonflikt?.(konflikter)
+          // Endringer som kom mens vi lagret, venter til neste samlede lagring
+          if (this.backend.samleMs && this.ventende.length) {
+            senere = true
+            break
+          }
           forsok = -1
         } else {
           // Noen andre har lagret i mellomtiden: hent ny versjon og legg endringene oppå
@@ -126,8 +149,10 @@ export class Okt {
         }
         this.visning = brukAlle(this.base, this.ventende, this.backend.bruker).doc
       }
-      this.status = this.ventende.length ? 'feil' : 'lagret'
-      this.feil = this.ventende.length ? 'Klarte ikke å lagre etter flere forsøk' : undefined
+      this.visning = brukAlle(this.base, this.ventende, this.backend.bruker).doc
+      this.status = senere || !this.ventende.length ? 'lagret' : 'feil'
+      this.feil = this.status === 'feil' ? 'Klarte ikke å lagre etter flere forsøk' : undefined
+      if (senere) this.planleggLagring()
     } catch (e) {
       this.status = 'frakoblet'
       this.feil = e instanceof Error ? e.message : String(e)
