@@ -3,9 +3,10 @@
 // slik at brukere aldri skriver til samme fil samtidig.
 //
 // Versjonstak: Hver lagring blir en ny versjon av filen i SharePoint. I biblioteker med delversjoner (0.1, 0.2 …)
-// nekter SharePoint å lagre når en fil har nådd taket på delversjoner. Derfor får ingen fil leve lenge nok til å nå det:
-// register.json flyttes til _historikk og startes på nytt etter ROTER_ETTER lagringer, og første gang den lagres hver dag.
-// Den gamle filen beholder sin egen versjonshistorikk. Tilstedefilene byttes ut etter TILSTEDE_ROTER_ETTER skrivinger.
+// nekter SharePoint å lagre når en fil har nådd 511 delversjoner. Derfor får ingen fil leve lenge nok til å nå det:
+// etter ROTER_ETTER lagringer flyttes register.json til _historikk med dato i navnet, og en ny register.json lages.
+// Bare de HISTORIKK_ANTALL nyeste arkivfilene beholdes, de eldre slettes. Tilstedefilene byttes ut etter
+// TILSTEDE_ROTER_ETTER skrivinger. Det virker uansett hvordan biblioteket er satt opp, uten noe fra IT eller brukerne.
 import type { Register } from '../model'
 import type { Bruker } from '../ops'
 import { appUrl, token } from './auth'
@@ -15,8 +16,9 @@ const GRAPH = 'https://graph.microsoft.com/v1.0'
 export const REGISTERFIL = 'register.json'
 const TILSTEDEMAPPE = '_tilstede'
 const HISTORIKKMAPPE = '_historikk'
-const ROTER_ETTER = 150
-const TILSTEDE_ROTER_ETTER = 100
+const ROTER_ETTER = 400
+const HISTORIKK_ANTALL = 3
+const TILSTEDE_ROTER_ETTER = 400
 const oktId = Math.random().toString(36).slice(2, 8)
 const idag = () => new Date().toLocaleDateString('sv-SE') // ÅÅÅÅ-MM-DD i lokal tid
 
@@ -62,8 +64,7 @@ async function feiltekst(r: Response) {
   } catch {
     // ingen feiltekst i svaret
   }
-  if (/version/i.test(melding))
-    return `SharePoint vil ikke lagre flere versjoner av register.json (${melding}). Be IT slå av delversjoner i dokumentbiblioteket, eller publiser en hovedversjon av filen i SharePoint.`
+  if (/version/i.test(melding)) return `SharePoint vil ikke lagre flere versjoner av register.json (${melding}). Publiser en hovedversjon av filen i SharePoint.`
   return melding || `Feil fra SharePoint (${r.status})`
 }
 
@@ -81,6 +82,7 @@ interface DriveItem {
   folder?: unknown
   file?: unknown
   lastModifiedDateTime: string
+  createdDateTime?: string
   parentReference: { driveId: string; id: string; path?: string }
   '@microsoft.graph.downloadUrl'?: string
 }
@@ -196,23 +198,25 @@ export class GraphBackend implements Backend {
 
   async lagre(doc: Register, hvisEtag: string): Promise<LagreSvar> {
     const teller = doc.lagring ?? { antall: 0, dato: idag() }
-    if (teller.antall >= ROTER_ETTER || teller.dato !== idag()) return this.arkiverOgLagre(doc, hvisEtag, teller.dato)
+    if (teller.antall >= ROTER_ETTER) return this.arkiverOgLagre(doc, hvisEtag, teller.dato)
     const r = await graph(this.filSti + '/content', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'If-Match': hvisEtag },
       body: JSON.stringify({ ...doc, lagring: { antall: teller.antall + 1, dato: teller.dato } }, null, 1),
     })
+    // Har filen likevel nådd versjonstaket (f.eks. lagret mye fra en eldre versjon av appen), arkiveres den med en gang
+    if (!r.ok && r.status !== 412 && r.status !== 409 && /version/i.test(await r.clone().text())) return this.arkiverOgLagre(doc, hvisEtag, teller.dato)
     return this.lagreSvar(r)
   }
 
   // Flytter register.json til _historikk og lager en ny register.json med innholdet som skal lagres.
   // Flyttingen krever at filen ikke er endret av andre (If-Match). Har noen lagret i mellomtiden, blir det en vanlig konflikt.
   private async arkiverOgLagre(doc: Register, hvisEtag: string, fraDato: string): Promise<LagreSvar> {
-    const tid = new Date().toLocaleTimeString('sv-SE').replace(/:/g, '.')
+    const tid = new Date().toLocaleTimeString('sv-SE').slice(0, 5).replace(':', '.')
     const flytt = await graph(`${this.filSti}?@microsoft.graph.conflictBehavior=rename`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'If-Match': hvisEtag },
-      body: JSON.stringify({ name: `register ${fraDato} ${tid}.json`, parentReference: { id: await this.historikkMappe() } }),
+      body: JSON.stringify({ name: `register ${fraDato} til ${idag()} ${tid}.json`, parentReference: { id: await this.historikkMappe() } }),
     })
     if (flytt.status === 412 || flytt.status === 409 || flytt.status === 404) return { ok: false, konflikt: true }
     if (!flytt.ok) throw new GraphFeil(flytt.status, await feiltekst(flytt))
@@ -231,7 +235,21 @@ export class GraphBackend implements Backend {
       }).catch(() => {})
       if (r instanceof Error) throw r
     }
+    if (r.ok) void this.ryddHistorikk()
     return this.lagreSvar(r)
+  }
+
+  // Beholder bare de HISTORIKK_ANTALL nyeste arkivfilene, regnet etter når filen ble opprettet.
+  // Slettede filer havner i papirkurven i SharePoint og kan hentes tilbake derfra en tid.
+  private async ryddHistorikk() {
+    try {
+      const mappe = await this.historikkMappe()
+      const liste = await graphJson<{ value: DriveItem[] }>(`/drives/${this.plassering.driveId}/items/${mappe}/children?$select=id,name,createdDateTime&$top=200`)
+      const arkiv = liste.value.filter((it) => /^register .*\.json$/.test(it.name)).sort((a, b) => (b.createdDateTime ?? '').localeCompare(a.createdDateTime ?? ''))
+      for (const it of arkiv.slice(HISTORIKK_ANTALL)) await graph(`/drives/${this.plassering.driveId}/items/${it.id}`, { method: 'DELETE' })
+    } catch {
+      // Rydding er ikke kritisk. Det prøves igjen neste gang registeret arkiveres.
+    }
   }
 
   private async lagreSvar(r: Response): Promise<LagreSvar> {

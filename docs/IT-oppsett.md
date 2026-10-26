@@ -47,22 +47,19 @@ Riskregister/
   register.json            selve registeret
   Åpne Riskregister.url    snarvei som åpner appen med dette registeret
   _tilstede/<bruker-id>~<økt>~<n>.json   hvem som er inne nå (slettes når brukeren lukker)
-  _historikk/register <dato> <tid>.json  arkiverte utgaver av register.json, med sin egen versjonshistorikk
+  _historikk/register <fra> til <til> <tid>.json  de 3 siste arkiverte utgavene av register.json
 ```
 
 ## Versjonshistorikk og versjonstak
 
-Hver lagring blir en ny versjon av filen i SharePoint. I dokumentbiblioteker der **delversjoner** (0.1, 0.2 …) er slått på, slutter SharePoint å ta imot lagringer når en fil har nådd taket på delversjoner, til noen publiserer en hovedversjon. Det kjenner mange fra Excel- og Word-filer.
+Hver lagring blir en ny versjon av filen i SharePoint. I dokumentbiblioteker der **delversjoner** (0.1, 0.2 …) er slått på, slutter SharePoint å ta imot lagringer når en fil har nådd 511 delversjoner, til noen publiserer en hovedversjon. Det kjenner mange fra Excel- og Word-filer.
 
-Appen er laget slik at ingen fil skal komme i nærheten av taket:
+Appen er laget slik at ingen fil kommer i nærheten av taket, uansett hvordan biblioteket er satt opp. Det kreves ingen spesielle innstillinger fra IT og ingen handlinger fra brukerne:
 
-- `register.json` flyttes til `_historikk` og startes på nytt etter 150 lagringer, og første gang registeret lagres hver dag. Den arkiverte filen beholder sin egen versjonshistorikk, og mappen fungerer samtidig som en daglig kopi av registeret.
-- Tilstedefilene byttes til en ny fil etter 100 skrivinger, og den gamle slettes. Det gir noen få små filer i papirkurven per bruker per time.
+- Etter 400 lagringer flyttes `register.json` til `_historikk` med datoene den var i bruk i navnet, f.eks. `register 2026-09-01 til 2026-10-26 14.05.json`, og en ny `register.json` lages. Den arkiverte filen tar med seg sin egen versjonshistorikk.
+- Bare de **3 nyeste** arkivfilene beholdes. Når en fjerde lages, slettes den eldste (den havner i papirkurven i SharePoint). Det ligger altså aldri mer enn 3 filer i `_historikk`, og til sammen dekker de de siste 1200 lagringene. Hvor lang tid det tilsvarer, avhenger av hvor mye registeret brukes.
+- Tilstedefilene byttes til en ny fil etter 400 skrivinger (omtrent hver time en bruker har registeret åpent), og den gamle slettes.
 - Endringer som kommer tett (innen ca. ett sekund) lagres samlet.
+- Skulle en fil likevel ha nådd taket, arkiveres den med en gang, og lagringen går gjennom på en ny fil.
 
-**Anbefalt oppsett for biblioteket registermappen ligger i:**
-
-- Bare hovedversjoner (ikke delversjoner). Da sletter SharePoint de eldste versjonene automatisk når grensen nås, i stedet for å nekte lagring.
-- Ikke krav om utsjekking. Med krav om utsjekking kan ikke appen lagre.
-
-Hvis SharePoint likevel nekter å lagre (låst fil eller versjonstak), viser appen en melding som forklarer hva som må gjøres.
+Hvis biblioteket krever utsjekking (det er av som standard), kan ikke appen lagre, og den viser en melding om det.
