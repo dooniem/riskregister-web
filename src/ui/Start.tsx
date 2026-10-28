@@ -42,7 +42,7 @@ interface Props {
 export function Start({ config, konto }: Props) {
   const [lenke, setLenke] = useState('')
   const [demoer, setDemoer] = useState(demoRegistre())
-  const [ny, setNy] = useState<null | { kilde?: Register; importert?: boolean; type: 'demo' | 'sharepoint' }>(null)
+  const [ny, setNy] = useState<null | { kilde?: Register; importert?: boolean; filnavn?: string; type: 'demo' | 'sharepoint' }>(null)
   const [visOppsett, setVisOppsett] = useState(false)
   const [importFra, setImportFra] = useState<null | 'demo' | 'sharepoint'>(null)
   const nylige = lesNylige()
@@ -174,13 +174,13 @@ export function Start({ config, konto }: Props) {
           kilde={importFra === 'demo' ? new DemoFiler() : null}
           lagKilde={importFra === 'sharepoint' && konto ? (l) => GraphFiler.fraLenke(l) : undefined}
           valgt={(filnavn, data) => {
-            setNy({ kilde: lesExcel(data, filnavn), importert: true, type: importFra })
+            setNy({ kilde: lesExcel(data, filnavn), importert: true, filnavn, type: importFra })
             setImportFra(null)
           }}
           lukk={() => setImportFra(null)}
         />
       )}
-      {ny && <NyttRegisterDialog kilde={ny.kilde} importert={ny.importert} backendType={ny.type} lukk={() => (setNy(null), setDemoer(demoRegistre()))} />}
+      {ny && <NyttRegisterDialog kilde={ny.kilde} importert={ny.importert} filnavn={ny.filnavn} backendType={ny.type} lukk={() => (setNy(null), setDemoer(demoRegistre()))} />}
     </div>
   )
 }

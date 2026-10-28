@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { Fag, Register, Risk } from '../model'
-import { FAG_FARGER, harDelregisterMerke, uid, utenDelregisterMerke } from '../model'
+import type { PrefixValg } from '../model'
+import { FAG_FARGER, brukPrefixValg, harDelregisterMerke, uid, utenDelregisterMerke } from '../model'
 import type { Bruker, Op } from '../ops'
 
 interface Props {
@@ -21,11 +22,10 @@ export function ImportDialog({ doc, kilde, filnavn, bruker, endre, ferdig, lukk 
   const [hoppOver, setHoppOver] = useState(true)
   const [lukkede, setLukkede] = useState(false)
   const [deltakere, setDeltakere] = useState(true)
-  const [fjernMerke, setFjernMerke] = useState(true)
 
   const finnes = useMemo(() => new Set(doc.risker.map(nokkel).filter((k) => k !== '|')), [doc])
-  const merket = kilde.risker.filter(harDelregisterMerke).length
-  const alle = kilde.risker.map((r) => (fjernMerke ? utenDelregisterMerke(r) : r)).filter((r) => r.aarsak || r.hendelse || r.tiltak.some((t) => t.tekst))
+  const [prefix, setPrefix] = useState<PrefixValg>(() => (kilde.risker.some(harDelregisterMerke) ? 'fjern' : 'behold'))
+  const alle = brukPrefixValg(kilde.risker, prefix, filnavn).filter((r) => r.aarsak || r.hendelse || r.tiltak.some((t) => t.tekst))
   const like = alle.filter((r) => finnes.has(nokkel(r)))
   const antLukket = alle.filter((r) => r.status === 'Lukket').length
   const valgte = alle.filter((r) => (lukkede || r.status !== 'Lukket') && !(hoppOver && finnes.has(nokkel(r))))
@@ -105,7 +105,7 @@ export function ImportDialog({ doc, kilde, filnavn, bruker, endre, ferdig, lukk 
                 <span>Ta med lukkede risker</span>
               </label>
             )}
-            {merket > 0 && <DelregisterValg antall={merket} eksempel={kilde.risker.find(harDelregisterMerke)!} fjern={fjernMerke} setFjern={setFjernMerke} />}
+            <DelregisterValg risker={kilde.risker} filnavn={filnavn} valg={prefix} setValg={setPrefix} />
             {nyeDeltakere.length > 0 && (
               <label className="avkrysning">
                 <input type="checkbox" checked={deltakere} onChange={(e) => setDeltakere(e.target.checked)} />
@@ -139,16 +139,32 @@ export function ImportDialog({ doc, kilde, filnavn, bruker, endre, ferdig, lukk 
   )
 }
 
-// Valget om å fjerne prefixet «[Delregister #ID | dato]» som Excel-registeret legger først i årsaken på importerte risker
-export function DelregisterValg({ antall, eksempel, fjern, setFjern }: { antall: number; eksempel: Risk; fjern: boolean; setFjern: (v: boolean) => void }) {
-  const merke = (eksempel.aarsak.match(/^\[[^\]]*\]/) ?? eksempel.hendelse.match(/^\[[^\]]*\]/))?.[0]
-  return (
+// Hva som skal skje med delregister-prefixet «[Filnavn #ID | dato]» som Excel-registeret legger først i årsaken
+export function DelregisterValg({ risker, filnavn, valg, setValg }: { risker: Risk[]; filnavn: string; valg: PrefixValg; setValg: (v: PrefixValg) => void }) {
+  const merket = risker.filter(harDelregisterMerke)
+  const eksempel = merket[0] && (merket[0].aarsak.match(/^\[[^\]]*\]/) ?? merket[0].hendelse.match(/^\[[^\]]*\]/))?.[0]
+  const nytt = `[${filnavn.replace(/\.[^.]*$/, '')} #nr | ${new Date().toLocaleDateString('nb-NO', { day: '2-digit', month: '2-digit', year: '2-digit' })}]`
+  const risk = (n: number) => `${n} ${n === 1 ? 'risk' : 'risker'}`
+  const radio = (v: PrefixValg, tittel: string, hint: string) => (
     <label className="avkrysning">
-      <input type="checkbox" checked={fjern} onChange={(e) => setFjern(e.target.checked)} />
+      <input type="radio" name="prefix" checked={valg === v} onChange={() => setValg(v)} />
       <span>
-        Fjern delregister-prefix fra {antall} {antall === 1 ? 'risk' : 'risker'}
-        <small> Prefixet, f.eks. «{merke}», fjernes, mens beskrivelsen består. Prefixet tas vare på som kilde i høyreklikk-infoen.</small>
+        {tittel}
+        <small> {hint}</small>
       </span>
     </label>
+  )
+  return (
+    <div className="felt prefixvalg">
+      <span>Delregister-prefix</span>
+      {merket.length > 0 && radio('fjern', `Fjern prefix fra ${risk(merket.length)}`, `Prefixet, f.eks. «${eksempel}», fjernes, mens beskrivelsen består. Det tas vare på som kilde i høyreklikk-infoen.`)}
+      {merket.length < risker.length &&
+        radio(
+          'legg-til',
+          `Legg til prefix på ${risk(risker.length - merket.length)}`,
+          `Risker uten prefix får «${nytt}» først i årsaken, som når Excel henter inn et delregister.${merket.length ? ' Risker som allerede har prefix, beholder sitt.' : ''}`,
+        )}
+      {radio('behold', 'Behold som i filen', merket.length ? 'Prefixene blir stående, og ingen nye legges til.' : 'Ingen prefix legges til.')}
+    </div>
   )
 }

@@ -226,6 +226,23 @@ export function utenDelregisterMerke(r: Risk): Risk {
   return { ...r, aarsak: r.aarsak.replace(DELREG_MERKE, '').trimStart(), hendelse: r.hendelse.replace(DELREG_MERKE, '').trimStart(), kilde: r.kilde || kilde }
 }
 
+// Legger til prefixet slik Excel gjør når et delregister hentes inn: «[Filnavn #nr | dd.mm.yy]» først i årsaken.
+// Risker som allerede har et prefix, beholder sitt eget, så det aldri blir to.
+export function medDelregisterMerke(r: Risk, filnavn: string, dato = new Date()): Risk {
+  if (harDelregisterMerke(r)) return r
+  const fil = filnavn.replace(/\.[^.]*$/, '')
+  const d = dato.toLocaleDateString('nb-NO', { day: '2-digit', month: '2-digit', year: '2-digit' })
+  return { ...r, aarsak: `[${fil} #${r.nr} | ${d}]\n${r.aarsak}`, kilde: r.kilde || `${fil}, risk ${r.nr} (hentet inn ${d})` }
+}
+
+export type PrefixValg = 'behold' | 'fjern' | 'legg-til'
+
+export function brukPrefixValg(risker: Risk[], valg: PrefixValg, filnavn: string): Risk[] {
+  if (valg === 'fjern') return risker.map(utenDelregisterMerke)
+  if (valg === 'legg-til') return risker.map((r) => medDelregisterMerke(r, filnavn))
+  return risker
+}
+
 // Eksponering = sannsynlighet × konsekvens (Eksponering i modBeregninger)
 export function eksponering(r: Risk): number {
   return r.sannsynlighet && r.konsekvens ? r.sannsynlighet * r.konsekvens : 0
