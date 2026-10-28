@@ -578,6 +578,22 @@ table.grid {
 .grid td.hoyre {
   text-align: right;
 }
+/* Samme farger på kostkolonnene som i Excel-registeret: grønn best case, gul most likely, rød worst case */
+.grid thead th.kol-bc,
+.grid thead th.kol-ml,
+.grid thead th.kol-wc {
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+.grid thead th.kol-bc {
+  background: #c6efce;
+}
+.grid thead th.kol-ml {
+  background: #ffeb9c;
+}
+.grid thead th.kol-wc {
+  background: #ffc7ce;
+}
 .gruppe-knapp {
   max-width: 100%;
   overflow: hidden;

@@ -56,6 +56,9 @@ export function synligeKolonner(v: Visning, egendef2Aktiv = false): Kolonne[] {
   })
 }
 
+// Fulle navn på kostkolonnene, vist som hjelpetekst på overskriften
+const KOST_NAVN: Record<string, string> = { bc: 'Best case', ml: 'Most likely', wc: 'Worst case' }
+
 export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapneDetalj, melding, kanSkrive }: Props) {
   const [aktiv, setAktiv] = useState<Posisjon | null>(null)
   const [redigerer, setRedigerer] = useState<(Posisjon & { start: string; erstatt: boolean }) | null>(null)
@@ -455,10 +458,10 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
             {kolonner.map((k) => (
               <th
                 key={k.key}
-                className={(k.frosset ? 'frosset ' : '') + (k.hoyre ? 'hoyre ' : '')}
+                className={(k.frosset ? 'frosset ' : '') + (k.hoyre ? 'hoyre ' : '') + 'kol-' + k.key}
                 style={k.frosset ? { left: frossenVenstre[k.key] } : undefined}
                 onClick={(e) => klikkOverskrift(k, e)}
-                title="Klikk for å sortere. Shift+klikk for å sortere på flere kolonner."
+                title={(KOST_NAVN[k.key] ? KOST_NAVN[k.key] + '. ' : '') + 'Klikk for å sortere. Shift+klikk for å sortere på flere kolonner.'}
               >
                 <span className="kol-tittel">{k.tittel(doc)}</span>
                 {sortIkon(k.key)}
