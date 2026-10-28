@@ -185,7 +185,7 @@ export function RegisterView({ okt, tilbake }: Props) {
   const statusTekst = { laster: 'Laster…', lagret: 'Alle endringer er lagret', lagrer: 'Lagrer…', frakoblet: 'Frakoblet, prøver igjen', feil: 'Lagring feilet' }[visStatus]
 
   return (
-    <div className="app">
+    <div className={'app' + (visning.skjulFag ? ' skjul-fag' : '')}>
       <header className="toppfelt">
         <button className="ikonknapp hjem" onClick={tilbake} title="Til startsiden">
           ◂
