@@ -3,7 +3,7 @@
 import type { Deltaker, Gjennomgang, Hjem, Lister, Prosjekt, Register, Risk, Tiltak } from './model'
 import { migrer } from './model'
 
-export type RiskFelt = Exclude<keyof Risk, 'id' | 'nr' | 'tiltak' | 'endret' | 'endretAv' | 'opprettet' | 'opprettetAv' | 'lukket' | 'lukketAv'>
+export type RiskFelt = Exclude<keyof Risk, 'id' | 'nr' | 'tiltak' | 'endret' | 'endretAv' | 'opprettet' | 'opprettetAv' | 'lukket' | 'lukketAv' | 'kilde'>
 export type TiltakFelt = Exclude<keyof Tiltak, 'id'>
 
 export type Op =

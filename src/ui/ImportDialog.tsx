@@ -139,15 +139,15 @@ export function ImportDialog({ doc, kilde, filnavn, bruker, endre, ferdig, lukk 
   )
 }
 
-// Valget om å fjerne «[Delregister #ID | dato]» som Excel-registeret legger først i årsaken på importerte risker
+// Valget om å fjerne prefixet «[Delregister #ID | dato]» som Excel-registeret legger først i årsaken på importerte risker
 export function DelregisterValg({ antall, eksempel, fjern, setFjern }: { antall: number; eksempel: Risk; fjern: boolean; setFjern: (v: boolean) => void }) {
   const merke = (eksempel.aarsak.match(/^\[[^\]]*\]/) ?? eksempel.hendelse.match(/^\[[^\]]*\]/))?.[0]
   return (
     <label className="avkrysning">
       <input type="checkbox" checked={fjern} onChange={(e) => setFjern(e.target.checked)} />
       <span>
-        Fjern delregister-merket fra {antall} {antall === 1 ? 'risk' : 'risker'}
-        <small> (f.eks. «{merke}» først i årsaken, som Excel legger til når et delregister hentes inn)</small>
+        Fjern delregister-prefix fra {antall} {antall === 1 ? 'risk' : 'risker'}
+        <small> Prefixet, f.eks. «{merke}», fjernes, mens beskrivelsen består. Prefixet tas vare på som kilde i høyreklikk-infoen.</small>
       </span>
     </label>
   )

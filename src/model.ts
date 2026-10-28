@@ -64,6 +64,7 @@ export interface Risk {
   opprettetAv?: string
   lukket?: string // når status sist ble satt til Lukket
   lukketAv?: string
+  kilde?: string // hvor risken kom fra, f.eks. delregisteret i Excel den ble hentet inn fra
 }
 
 export interface Deltaker {
@@ -217,7 +218,13 @@ const DELREG_MERKE = /^(?:\[[^\]\r\n]* #[^\]\r\n|]* \| \d{2}\.\d{2}\.\d{2}\][ \t
 
 export const harDelregisterMerke = (r: Risk) => DELREG_MERKE.test(r.aarsak) || DELREG_MERKE.test(r.hendelse)
 
-export const utenDelregisterMerke = (r: Risk): Risk => ({ ...r, aarsak: r.aarsak.replace(DELREG_MERKE, '').trimStart(), hendelse: r.hendelse.replace(DELREG_MERKE, '').trimStart() })
+// Fjerner prefixet og tar vare på det som kilde: «1. Riskregister Felles, risk 42 (hentet inn 26.10.26)»
+export function utenDelregisterMerke(r: Risk): Risk {
+  const merke = r.aarsak.match(DELREG_MERKE)?.[0] ?? r.hendelse.match(DELREG_MERKE)?.[0]
+  if (!merke) return r
+  const kilde = [...merke.matchAll(/\[(.*) #([^\]|]*) \| ([\d.]+)\]/g)].map(([, fil, id, dato]) => `${fil}${id.trim() ? `, risk ${id.trim()}` : ''} (hentet inn ${dato})`).join(' › ')
+  return { ...r, aarsak: r.aarsak.replace(DELREG_MERKE, '').trimStart(), hendelse: r.hendelse.replace(DELREG_MERKE, '').trimStart(), kilde: r.kilde || kilde }
+}
 
 // Eksponering = sannsynlighet × konsekvens (Eksponering i modBeregninger)
 export function eksponering(r: Risk): number {
