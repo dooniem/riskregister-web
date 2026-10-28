@@ -177,6 +177,10 @@ function FagListe({ doc, visning, setVisning, endre, kanSkrive, lukk }: MenyProp
           </button>
         )}
       </div>
+      <label className="fag-valg fag-vis-merker">
+        <input type="checkbox" checked={!visning.skjulFag} onChange={() => setVisning((v) => ({ ...v, skjulFag: !v.skjulFag }))} />
+        <span className="fag-tekst">Vis fagmerker i registeret</span>
+      </label>
       {kanSkrive && <NyttFag doc={doc} endre={endre} />}
       {forNy && <p className="liten fag-hint">Nye risker du lager nå, får faget «{forNy?.navn}».</p>}
     </div>

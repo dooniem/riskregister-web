@@ -1667,6 +1667,16 @@ td .valgpil.synlig {
   padding: 6px 10px;
   border-bottom: 1px solid var(--linje);
 }
+/* Fagmerkene kan skjules fra Fag-menyen. Gjelder også utskrift, siden den skriver ut det som vises. */
+.skjul-fag .nr-celle .fagmerke,
+.skjul-fag .riskkort .fagmerke {
+  display: none;
+}
+.fag-vis-merker {
+  border-top: 1px solid var(--linje);
+  margin-top: 4px;
+  padding-top: 8px;
+}
 .fag-rediger .fagmerke {
   grid-area: merke;
 }
