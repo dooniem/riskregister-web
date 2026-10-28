@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FilElement, FilKilde, FilMappe } from '../store/filer'
 import { erExcel } from '../store/filer'
+import { dekrypterExcel, erKryptert } from '../kryptert'
 
 interface Felles {
   // Mappene i SharePoint. Mangler den, kan brukeren lime inn en mappelenke hvis lagKilde er gitt, ellers bare bruke egen PC.
@@ -28,6 +29,8 @@ export function Filvelger(p: Props) {
   const [jobber, setJobber] = useState('')
   const [feil, setFeil] = useState('')
   const filRef = useRef<HTMLInputElement>(null)
+  const [laast, setLaast] = useState<{ navn: string; data: ArrayBuffer } | null>(null)
+  const [passord, setPassord] = useState('')
   const mappe = sti[sti.length - 1]
 
   const jobb = async (tekst: string, f: () => Promise<void>) => {
@@ -76,8 +79,7 @@ export function Filvelger(p: Props) {
   const velgFil = (f: FilElement) => {
     if (p.modus !== 'aapne') return setFilnavn(f.navn)
     void jobb(`Henter «${f.navn}»…`, async () => {
-      const data = await kilde!.hent(f.id)
-      await p.valgt(f.navn, data)
+      await aapne(f.navn, await kilde!.hent(f.id))
     })
   }
 
@@ -91,9 +93,29 @@ export function Filvelger(p: Props) {
     })
   }
 
+  // Filer som er låst med passord, må låses opp før de kan leses
+  const aapne = async (navn: string, data: ArrayBuffer) => {
+    if (p.modus !== 'aapne') return
+    if (erKryptert(data)) {
+      setPassord('')
+      setLaast({ navn, data })
+      return
+    }
+    await p.valgt(navn, data)
+  }
+
+  const laasOpp = () => {
+    if (p.modus !== 'aapne' || !laast) return
+    void jobb('Låser opp filen…', async () => {
+      const data = await dekrypterExcel(laast.data, passord)
+      setLaast(null)
+      await p.valgt(laast.navn, data)
+    })
+  }
+
   const fraPc = (f: File) => {
     if (p.modus !== 'aapne') return
-    void jobb(`Leser «${f.name}»…`, async () => p.valgt(f.name, await f.arrayBuffer()))
+    void jobb(`Leser «${f.name}»…`, async () => aapne(f.name, await f.arrayBuffer()))
   }
 
   const rader = treff ?? innhold ?? []
@@ -127,6 +149,31 @@ export function Filvelger(p: Props) {
             )}
           </div>
 
+          {laast && (
+            <form
+              className="fv-passord"
+              onSubmit={(e) => {
+                e.preventDefault()
+                laasOpp()
+              }}
+            >
+              <label className="felt">
+                <span>«{laast.navn}» er låst med passord</span>
+                <input type="password" autoFocus value={passord} onChange={(e) => setPassord(e.target.value)} placeholder="Passord" autoComplete="off" />
+                <small>Filen låses opp her i nettleseren. Passordet sendes ingen steder og blir ikke lagret.</small>
+              </label>
+              {jobber && <p className="liten">{jobber}</p>}
+              {feil && <div className="banner feil">{feil}</div>}
+              <div className="knapperad">
+                <button type="button" className="knapp" onClick={() => setLaast(null)}>
+                  Avbryt
+                </button>
+                <button className="knapp primær" disabled={!passord || !!jobber}>
+                  Lås opp
+                </button>
+              </div>
+            </form>
+          )}
           {kilde ? (
             <div className="fv-sp">
               <div className="fv-topp">
@@ -226,8 +273,8 @@ export function Filvelger(p: Props) {
             </form>
           ) : null}
 
-          {jobber && <p className="liten">{jobber}</p>}
-          {feil && <div className="banner feil">{feil}</div>}
+          {!laast && jobber && <p className="liten">{jobber}</p>}
+          {!laast && feil && <div className="banner feil">{feil}</div>}
         </div>
       </div>
     </div>
