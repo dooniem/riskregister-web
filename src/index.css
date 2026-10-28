@@ -1732,7 +1732,7 @@ td .valgpil.synlig {
   margin-top: 3px;
 }
 
-/* Kompakt visning på PC: kortene i et rutenett som fyller bredden */
+/* Kompakt visning på PC: ett kort i bredden, som på mobil */
 .kompaktflate {
   overflow: auto;
   padding: 12px 16px;
@@ -1741,13 +1741,9 @@ td .valgpil.synlig {
   width: auto;
 }
 .kortliste-pc section {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 10px;
-  align-items: start;
-}
-.kortliste-pc .kort-gruppe {
-  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 .kortliste-pc .riskkort:hover {
   border-color: var(--linje-sterk);
