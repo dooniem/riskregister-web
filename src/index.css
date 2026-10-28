@@ -151,6 +151,26 @@ code {
 .toppfelt .ikonknapp {
   color: #fff;
 }
+/* Mer-menyen har mange valg (import, eksport, utskrift), så knappen skal synes godt */
+.toppfelt .knapp.mer-knapp {
+  background: #fff;
+  border-color: #fff;
+  color: #143a5a;
+  font-weight: 600;
+  padding-inline: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.toppfelt .knapp.mer-knapp:hover,
+.toppfelt .knapp.mer-knapp.aapen {
+  background: #dbe8f5;
+  border-color: #dbe8f5;
+}
+.mer-ikon {
+  font-size: 15px;
+  line-height: 1;
+}
 .toppfelt .ikonknapp:hover {
   background: rgba(255, 255, 255, 0.15);
 }

@@ -224,7 +224,10 @@ export function RegisterView({ okt, tilbake }: Props) {
           Prosjekt og deltakere
         </button>
         <div className="meny-holder">
-          <button className="knapp" onClick={() => setMeny(!meny)}>
+          <button className={'knapp mer-knapp' + (meny ? ' aapen' : '')} onClick={() => setMeny(!meny)} title="Import, eksport, utskrift, lister og mer">
+            <span className="mer-ikon" aria-hidden>
+              ☰
+            </span>
             Mer ▾
           </button>
           {meny && (
