@@ -61,8 +61,9 @@ export function Filvelger(p: Props) {
     })
   }, [kilde])
 
+  // Opp går til mappen over: den forrige i stien hvis vi har gått ned, ellers hentes forelderen
   const opp = () =>
-    jobb('Henter mappen…', async () => {
+    sti.length > 1 ? gaaTil(sti[sti.length - 2], sti.slice(0, -1)) : jobb('Henter mappen…', async () => {
       const forelder = await kilde!.mappe(sti[0].forelder!)
       await gaaTil(forelder, [forelder])
     })
@@ -133,7 +134,7 @@ export function Filvelger(p: Props) {
                 {kilde.demo && <span className="liten"> (bare for å vise hvordan det virker, filene finnes ikke på ekte)</span>}
               </div>
               <div className="fv-sti">
-                <button className="knapp" disabled={!sti[0]?.forelder || !!jobber} onClick={() => void opp()} title="Opp ett nivå">
+                <button className="knapp" disabled={(sti.length < 2 && !sti[0]?.forelder) || !!jobber} onClick={() => void opp()} title="Opp ett nivå">
                   ↑ Opp
                 </button>
                 <span className="fv-brodsmuler">

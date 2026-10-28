@@ -1844,8 +1844,27 @@ td .valgpil.synlig {
   padding: 0;
   border: 1px solid var(--linje);
   border-radius: 8px;
-  max-height: 46vh;
+  /* Fast høyde, så velgeren ikke hopper i størrelse fra mappe til mappe. Lange mapper får rullefelt. */
+  height: min(420px, 50vh);
   overflow: auto;
+}
+/* På mobil fyller velgeren skjermen, og fillisten tar plassen som er igjen */
+@media (max-width: 760px) {
+  .modal.filvelger .modal-innhold {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .modal.filvelger .fv-sp {
+    flex: 1;
+    min-height: 0;
+  }
+  .modal.filvelger .fv-liste {
+    flex: 1;
+    height: auto;
+    min-height: 160px;
+  }
 }
 .fv-liste li + li {
   border-top: 1px solid var(--linje);
