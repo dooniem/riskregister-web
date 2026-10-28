@@ -64,6 +64,7 @@ export interface Risk {
   opprettetAv?: string
   lukket?: string // når status sist ble satt til Lukket
   lukketAv?: string
+  kilde?: string // hvor risken kom fra, f.eks. delregisteret i Excel den ble hentet inn fra
 }
 
 export interface Deltaker {
@@ -208,6 +209,21 @@ export function kopierRegister(kilde: Register, valg: KopiValg): Register {
 
 export function renummerer(reg: Register) {
   ;[...reg.risker].sort((a, b) => a.nr - b.nr).forEach((r, i) => (r.nr = i + 1))
+}
+
+// Excel-registeret merker risker som er hentet inn fra et delregister med en linje først i årsaken:
+// «[Filnavn #RiskID | dd.mm.yy]» (frmImport, Tag dokumentet i årsakskolonnen). Risker som er importert flere ganger,
+// kan ha flere slike linjer etter hverandre.
+const DELREG_MERKE = /^(?:\[[^\]\r\n]* #[^\]\r\n|]* \| \d{2}\.\d{2}\.\d{2}\][ \t]*(?:\r?\n|$))+/
+
+export const harDelregisterMerke = (r: Risk) => DELREG_MERKE.test(r.aarsak) || DELREG_MERKE.test(r.hendelse)
+
+// Fjerner prefixet og tar vare på det som kilde: «1. Riskregister Felles, risk 42 (hentet inn 26.10.26)»
+export function utenDelregisterMerke(r: Risk): Risk {
+  const merke = r.aarsak.match(DELREG_MERKE)?.[0] ?? r.hendelse.match(DELREG_MERKE)?.[0]
+  if (!merke) return r
+  const kilde = [...merke.matchAll(/\[(.*) #([^\]|]*) \| ([\d.]+)\]/g)].map(([, fil, id, dato]) => `${fil}${id.trim() ? `, risk ${id.trim()}` : ''} (hentet inn ${dato})`).join(' › ')
+  return { ...r, aarsak: r.aarsak.replace(DELREG_MERKE, '').trimStart(), hendelse: r.hendelse.replace(DELREG_MERKE, '').trimStart(), kilde: r.kilde || kilde }
 }
 
 // Eksponering = sannsynlighet × konsekvens (Eksponering i modBeregninger)

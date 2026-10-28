@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { Fag, Register, Risk } from '../model'
-import { FAG_FARGER, uid } from '../model'
+import { FAG_FARGER, harDelregisterMerke, uid, utenDelregisterMerke } from '../model'
 import type { Bruker, Op } from '../ops'
 
 interface Props {
@@ -13,17 +13,19 @@ interface Props {
   lukk: () => void
 }
 
-// Samme risk regnes som lik hvis årsak og hendelse er like (uten hensyn til store/små bokstaver og mellomrom)
-const nokkel = (r: Risk) => [r.aarsak, r.hendelse].map((s) => s.toLowerCase().replace(/\s+/g, ' ').trim()).join('|')
+// Samme risk regnes som lik hvis årsak og hendelse er like (uten hensyn til store/små bokstaver, mellomrom og delregister-merket)
+const nokkel = (r: Risk) => [utenDelregisterMerke(r).aarsak, utenDelregisterMerke(r).hendelse].map((s) => s.toLowerCase().replace(/\s+/g, ' ').trim()).join('|')
 
 // Legger risker fra en Excel-fil (f.eks. et delregister fra en underentreprenør) til i registeret som er åpent
 export function ImportDialog({ doc, kilde, filnavn, bruker, endre, ferdig, lukk }: Props) {
   const [hoppOver, setHoppOver] = useState(true)
   const [lukkede, setLukkede] = useState(false)
   const [deltakere, setDeltakere] = useState(true)
+  const [fjernMerke, setFjernMerke] = useState(true)
 
   const finnes = useMemo(() => new Set(doc.risker.map(nokkel).filter((k) => k !== '|')), [doc])
-  const alle = kilde.risker.filter((r) => r.aarsak || r.hendelse || r.tiltak.some((t) => t.tekst))
+  const merket = kilde.risker.filter(harDelregisterMerke).length
+  const alle = kilde.risker.map((r) => (fjernMerke ? utenDelregisterMerke(r) : r)).filter((r) => r.aarsak || r.hendelse || r.tiltak.some((t) => t.tekst))
   const like = alle.filter((r) => finnes.has(nokkel(r)))
   const antLukket = alle.filter((r) => r.status === 'Lukket').length
   const valgte = alle.filter((r) => (lukkede || r.status !== 'Lukket') && !(hoppOver && finnes.has(nokkel(r))))
@@ -103,6 +105,7 @@ export function ImportDialog({ doc, kilde, filnavn, bruker, endre, ferdig, lukk 
                 <span>Ta med lukkede risker</span>
               </label>
             )}
+            {merket > 0 && <DelregisterValg antall={merket} eksempel={kilde.risker.find(harDelregisterMerke)!} fjern={fjernMerke} setFjern={setFjernMerke} />}
             {nyeDeltakere.length > 0 && (
               <label className="avkrysning">
                 <input type="checkbox" checked={deltakere} onChange={(e) => setDeltakere(e.target.checked)} />
@@ -133,5 +136,19 @@ export function ImportDialog({ doc, kilde, filnavn, bruker, endre, ferdig, lukk 
         </div>
       </div>
     </div>
+  )
+}
+
+// Valget om å fjerne prefixet «[Delregister #ID | dato]» som Excel-registeret legger først i årsaken på importerte risker
+export function DelregisterValg({ antall, eksempel, fjern, setFjern }: { antall: number; eksempel: Risk; fjern: boolean; setFjern: (v: boolean) => void }) {
+  const merke = (eksempel.aarsak.match(/^\[[^\]]*\]/) ?? eksempel.hendelse.match(/^\[[^\]]*\]/))?.[0]
+  return (
+    <label className="avkrysning">
+      <input type="checkbox" checked={fjern} onChange={(e) => setFjern(e.target.checked)} />
+      <span>
+        Fjern delregister-prefix fra {antall} {antall === 1 ? 'risk' : 'risker'}
+        <small> Prefixet, f.eks. «{merke}», fjernes, mens beskrivelsen består. Prefixet tas vare på som kilde i høyreklikk-infoen.</small>
+      </span>
+    </label>
   )
 }

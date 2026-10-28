@@ -1809,6 +1809,8 @@ td .valgpil.synlig {
 
 /* Hvem som opprettet og endret risken, øverst i høyreklikkmenyen */
 .riskinfo {
+  max-width: 260px;
+  white-space: normal;
   padding: 2px 4px 6px;
   margin-bottom: 4px;
   border-bottom: 1px solid var(--linje);
@@ -1822,6 +1824,12 @@ td .valgpil.synlig {
 }
 .riskinfo-linje span:first-child {
   color: var(--dempet);
+  flex: none;
+}
+.riskinfo-linje span:last-child {
+  text-align: right;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* Filvelger for import og eksport */
