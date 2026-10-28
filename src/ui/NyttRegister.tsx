@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { KopiValg, Register } from '../model'
-import { harDelregisterMerke, kopierRegister, nyttRegister, utenDelregisterMerke } from '../model'
+import type { PrefixValg } from '../model'
+import { brukPrefixValg, kopierRegister, nyttRegister } from '../model'
 import { appUrl } from '../store/auth'
 import { demoFinnes, opprettDemo } from '../store/demoBackend'
 import { appLenke, opprettRegisterISharePoint } from '../store/graphBackend'
@@ -9,12 +10,13 @@ import { DelregisterValg } from './ImportDialog'
 interface Props {
   kilde?: Register // registeret det kopieres fra, eller et importert register
   importert?: boolean
+  filnavn?: string // Excel-filen et importert register kom fra
   backendType: 'demo' | 'sharepoint'
   lukk: () => void
 }
 
 // Oppretter et nytt register, tomt eller som kopi av et eksisterende (valgfritt hva som følger med)
-export function NyttRegisterDialog({ kilde, importert, backendType, lukk }: Props) {
+export function NyttRegisterDialog({ kilde, importert, filnavn, backendType, lukk }: Props) {
   const [navn, setNavn] = useState(importert ? kilde?.prosjekt.navn ?? '' : '')
   const [mappe, setMappe] = useState('')
   const [mappenavn, setMappenavn] = useState('Riskregister')
@@ -26,8 +28,7 @@ export function NyttRegisterDialog({ kilde, importert, backendType, lukk }: Prop
     risker: !!importert,
     lukkede: !!importert,
   })
-  const [fjernMerke, setFjernMerke] = useState(true)
-  const merket = importert && kilde ? kilde.risker.filter(harDelregisterMerke) : []
+  const [prefix, setPrefix] = useState<PrefixValg>('behold')
   const [jobber, setJobber] = useState(false)
   const [feil, setFeil] = useState('')
   const [ferdig, setFerdig] = useState<{ lenke: string; nettside?: string } | null>(null)
@@ -35,7 +36,7 @@ export function NyttRegisterDialog({ kilde, importert, backendType, lukk }: Prop
   const opprett = async () => {
     setFeil('')
     if (!navn.trim()) return setFeil('Gi registeret et navn.')
-    const fra = kilde && merket.length && fjernMerke ? { ...kilde, risker: kilde.risker.map(utenDelregisterMerke) } : kilde
+    const fra = kilde && importert ? { ...kilde, risker: brukPrefixValg(kilde.risker, prefix, filnavn ?? kilde.prosjekt.navn) } : kilde
     const doc = fra ? kopierRegister(fra, { navn: navn.trim(), behold }) : nyttRegister(navn.trim())
     if (importert && kilde) doc.prosjekt = { ...doc.prosjekt, nummer: behold.prosjektinfo ? kilde.prosjekt.nummer : '' }
     setJobber(true)
@@ -139,7 +140,7 @@ export function NyttRegisterDialog({ kilde, importert, backendType, lukk }: Prop
                 {avkrysning('deltakere', 'Deltakere')}
                 {avkrysning('risker', 'Risker og tiltak', '(får nye ID-er og nummereres fra 1)')}
                 {behold.risker && avkrysning('lukkede', 'Også lukkede risker')}
-                {behold.risker && merket.length > 0 && <DelregisterValg antall={merket.length} eksempel={merket[0]} fjern={fjernMerke} setFjern={setFjernMerke} />}
+                {behold.risker && importert && kilde.risker.length > 0 && <DelregisterValg risker={kilde.risker} filnavn={filnavn ?? kilde.prosjekt.navn} valg={prefix} setValg={setPrefix} />}
               </div>
             )}
             {feil && <div className="banner feil">{feil}</div>}
