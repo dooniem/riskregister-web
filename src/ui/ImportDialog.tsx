@@ -24,7 +24,7 @@ export function ImportDialog({ doc, kilde, filnavn, bruker, endre, ferdig, lukk 
   const [deltakere, setDeltakere] = useState(true)
 
   const finnes = useMemo(() => new Set(doc.risker.map(nokkel).filter((k) => k !== '|')), [doc])
-  const [prefix, setPrefix] = useState<PrefixValg>(() => (kilde.risker.some(harDelregisterMerke) ? 'fjern' : 'behold'))
+  const [prefix, setPrefix] = useState<PrefixValg>('behold')
   const alle = brukPrefixValg(kilde.risker, prefix, filnavn).filter((r) => r.aarsak || r.hendelse || r.tiltak.some((t) => t.tekst))
   const like = alle.filter((r) => finnes.has(nokkel(r)))
   const antLukket = alle.filter((r) => r.status === 'Lukket').length
@@ -139,7 +139,7 @@ export function ImportDialog({ doc, kilde, filnavn, bruker, endre, ferdig, lukk 
   )
 }
 
-// Hva som skal skje med delregister-prefixet «[Filnavn #ID | dato]» som Excel-registeret legger først i årsaken
+// Hva som skal skje med prefixet «[Filnavn #ID | dato]» først i årsaken, som viser hvor risken kom fra
 export function DelregisterValg({ risker, filnavn, valg, setValg }: { risker: Risk[]; filnavn: string; valg: PrefixValg; setValg: (v: PrefixValg) => void }) {
   const merket = risker.filter(harDelregisterMerke)
   const eksempel = merket[0] && (merket[0].aarsak.match(/^\[[^\]]*\]/) ?? merket[0].hendelse.match(/^\[[^\]]*\]/))?.[0]
@@ -156,15 +156,15 @@ export function DelregisterValg({ risker, filnavn, valg, setValg }: { risker: Ri
   )
   return (
     <div className="felt prefixvalg">
-      <span>Delregister-prefix</span>
-      {merket.length > 0 && radio('fjern', `Fjern prefix fra ${risk(merket.length)}`, `Prefixet, f.eks. «${eksempel}», fjernes, mens beskrivelsen består. Det tas vare på som kilde i høyreklikk-infoen.`)}
+      <span>Prefix riskene for å identifisere kilden</span>
+      {radio('behold', 'Behold urørt / keep existing', merket.length ? 'Prefix som finnes, blir stående, og ingen nye legges til.' : 'Ingen prefix legges til.')}
       {merket.length < risker.length &&
         radio(
           'legg-til',
           `Legg til prefix på ${risk(risker.length - merket.length)}`,
-          `Risker uten prefix får «${nytt}» først i årsaken, som når Excel henter inn et delregister.${merket.length ? ' Risker som allerede har prefix, beholder sitt.' : ''}`,
+          `Risker uten prefix får «${nytt}» først i årsaken.${merket.length ? ' Risker som allerede har prefix, beholder sitt.' : ''}`,
         )}
-      {radio('behold', 'Behold som i filen', merket.length ? 'Prefixene blir stående, og ingen nye legges til.' : 'Ingen prefix legges til.')}
+      {merket.length > 0 && radio('fjern', `Fjern prefix fra ${risk(merket.length)}`, `Prefixet, f.eks. «${eksempel}», fjernes, mens beskrivelsen består. Det tas vare på som kilde i høyreklikk-infoen.`)}
     </div>
   )
 }

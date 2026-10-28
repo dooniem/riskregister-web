@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { KopiValg, Register } from '../model'
 import type { PrefixValg } from '../model'
-import { brukPrefixValg, harDelregisterMerke, kopierRegister, nyttRegister } from '../model'
+import { brukPrefixValg, kopierRegister, nyttRegister } from '../model'
 import { appUrl } from '../store/auth'
 import { demoFinnes, opprettDemo } from '../store/demoBackend'
 import { appLenke, opprettRegisterISharePoint } from '../store/graphBackend'
@@ -28,7 +28,7 @@ export function NyttRegisterDialog({ kilde, importert, filnavn, backendType, luk
     risker: !!importert,
     lukkede: !!importert,
   })
-  const [prefix, setPrefix] = useState<PrefixValg>(() => (importert && kilde?.risker.some(harDelregisterMerke) ? 'fjern' : 'behold'))
+  const [prefix, setPrefix] = useState<PrefixValg>('behold')
   const [jobber, setJobber] = useState(false)
   const [feil, setFeil] = useState('')
   const [ferdig, setFerdig] = useState<{ lenke: string; nettside?: string } | null>(null)
