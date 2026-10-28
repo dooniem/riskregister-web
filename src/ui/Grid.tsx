@@ -683,6 +683,8 @@ function RiskRader(p: RaderProps) {
     if (k.key === 'tilSkarisk') innhold = r.tilSkarisk ? <span className="hake">✓</span> : <span className="kryss">✗</span>
     if (k.nivaa === 'tiltak' && !t && k.key === 'tiltak' && p.kanSkrive) innhold = <span className="plassholder">+ legg til tiltak</span>
     if (k.key === 'fv') innhold = formatTall(fv(r))
+    // Tomme celler får et usynlig tegn, så en ny tiltakslinje er like høy som en med én linje tekst
+    if (innhold === '' || innhold == null) innhold = '\u200b'
 
     return (
       <td
