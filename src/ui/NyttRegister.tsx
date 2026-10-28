@@ -119,7 +119,7 @@ export function NyttRegisterDialog({ kilde, importert, backendType, lukk }: Prop
                 <label className="felt">
                   <span>Lenke til mappen i SharePoint der registeret skal opprettes</span>
                   <input value={mappe} onChange={(e) => setMappe(e.target.value)} placeholder="https://firma.sharepoint.com/sites/Prosjekt123/Delte dokumenter/…" />
-                  <small>Åpne mappen i SharePoint og kopier adressen, eller bruk «Kopier lenke». Du må ha skrivetilgang.</small>
+                  <small>Åpne mappen i SharePoint og kopier adressen, eller bruk «Kopier lenke». Du må ha skrivetilgang. Registeret får sin egen nye mappe her, for det kan bare være ett register per mappe.</small>
                 </label>
                 <label className="felt">
                   <span>Navn på ny mappe</span>

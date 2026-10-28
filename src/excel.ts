@@ -144,7 +144,12 @@ function etterLedetekst(ws: Ark | undefined, ledetekst: string): string {
 }
 
 export async function importerExcel(fil: File): Promise<Register> {
-  const wb = XLSX.read(await fil.arrayBuffer(), { type: 'array', cellDates: false })
+  return lesExcel(await fil.arrayBuffer(), fil.name)
+}
+
+// Leser en Excel-bok (fra PC eller hentet fra SharePoint) til et register
+export function lesExcel(innhold: ArrayBuffer, filnavn: string): Register {
+  const wb = XLSX.read(innhold, { type: 'array', cellDates: false })
   const hoved = wb.Sheets['Riskregister']
   if (!hoved) throw new Error('Fant ikke arkfanen «Riskregister». Er dette en Riskregister-fil?')
   const reg = nyttRegister()
@@ -230,7 +235,7 @@ export async function importerExcel(fil: File): Promise<Register> {
     if (brukt.has(r.nr)) r.nr = ++maks
     brukt.add(r.nr)
   }
-  if (!reg.prosjekt.navn) reg.prosjekt.navn = fil.name.replace(/\.xls[xm]?$/i, '')
+  if (!reg.prosjekt.navn) reg.prosjekt.navn = filnavn.replace(/\.xls[xm]?$/i, '')
   return reg
 }
 
@@ -460,15 +465,27 @@ export function lagExcelBok(reg: Register): XLSX.WorkBook {
   return wb
 }
 
-export function eksporterExcel(reg: Register) {
-  const wb = lagExcelBok(reg)
+// Eksportfilen som bytes, med et filnavn ut fra prosjektet og dagens dato
+export function excelFil(reg: Register): { navn: string; data: ArrayBuffer } {
   const p = reg.prosjekt
   const navn = ([p.nummer, p.navn].filter(Boolean).join(' ') || 'Riskregister').replace(/[^\w æøåÆØÅ.-]+/g, '-')
-  const data = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
-  const url = URL.createObjectURL(new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+  const data = XLSX.write(lagExcelBok(reg), { bookType: 'xlsx', type: 'array' }) as ArrayBuffer
+  return { navn: `Riskregister ${navn} ${new Date().toISOString().slice(0, 10)}.xlsx`, data }
+}
+
+export const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+export function eksporterExcel(reg: Register) {
+  const { navn, data } = excelFil(reg)
+  lastNed(navn, data)
+}
+
+// Vanlig nedlasting til egen disk
+export function lastNed(navn: string, data: ArrayBuffer) {
+  const url = URL.createObjectURL(new Blob([data], { type: XLSX_TYPE }))
   const a = document.createElement('a')
   a.href = url
-  a.download = `Riskregister ${navn} ${new Date().toISOString().slice(0, 10)}.xlsx`
+  a.download = navn
   document.body.appendChild(a)
   a.click()
   a.remove()

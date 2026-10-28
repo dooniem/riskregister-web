@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { GRUPPER, KOLONNER } from '../columns'
-import { eksporterExcel } from '../excel'
+import { excelFil, lastNed, lesExcel } from '../excel'
 import { SkariskVisning } from './Skarisk'
 import { FagMeny, fagForNyRisk } from './Fag'
 import type { Register } from '../model'
@@ -10,7 +10,11 @@ import { SimulertKollega } from '../sim'
 import type { Okt } from '../sync'
 import type { Visning } from '../view'
 import { GRUPPERINGER, STANDARD_VISNING, filtrer } from '../view'
+import { DemoFiler, type FilKilde } from '../store/filer'
+import { GraphBackend, GraphFiler } from '../store/graphBackend'
 import { Detaljpanel } from './Detaljpanel'
+import { Filvelger } from './Filvelger'
+import { ImportDialog } from './ImportDialog'
 import { Grid } from './Grid'
 import { Kortliste } from './Kortliste'
 import { Laas } from './Ikoner'
@@ -89,6 +93,8 @@ export function RegisterView({ okt, tilbake }: Props) {
   const [kolVelger, setKolVelger] = useState(false)
   const [meny, setMeny] = useState(false)
   const [nyttReg, setNyttReg] = useState(false)
+  const [filvelger, setFilvelger] = useState<null | 'aapne' | 'lagre'>(null)
+  const [importert, setImportert] = useState<{ reg: Register; filnavn: string } | null>(null)
   const [meldinger, setMeldinger] = useState<Melding[]>([])
   const [sim, setSim] = useState<SimulertKollega | null>(null)
   const angreStabel = useRef<Op[][]>([])
@@ -169,6 +175,9 @@ export function RegisterView({ okt, tilbake }: Props) {
     if (manglerHjem && b.kanSkrive) okt.utfor({ t: 'setHjem', hjem: hjem! })
   }, [manglerHjem, b.kanSkrive, okt, hjem])
 
+  // Mappene import og eksport starter i: mappen registeret ligger i
+  const filKilde = (): FilKilde => (b instanceof GraphBackend ? new GraphFiler(b.plassering) : new DemoFiler(doc))
+
   const filterAktivt = !!visning.sok || Object.keys(visning.filter.verdier).length > 0 || Object.values(visning.filter.tekst).some(Boolean) || !!visning.filter.matrise || !!visning.fag?.length
   const tittel = [doc.prosjekt.nummer, doc.prosjekt.navn].filter(Boolean).join(' ') || 'Riskregister uten navn'
   // Endringer samles noen sekunder før de lagres. Så lenge noen venter, sier vi det i stedet for «lagret».
@@ -215,13 +224,21 @@ export function RegisterView({ okt, tilbake }: Props) {
           Prosjekt og deltakere
         </button>
         <div className="meny-holder">
-          <button className="knapp" onClick={() => setMeny(!meny)}>
+          <button className={'knapp mer-knapp' + (meny ? ' aapen' : '')} onClick={() => setMeny(!meny)} title="Import, eksport, utskrift, lister og mer">
+            <span className="mer-ikon" aria-hidden>
+              ☰
+            </span>
             Mer ▾
           </button>
           {meny && (
             <div className="nedtrekk" onClick={() => setMeny(false)}>
-              <button onClick={() => eksporterExcel(doc)} title="Samme oppsett som Excel-registeret. Åpne et tomt Excel-register og bruk Oppgrader for å hente inn filen.">
-                Eksporter til Excel (.xlsx)
+              {b.kanSkrive && (
+                <button onClick={() => setFilvelger('aapne')} title="Legg til risker fra et Excel-register, f.eks. et delregister fra en underentreprenør">
+                  Importer risker fra Excel…
+                </button>
+              )}
+              <button onClick={() => setFilvelger('lagre')} title="Samme oppsett som Excel-registeret. Åpne et tomt Excel-register og bruk Oppgrader for å hente inn filen.">
+                Eksporter til Excel (.xlsx)…
               </button>
               <button onClick={() => setVisning((v) => ({ ...v, fane: 'skarisk' }))}>Poster til Skarisk</button>
               <button onClick={() => window.print()}>Skriv ut / lagre som PDF</button>
@@ -368,6 +385,49 @@ export function RegisterView({ okt, tilbake }: Props) {
 
       {prosjekt && <Prosjektpanel doc={doc} endre={endre} lukk={() => setProsjekt(false)} kanSkrive={b.kanSkrive} start={prosjekt} />}
       {nyttReg && <NyttRegisterDialog kilde={doc} backendType={b.type} lukk={() => setNyttReg(false)} />}
+      {filvelger === 'aapne' && (
+        <Filvelger
+          modus="aapne"
+          kilde={filKilde()}
+          valgt={(filnavn, data) => {
+            setImportert({ reg: lesExcel(data, filnavn), filnavn })
+            setFilvelger(null)
+          }}
+          lukk={() => setFilvelger(null)}
+        />
+      )}
+      {filvelger === 'lagre' && (
+        <Filvelger
+          modus="lagre"
+          kilde={filKilde()}
+          filnavn={excelFil(doc).navn}
+          data={() => excelFil(doc).data}
+          lagretPc={() => {
+            const f = excelFil(doc)
+            lastNed(f.navn, f.data)
+            setFilvelger(null)
+          }}
+          lagret={(navn, mappe) => {
+            melding(`Lagret «${navn}» i ${mappe}.`)
+            setFilvelger(null)
+          }}
+          lukk={() => setFilvelger(null)}
+        />
+      )}
+      {importert && (
+        <ImportDialog
+          doc={doc}
+          kilde={importert.reg}
+          filnavn={importert.filnavn}
+          bruker={b.bruker}
+          endre={endre}
+          ferdig={(tekst) => {
+            melding(tekst)
+            setImportert(null)
+          }}
+          lukk={() => setImportert(null)}
+        />
+      )}
 
       <div className="meldinger">
         {meldinger.map((m) => (

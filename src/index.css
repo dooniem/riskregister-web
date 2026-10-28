@@ -151,6 +151,26 @@ code {
 .toppfelt .ikonknapp {
   color: #fff;
 }
+/* Mer-menyen har mange valg (import, eksport, utskrift), så knappen skal synes godt */
+.toppfelt .knapp.mer-knapp {
+  background: #fff;
+  border-color: #fff;
+  color: #143a5a;
+  font-weight: 600;
+  padding-inline: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.toppfelt .knapp.mer-knapp:hover,
+.toppfelt .knapp.mer-knapp.aapen {
+  background: #dbe8f5;
+  border-color: #dbe8f5;
+}
+.mer-ikon {
+  font-size: 15px;
+  line-height: 1;
+}
 .toppfelt .ikonknapp:hover {
   background: rgba(255, 255, 255, 0.15);
 }
@@ -1776,4 +1796,134 @@ td .valgpil.synlig {
 }
 .riskinfo-linje span:first-child {
   color: var(--dempet);
+}
+
+/* Filvelger for import og eksport */
+.modal.filvelger {
+  width: min(640px, 100vw);
+  min-width: 0;
+}
+.fv-pc {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--linje);
+}
+.fv-sp {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+}
+.fv-sti {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.fv-brodsmuler {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.fv-sok {
+  display: flex;
+  gap: 8px;
+}
+.fv-sok input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--linje-sterk);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+.fv-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--linje);
+  border-radius: 8px;
+  max-height: 46vh;
+  overflow: auto;
+}
+.fv-liste li + li {
+  border-top: 1px solid var(--linje);
+}
+.fv-info {
+  padding: 8px 12px;
+  color: var(--dempet);
+}
+.fv-rad {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 12px;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.fv-rad:hover:not(:disabled) {
+  background: var(--aksent-lys);
+}
+.fv-rad.passiv {
+  color: var(--dempet);
+  cursor: default;
+}
+.fv-navn {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.fv-navn small {
+  color: var(--dempet);
+}
+.fv-meta {
+  color: var(--dempet);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.fv-ikon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+}
+.fv-ikon.mappe {
+  background: #e8b84a;
+  border-radius: 2px 6px 3px 3px;
+}
+.fv-ikon.excel {
+  background: #1d6f42;
+}
+.fv-ikon.fil {
+  background: #c5ccd3;
+}
+.fv-lagre {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.fv-lagre .felt {
+  flex: 1;
+  min-width: 220px;
+}
+.importliste {
+  margin: 0;
+  padding-left: 18px;
+  max-height: 30vh;
+  overflow: auto;
+}
+.importliste li {
+  padding: 2px 0;
 }

@@ -1,10 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { eksempelRegister } from '../eksempel'
-import { importerExcel } from '../excel'
+import { lesExcel } from '../excel'
 import type { Register } from '../model'
 import type { AuthConfig, Tillatelse } from '../store/auth'
 import { lagreConfig, loggInn, loggUt, redirectUri } from '../store/auth'
 import { demoRegistre, opprettDemo, slettDemo, demoFinnes } from '../store/demoBackend'
+import { DemoFiler } from '../store/filer'
+import { GraphFiler } from '../store/graphBackend'
+import { Filvelger } from './Filvelger'
 import { NyttRegisterDialog } from './NyttRegister'
 
 export interface Nylig {
@@ -41,8 +44,7 @@ export function Start({ config, konto }: Props) {
   const [demoer, setDemoer] = useState(demoRegistre())
   const [ny, setNy] = useState<null | { kilde?: Register; importert?: boolean; type: 'demo' | 'sharepoint' }>(null)
   const [visOppsett, setVisOppsett] = useState(false)
-  const [feil, setFeil] = useState('')
-  const filRef = useRef<HTMLInputElement>(null)
+  const [importFra, setImportFra] = useState<null | 'demo' | 'sharepoint'>(null)
   const nylige = lesNylige()
 
   useEffect(() => {
@@ -56,16 +58,6 @@ export function Start({ config, konto }: Props) {
     for (let i = 2; demoFinnes(n); i++) n = `Demo – Nytt kontorbygg (${i})`
     opprettDemo(n, eksempelRegister(n))
     window.location.search = '?demo=' + encodeURIComponent(n)
-  }
-
-  const importer = async (f: File) => {
-    setFeil('')
-    try {
-      const reg = await importerExcel(f)
-      setNy({ kilde: reg, importert: true, type: config ? 'sharepoint' : 'demo' })
-    } catch (e) {
-      setFeil(e instanceof Error ? e.message : String(e))
-    }
   }
 
   return (
@@ -89,7 +81,6 @@ export function Start({ config, konto }: Props) {
       </header>
 
       <main className="start-innhold">
-        {feil && <div className="banner feil">{feil}</div>}
         <section className="kort stort">
           <h2>Åpne et register i SharePoint</h2>
           <p>Lim inn lenken til mappen der registeret ligger. Du får bare åpnet registre du har tilgang til i SharePoint.</p>
@@ -113,6 +104,9 @@ export function Start({ config, konto }: Props) {
           <div className="knapperad">
             <button className="knapp" disabled={!config} onClick={() => setNy({ type: 'sharepoint' })}>
               Opprett nytt register i SharePoint
+            </button>
+            <button className="knapp" disabled={!config} onClick={() => setImportFra('sharepoint')}>
+              Nytt register fra Excel…
             </button>
             <button className="lenkeknapp" onClick={() => setVisOppsett(!visOppsett)}>
               Tilkoblingsinnstillinger
@@ -148,10 +142,9 @@ export function Start({ config, konto }: Props) {
             <button className="knapp" onClick={() => setNy({ type: 'demo' })}>
               Nytt tomt register
             </button>
-            <button className="knapp" onClick={() => filRef.current?.click()}>
+            <button className="knapp" onClick={() => setImportFra('demo')}>
               Importer fra Excel (.xlsm)…
             </button>
-            <input ref={filRef} type="file" accept=".xlsm,.xlsx" hidden onChange={(e) => e.target.files?.[0] && void importer(e.target.files[0])} />
           </div>
           {demoer.length > 0 && (
             <ul className="liste">
@@ -175,6 +168,18 @@ export function Start({ config, konto }: Props) {
           )}
         </section>
       </main>
+      {importFra && (
+        <Filvelger
+          modus="aapne"
+          kilde={importFra === 'demo' ? new DemoFiler() : null}
+          lagKilde={importFra === 'sharepoint' && konto ? (l) => GraphFiler.fraLenke(l) : undefined}
+          valgt={(filnavn, data) => {
+            setNy({ kilde: lesExcel(data, filnavn), importert: true, type: importFra })
+            setImportFra(null)
+          }}
+          lukk={() => setImportFra(null)}
+        />
+      )}
       {ny && <NyttRegisterDialog kilde={ny.kilde} importert={ny.importert} backendType={ny.type} lukk={() => (setNy(null), setDemoer(demoRegistre()))} />}
     </div>
   )

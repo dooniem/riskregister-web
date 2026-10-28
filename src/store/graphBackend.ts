@@ -11,6 +11,7 @@ import type { Register } from '../model'
 import type { Bruker } from '../ops'
 import { appUrl, token } from './auth'
 import type { Backend, LagreSvar, Tilstede, Versjon } from './backend'
+import type { FilElement, FilKilde, FilMappe } from './filer'
 
 const GRAPH = 'https://graph.microsoft.com/v1.0'
 export const REGISTERFIL = 'register.json'
@@ -144,9 +145,17 @@ export function appLenke(p: Plassering) {
   return `${appUrl()}?reg=${encodeURIComponent(`drive:${p.driveId}:${p.mappeId}`)}`
 }
 
+// Det skal bare være ett register per mappe: et nytt register får sin egen mappe, og den kan ikke ligge inni et annet register
+async function sjekkIkkeRegister(p: Plassering) {
+  const svar = await graph(`/drives/${p.driveId}/items/${p.mappeId}:/${REGISTERFIL}`)
+  if (svar.ok || [TILSTEDEMAPPE, HISTORIKKMAPPE].includes(p.mappeNavn))
+    throw new Error(`Mappen «${p.mappeNavn}» hører til et riskregister. Det kan bare være ett register per mappe, og et nytt register kan ikke ligge inni et annet. Velg mappen over, eller en annen mappe.`)
+}
+
 // Oppretter en ny mappe med register.json og en snarvei som åpner appen
 export async function opprettRegisterISharePoint(forelderRef: string, mappenavn: string, doc: Register): Promise<Plassering> {
   const forelder = await finnPlassering(forelderRef)
+  await sjekkIkkeRegister(forelder)
   const mappe = await graphJson<DriveItem>(`/drives/${forelder.driveId}/items/${forelder.mappeId}/children`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -169,6 +178,61 @@ export async function opprettRegisterISharePoint(forelderRef: string, mappenavn:
     body: snarvei,
   })
   return p
+}
+
+// Mapper og filer i SharePoint for import og eksport. Starter i en gitt mappe og kan gå opp til roten av biblioteket.
+export class GraphFiler implements FilKilde {
+  readonly navn = 'SharePoint'
+  private driveId: string
+  private startId: string
+  constructor(p: { driveId: string; mappeId: string }) {
+    this.driveId = p.driveId
+    this.startId = p.mappeId
+  }
+  static async fraLenke(ref: string) {
+    return new GraphFiler(await finnPlassering(ref))
+  }
+  private get drive() {
+    return `/drives/${this.driveId}`
+  }
+  start() {
+    return this.mappe(this.startId)
+  }
+  async mappe(id: string): Promise<FilMappe> {
+    const i = await graphJson<DriveItem & { root?: unknown }>(`${this.drive}/items/${id}?$select=id,name,parentReference,root`)
+    // Roten av biblioteket har ikke forelder-id. Navnet på roten er alltid «root», så vis «Dokumenter» i stedet.
+    return { id: i.id, navn: i.root ? 'Dokumenter' : i.name, forelder: i.root ? undefined : i.parentReference.id }
+  }
+  async liste(mappeId: string) {
+    const ut: FilElement[] = []
+    let neste: string | undefined = `${this.drive}/items/${mappeId}/children?$top=200&$select=id,name,folder,file,size,lastModifiedDateTime`
+    while (neste && ut.length < 1000) {
+      const side: { value: (DriveItem & { size?: number })[]; '@odata.nextLink'?: string } = await graphJson(neste)
+      ut.push(...side.value.map((i) => ({ id: i.id, navn: i.name, mappe: !!i.folder, endret: i.lastModifiedDateTime, storrelse: i.size })))
+      neste = side['@odata.nextLink']
+    }
+    return ut
+  }
+  async sok(tekst: string) {
+    const q = tekst.replace(/'/g, "''")
+    const svar = await graphJson<{ value: (DriveItem & { size?: number })[] }>(`${this.drive}/root/search(q='${encodeURIComponent(q)}')?$top=100`)
+    return svar.value
+      .filter((i) => !i.folder)
+      .map((i) => ({ id: i.id, navn: i.name, mappe: false, endret: i.lastModifiedDateTime, storrelse: i.size, sted: decodeURIComponent(i.parentReference.path?.split('root:')[1] ?? '').replace(/^\//, '') || 'Dokumenter' }))
+  }
+  async hent(id: string) {
+    const r = await graph(`${this.drive}/items/${id}/content`)
+    if (!r.ok) throw new GraphFeil(r.status, await feiltekst(r))
+    return r.arrayBuffer()
+  }
+  async lagre(mappeId: string, navn: string, data: ArrayBuffer) {
+    const i = await graphJson<DriveItem>(`${this.drive}/items/${mappeId}:/${encodeURIComponent(navn)}:/content?@microsoft.graph.conflictBehavior=rename`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: data,
+    })
+    return i.name
+  }
 }
 
 export class GraphBackend implements Backend {
