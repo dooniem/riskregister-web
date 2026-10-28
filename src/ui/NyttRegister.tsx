@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import type { KopiValg, Register } from '../model'
-import { kopierRegister, nyttRegister } from '../model'
+import { harDelregisterMerke, kopierRegister, nyttRegister, utenDelregisterMerke } from '../model'
 import { appUrl } from '../store/auth'
 import { demoFinnes, opprettDemo } from '../store/demoBackend'
 import { appLenke, opprettRegisterISharePoint } from '../store/graphBackend'
+import { DelregisterValg } from './ImportDialog'
 
 interface Props {
   kilde?: Register // registeret det kopieres fra, eller et importert register
@@ -25,6 +26,8 @@ export function NyttRegisterDialog({ kilde, importert, backendType, lukk }: Prop
     risker: !!importert,
     lukkede: !!importert,
   })
+  const [fjernMerke, setFjernMerke] = useState(true)
+  const merket = importert && kilde ? kilde.risker.filter(harDelregisterMerke) : []
   const [jobber, setJobber] = useState(false)
   const [feil, setFeil] = useState('')
   const [ferdig, setFerdig] = useState<{ lenke: string; nettside?: string } | null>(null)
@@ -32,7 +35,8 @@ export function NyttRegisterDialog({ kilde, importert, backendType, lukk }: Prop
   const opprett = async () => {
     setFeil('')
     if (!navn.trim()) return setFeil('Gi registeret et navn.')
-    const doc = kilde ? kopierRegister(kilde, { navn: navn.trim(), behold }) : nyttRegister(navn.trim())
+    const fra = kilde && merket.length && fjernMerke ? { ...kilde, risker: kilde.risker.map(utenDelregisterMerke) } : kilde
+    const doc = fra ? kopierRegister(fra, { navn: navn.trim(), behold }) : nyttRegister(navn.trim())
     if (importert && kilde) doc.prosjekt = { ...doc.prosjekt, nummer: behold.prosjektinfo ? kilde.prosjekt.nummer : '' }
     setJobber(true)
     try {
@@ -135,6 +139,7 @@ export function NyttRegisterDialog({ kilde, importert, backendType, lukk }: Prop
                 {avkrysning('deltakere', 'Deltakere')}
                 {avkrysning('risker', 'Risker og tiltak', '(får nye ID-er og nummereres fra 1)')}
                 {behold.risker && avkrysning('lukkede', 'Også lukkede risker')}
+                {behold.risker && merket.length > 0 && <DelregisterValg antall={merket.length} eksempel={merket[0]} fjern={fjernMerke} setFjern={setFjernMerke} />}
               </div>
             )}
             {feil && <div className="banner feil">{feil}</div>}

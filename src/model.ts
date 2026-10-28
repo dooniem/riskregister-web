@@ -210,6 +210,15 @@ export function renummerer(reg: Register) {
   ;[...reg.risker].sort((a, b) => a.nr - b.nr).forEach((r, i) => (r.nr = i + 1))
 }
 
+// Excel-registeret merker risker som er hentet inn fra et delregister med en linje først i årsaken:
+// «[Filnavn #RiskID | dd.mm.yy]» (frmImport, Tag dokumentet i årsakskolonnen). Risker som er importert flere ganger,
+// kan ha flere slike linjer etter hverandre.
+const DELREG_MERKE = /^(?:\[[^\]\r\n]* #[^\]\r\n|]* \| \d{2}\.\d{2}\.\d{2}\][ \t]*(?:\r?\n|$))+/
+
+export const harDelregisterMerke = (r: Risk) => DELREG_MERKE.test(r.aarsak) || DELREG_MERKE.test(r.hendelse)
+
+export const utenDelregisterMerke = (r: Risk): Risk => ({ ...r, aarsak: r.aarsak.replace(DELREG_MERKE, '').trimStart(), hendelse: r.hendelse.replace(DELREG_MERKE, '').trimStart() })
+
 // Eksponering = sannsynlighet × konsekvens (Eksponering i modBeregninger)
 export function eksponering(r: Risk): number {
   return r.sannsynlighet && r.konsekvens ? r.sannsynlighet * r.konsekvens : 0
