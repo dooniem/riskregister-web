@@ -326,7 +326,12 @@ export function RegisterView({ okt, tilbake }: Props) {
             <button
               className={'knapp' + (visning.kompakt ? ' aktivt-filter' : '')}
               title={visning.kompakt ? 'Tilbake til tabellen' : 'Vis riskene som kort, som på mobil'}
-              onClick={() => setVisning((v) => ({ ...v, kompakt: !v.kompakt }))}
+              onClick={() => {
+                // Lukk sidepanelet når visningen byttes. Feltet som redigeres mister fokus først, så teksten blir lagret.
+                if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+                setDetalj(null)
+                setVisning((v) => ({ ...v, kompakt: !v.kompakt }))
+              }}
             >
               {visning.kompakt ? 'Tabell' : 'Kompakt'}
             </button>
