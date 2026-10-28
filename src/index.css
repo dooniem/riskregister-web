@@ -1972,3 +1972,14 @@ td .valgpil.synlig {
 .importliste li {
   padding: 2px 0;
 }
+
+.fv-passord {
+  margin: 12px 0 0;
+  padding: 12px;
+  border: 1px solid var(--aksent);
+  border-radius: 8px;
+  background: var(--aksent-lys);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
