@@ -105,6 +105,8 @@ Appen kan lage listene selv (Sett opp riskregister på startsiden), men IT kan o
 - **Appens egne lister:** «Riskregister Klientinnstillinger», «Riskregister Klienttilstede», «Riskregister Snapshots» og «Riskregister Snapshotdata». Disse trenger ikke IT å lage. Appen lager dem første gang registeret åpnes av noen som har lov til å lage lister på området (eier). Til da virker registeret med standardinnstillinger, men uten låsing av risker og uten snapshots.
 - Eldre registre med listene «Riskregister Innstillinger» og «Riskregister Tilstede» åpnes som før.
 
+Er «Riskregister Risker» eller «Riskregister Tiltak» slettet eller omdøpt, viser appen listene på området og lar brukeren velge hvilke den skal bruke. Bare lister med nøkkelkolonnene (`RiskId`, og `TiltakId` for tiltak) kan velges. Valget lagres som liste-ID i raden `sharepointLister` i «Riskregister Klientinnstillinger», så det gjelder for alle og tåler at listene får nytt navn senere. Slettes eller ødelegges den raden, får brukeren velge på nytt.
+
 Slettes en kolonne i listene (f.eks. i SharePoint i nettleseren), sier appen fra når registeret åpnes. Resten lagres som før, mens feltene i kolonnen som mangler, ikke lagres. Den som kan endre listene, kan la appen lage kolonnen på nytt. Den blir tom, siden en slettet kolonne ikke havner i papirkurven. Mangler `RiskId` (eller `TiltakId` i Tiltak), åpnes ikke registeret, fordi radene da ikke kan knyttes til riskene.
 
 Bruker piloten andre lister eller kolonner, kan koblingen tilpasses i `src/store/lister/skjema.ts`. Det krever en oversikt over listene og kolonnene (internnavn og type).

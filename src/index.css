@@ -2557,3 +2557,11 @@ td .valgpil.synlig {
 .koblinger .liste {
   margin: 4px 0;
 }
+
+/* Velg lister når Risker eller Tiltak ikke finnes */
+.velglister .skjema {
+  padding: 0 0 8px;
+}
+.velglister ul {
+  margin: 4px 0 8px;
+}
