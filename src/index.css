@@ -2390,6 +2390,10 @@ td .valgpil.synlig {
 .stormatrise-side.hel {
   width: 460px;
   display: flex;
+  flex-direction: column;
+}
+.side-verktoy {
+  padding: 8px 14px 0;
 }
 .stormatrise-side.hel .detaljpanel {
   border: none;
