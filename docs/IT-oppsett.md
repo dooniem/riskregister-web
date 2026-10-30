@@ -13,6 +13,7 @@ For å teste i en egen tenant uten IT, se [Testmiljo.md](Testmiljo.md).
 2. API permissions › Add › Microsoft Graph › **Delegated**:
    - `Sites.Manage.All` – lese og skrive listene på områder brukeren selv har tilgang til, og lage listene for et nytt register på områder brukeren eier
    - `User.Read` – navnet på brukeren
+   - `User.ReadBasic.All` – søk etter personer i organisasjonen (navn, e-post og stilling), så risikoeiere, tiltakseiere og deltakere kan kobles til ekte brukere. Appen ber om denne først når noen søker, så innloggingen virker også uten den. Uten den kan deltakere bare skrives inn for hånd.
 3. Grant admin consent (anbefalt, slik at brukerne ikke får samtykkedialog)
 4. Send **Application (client) ID** og **Directory (tenant) ID** til den som drifter appen. Ingen client secret trengs.
 
@@ -24,7 +25,7 @@ Trenger appen ikke å lage lister selv (fordi listene lages av IT eller med en o
 
 I stedet kan appen få delegert `Sites.Selected`. Da når appen bare de SharePoint-områdene IT eksplisitt gir den tilgang til, og fortsatt bare det den innloggede brukeren selv har tilgang til der.
 
-1. API permissions › Microsoft Graph › **Delegated** › `Sites.Selected` (og `User.Read`), og grant admin consent.
+1. API permissions › Microsoft Graph › **Delegated** › `Sites.Selected` (og `User.Read` og `User.ReadBasic.All`), og grant admin consent.
 2. Gi appen tilgang til hvert pilotområde, f.eks. med Graph: `POST /sites/{site-id}/permissions` med `{"roles": ["manage"], "grantedToIdentities": [{"application": {"id": "<client id>", "displayName": "Riskregister"}}]}`, eller PowerShell `Grant-PnPAzureADAppSitePermission -AppId <client id> -DisplayName Riskregister -Site <område-url> -Permissions Manage`. Rollen `write` holder når listene allerede finnes.
 3. I appen velges **Sites.Selected** under Tilkoblingsinnstillinger på startsiden (eller repo-variabelen `AZURE_TILLATELSE=sites` ved bygg).
 
@@ -56,7 +57,7 @@ Når et register settes opp, lager appen disse listene på området (vanlige ege
 | --- | --- |
 | Riskregister Risker | Én rad per risk: `RiskId` (indeksert), `Nr`, `RM`, `Aarsak`, `Hendelse`, `Konsekvenser`, `Eier`, `Status`, `Kategori`, `Egendef`, `Egendef2`, `FagId`, `Sannsynlighet`, `Konsekvens`, `BC`, `ML`, `WC`, `TilSkarisk`, `Kilde`, `EndretTid`, `EndretAv`, `OpprettetTid`, `OpprettetAv`, `LukketTid`, `LukketAv` |
 | Riskregister Tiltak | Én rad per tiltak: `RiskId` (indeksert, peker på risken), `TiltakId`, `Rekkefolge`, `Tekst`, `Eier`, `Frist`, `Beskrivelse`, `Status` |
-| Riskregister Innstillinger | Én rad per nøkkel (`Title`), verdien som JSON i `Verdi`: `prosjekt`, `deltakere`, `gjennomganger`, `lister` (nedtrekkslister og fag), `nesteNr`, `registerId`, `opprettet`, `excelNokkel` |
+| Riskregister Innstillinger | Én rad per nøkkel (`Title`), verdien som JSON i `Verdi`: `prosjekt`, `deltakere` (med e-post når deltakeren er koblet til en bruker), `gjennomganger`, `lister` (nedtrekkslister og fag), `nesteNr`, `registerId`, `opprettet`, `excelNokkel` |
 | Riskregister Tilstede | Hvem som har registeret åpent, og hvilken risk de redigerer. Én rad per åpen økt, slettes når brukeren lukker |
 | Riskregister Snapshots | Én rad per snapshot: `SnapshotId` (indeksert), `Tidspunkt`, `TattAv`, `AntallRisker`, `Kommentar`, `Register` (prosjektinfo og lister som JSON) |
 | Riskregister Snapshotdata | Riskene slik de var da snapshotet ble tatt: `SnapshotId` (indeksert) og de samme kolonnene som i Risker, pluss `Tiltak` (JSON) |

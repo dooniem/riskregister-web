@@ -2,6 +2,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Kolonne } from '../columns'
 import { formatDato, isoUke, parseDato } from '../columns'
 import { Kalender } from './Kalender'
+import { OrgFeil, PersonLinje, useOrgSok, usePersoner } from './Personer'
+import type { Person } from '../store/katalog'
 
 export type Flytt = 'ned' | 'opp' | 'hoyre' | 'venstre' | 'ingen'
 
@@ -50,6 +52,13 @@ export function CelleEditor({ kolonne, start, erstatt, valg, bredde, onFerdig, o
     return valg.filter((v) => v.toLowerCase().includes(t)).sort((a, b) => Number(!a.toLowerCase().startsWith(t)) - Number(!b.toLowerCase().startsWith(t)))
   }, [tekst, valg, kolonne.type, erstatt, start])
 
+  // Risikoeier og tiltakseier: søk også i organisasjonen når brukeren har skrevet noe
+  const personer = usePersoner()
+  const erPerson = kolonne.key === 'eier' || kolonne.key === 'tiltakseier'
+  const org = useOrgSok(erPerson ? personer?.katalog : null, erstatt || tekst !== start ? tekst : '')
+  const fraOrg: Person[] = org.treff.filter((p) => !valg.some((v) => v.toLowerCase() === p.navn.toLowerCase()))
+  const antall = treff.length + fraOrg.length
+
   const forsteGang = useRef(true)
   useEffect(() => {
     if (forsteGang.current) {
@@ -70,7 +79,12 @@ export function CelleEditor({ kolonne, start, erstatt, valg, bredde, onFerdig, o
     onFerdig(verdi, flytt)
   }
 
-  const valgt = () => (kolonne.type === 'valg' && markert >= 0 ? treff[markert] ?? tekst : tekst)
+  const valgt = () => (kolonne.type === 'valg' && markert >= 0 ? treff[markert] ?? fraOrg[markert - treff.length]?.navn ?? tekst : tekst)
+  const velgPerson = (p: Person, flytt: Flytt) => {
+    if (ferdig.current) return
+    personer?.leggTil(p)
+    avslutt(p.navn, flytt)
+  }
 
   // Datoer kan skrives fritt (31.12, 311226, uke 12 …). Ugyldig tekst lagres ikke.
   const fullfor = (flytt: Flytt) => {
@@ -81,7 +95,12 @@ export function CelleEditor({ kolonne, start, erstatt, valg, bredde, onFerdig, o
       } else setUgyldig(true)
       return
     }
-    avslutt(valgt(), flytt)
+    // Personer fra organisasjonen legges bare til når de velges med Enter, Tab eller klikk, ikke når feltet mister fokus
+    const p = markert >= treff.length ? fraOrg[markert - treff.length] : undefined
+    if (p) {
+      if (flytt === 'ingen') avslutt(tekst, flytt)
+      else velgPerson(p, flytt)
+    } else avslutt(valgt(), flytt)
   }
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -104,7 +123,7 @@ export function CelleEditor({ kolonne, start, erstatt, valg, bredde, onFerdig, o
     }
     if (kolonne.type === 'valg' && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
       e.preventDefault()
-      setMarkert((m) => Math.max(0, Math.min(treff.length - 1, m + (e.key === 'ArrowDown' ? 1 : -1))))
+      setMarkert((m) => Math.max(0, Math.min(antall - 1, m + (e.key === 'ArrowDown' ? 1 : -1))))
     }
     if (kolonne.type === 'valg' && (e.key === 'PageDown' || e.key === 'PageUp' || e.key === 'Home' || e.key === 'End') && !tekst) {
       e.preventDefault()
@@ -150,15 +169,27 @@ export function CelleEditor({ kolonne, start, erstatt, valg, bredde, onFerdig, o
   }
 
   return (
-    <div {...ramme} style={{ width: Math.max(bredde, kolonne.type === 'valg' ? 200 : bredde) }}>
+    <div {...ramme} style={{ width: Math.max(bredde, erPerson && personer ? 320 : kolonne.type === 'valg' ? 200 : bredde) }}>
       <input {...felles} inputMode={kolonne.type === 'tall' ? 'decimal' : undefined} onChange={(e) => setTekst(e.target.value)} />
-      {kolonne.type === 'valg' && treff.length > 0 && (
+      {kolonne.type === 'valg' && (antall > 0 || org.laster || org.feil) && (
         <ul className="valgliste" ref={liste}>
           {treff.slice(0, 50).map((v, i) => (
             <li key={v} className={i === markert ? 'markert' : ''} onMouseEnter={() => setMarkert(i)} onClick={() => avslutt(v, 'ingen')}>
               {v}
             </li>
           ))}
+          {fraOrg.map((p, j) => (
+            <PersonLinje
+              key={'o:' + (p.epost || p.navn)}
+              v={{ navn: p.navn, person: p }}
+              forsteOrg={j === 0}
+              markert={treff.length + j === markert}
+              onHover={() => setMarkert(treff.length + j)}
+              onVelg={() => velgPerson(p, 'ingen')}
+            />
+          ))}
+          {org.laster && <li className="valgliste-info">Søker i organisasjonen…</li>}
+          <OrgFeil org={org} />
         </ul>
       )}
     </div>

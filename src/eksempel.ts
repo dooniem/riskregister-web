@@ -1,6 +1,6 @@
 // Eksempeldata for demomodus. Fiktivt prosjekt.
 import type { Register, Risk } from './model'
-import { nyttRegister, uid } from './model'
+import { demoEpost, nyttRegister, uid } from './model'
 
 type T = [tekst: string, eier: string, frist: string, beskrivelse: string, status: string]
 
@@ -23,7 +23,7 @@ export function eksempelRegister(navn = 'Demo – Nytt kontorbygg'): Register {
     ['SM', 'Siri Moe', 'HMS-leder', 'Tiltakseier'],
     ['AJ', 'Anders Johansen', 'Prosjektøkonom', 'Fasilitator'],
     ['TS', 'Tone Solberg', 'Arbeidsleder', 'Kompetanseressurs'],
-  ].map(([initialer, n, rolleProsjekt, rolleRisk]) => ({ id: uid(), initialer, navn: n, rolleProsjekt, rolleRisk }))
+  ].map(([initialer, n, rolleProsjekt, rolleRisk]) => ({ id: uid(), initialer, navn: n, rolleProsjekt, rolleRisk, epost: demoEpost(n) }))
   reg.gjennomganger = [
     { id: uid(), dato: '2026-08-20', signatur: 'KN, OH, IB, PL, AJ', fasilitator: 'Anders Johansen' },
     { id: uid(), dato: '2026-10-01', signatur: 'KN, OH, IB, SM, AJ, TS', fasilitator: 'Anders Johansen' },

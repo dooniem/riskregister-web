@@ -73,7 +73,20 @@ export interface Deltaker {
   navn: string
   rolleProsjekt: string
   rolleRisk: string
+  epost?: string // kobler deltakeren til en bruker i organisasjonen
 }
+
+// E-postadresse for de oppdiktede personene i demoen
+export const demoEpost = (navn: string) =>
+  navn
+    .toLowerCase()
+    .replace(/æ/g, 'ae')
+    .replace(/ø/g, 'o')
+    .replace(/å/g, 'a')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .split(/\s+/)
+    .join('.') + '@demo.example'
 
 export interface Gjennomgang {
   id: string
