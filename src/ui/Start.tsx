@@ -264,7 +264,7 @@ function OmraadeSok() {
           void sok()
         }}
       >
-        <input value={tekst} onChange={(e) => setTekst(e.target.value)} placeholder="Navn på området (tomt viser alle)" />
+        <input value={tekst} onChange={(e) => setTekst(e.target.value)} placeholder="Navn på området, eller tomt for alle" className="omraadesok-felt" />
         <button className="knapp">Søk</button>
       </form>
       {feil && <div className="banner feil">{feil}</div>}

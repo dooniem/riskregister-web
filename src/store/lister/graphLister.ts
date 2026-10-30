@@ -70,8 +70,23 @@ export async function finnOmraade(ref: string): Promise<Omraade> {
 
 // Søker etter områder brukeren har tilgang til
 export async function sokOmraader(tekst: string): Promise<Omraade[]> {
-  const r = await graphJson<{ value: { id: string; displayName: string; webUrl: string }[] }>(`/sites?search=${encodeURIComponent(tekst || '*')}&$select=id,displayName,webUrl&$top=30`)
-  return r.value.filter((s) => s.displayName).map((s) => ({ id: s.id, navn: s.displayName, webUrl: s.webUrl }))
+  type Site = { id: string; displayName?: string; name?: string; webUrl: string }
+  const tilOmraader = (v: Site[]) =>
+    v.filter((s) => s.displayName || s.name).map((s) => ({ id: s.id, navn: (s.displayName || s.name)!, webUrl: s.webUrl }))
+  // $top og $select sammen med search gir «General exception while processing» i enkelte tenanter
+  try {
+    const r = await graphJson<{ value: Site[] }>(`/sites?search=${encodeURIComponent(tekst || '*')}`)
+    return tilOmraader(r.value).slice(0, 50)
+  } catch (e) {
+    // Søket feiler også når søkeindeksen ikke er klar (f.eks. i en ny tenant). Vis da områder brukeren følger, og rotområdet.
+    const fulgte = await graphJson<{ value: Site[] }>('/me/followedSites').catch(() => ({ value: [] as Site[] }))
+    const rot = await graphJson<Site>('/sites/root').catch(() => null)
+    const alle = tilOmraader([...(rot ? [rot] : []), ...fulgte.value])
+    const t = tekst.toLowerCase()
+    const treff = alle.filter((o) => !t || o.navn.toLowerCase().includes(t) || o.webUrl.toLowerCase().includes(t))
+    if (treff.length) return treff
+    throw new Error(`Søket i SharePoint feilet (${e instanceof Error ? e.message : String(e)}). Lim inn adressen til området i stedet.`)
+  }
 }
 
 async function hentLister(siteId: string): Promise<GraphListe[]> {
