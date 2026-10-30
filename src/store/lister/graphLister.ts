@@ -251,6 +251,15 @@ export class GraphLister implements ListeLager {
 }
 
 // Lenke som åpner registeret på området direkte
+// Rotområdet (https://firma.sharepoint.com uten /sites/…) er startsiden for hele tenanten, ikke et prosjektområde
+export function erRotomraade(adresse: string) {
+  try {
+    return /\.sharepoint\.com$/i.test(new URL(adresse).hostname) && new URL(adresse).pathname.replace(/\/+$/, '') === ''
+  } catch {
+    return false
+  }
+}
+
 export function omraadeLenke(webUrl: string) {
   return `${appUrl()}?site=${encodeURIComponent(webUrl)}`
 }
