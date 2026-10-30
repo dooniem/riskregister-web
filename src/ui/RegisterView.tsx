@@ -21,7 +21,7 @@ import { ImportDialog } from './ImportDialog'
 import { Grid } from './Grid'
 import { Kortliste } from './Kortliste'
 import { Laas } from './Ikoner'
-import { NyttRegisterDialog } from './NyttRegister'
+import { HentOppsett } from './HentOppsett'
 import { Oversikt } from './Oversikt'
 import { Prosjektpanel } from './Prosjektpanel'
 import { RaadataDialog } from './Raadata'
@@ -102,7 +102,7 @@ export function RegisterView({ okt, tilbake }: Props) {
   const [prosjekt, setProsjekt] = useState<false | 'prosjekt' | 'deltakere' | 'gjennomganger' | 'lister'>(false)
   const [kolVelger, setKolVelger] = useState(false)
   const [meny, setMeny] = useState(false)
-  const [nyttReg, setNyttReg] = useState(false)
+  const [hentOppsett, setHentOppsett] = useState(false)
   const [filvelger, setFilvelger] = useState<null | 'aapne' | 'lagre'>(null)
   const [importert, setImportert] = useState<{ reg: Register; filnavn: string } | null>(null)
   const [meldinger, setMeldinger] = useState<Melding[]>([])
@@ -285,7 +285,7 @@ export function RegisterView({ okt, tilbake }: Props) {
                 <button onClick={() => window.print()}>Skriv ut / lagre som PDF</button>
                 <hr />
                 <button onClick={() => setProsjekt('lister')}>Lister og valg…</button>
-                <button onClick={() => setNyttReg(true)}>Lag nytt register fra dette…</button>
+                {b.kanSkrive && <button onClick={() => setHentOppsett(true)}>Hent oppsett fra et annet register…</button>}
                 {b.snapshots && !b.snapshot && (
                   <>
                     <hr />
@@ -346,6 +346,14 @@ export function RegisterView({ okt, tilbake }: Props) {
         )}
 
         <UlagretBanner okt={okt} snap={snap} />
+        {doc.risker.length === 0 && b.kanSkrive && !b.snapshot && (
+          <div className="banner info tomt">
+            <span>Registeret er tomt. Har et annet prosjekt et oppsett dere vil bruke, kan du hente kategorier, nedtrekkslister og deltakere derfra.</span>
+            <button className="knapp" onClick={() => setHentOppsett(true)}>
+              Hent oppsett fra et annet register…
+            </button>
+          </div>
+        )}
         <AvklarDialog okt={okt} konflikter={snap.avklar} />
         <AvvikBanner okt={okt} />
         {manglende.length > 0 && (
@@ -529,8 +537,19 @@ export function RegisterView({ okt, tilbake }: Props) {
           />
         )}
         {raadata && b.lager && <RaadataDialog lager={b.lager} lukk={() => setRaadata(false)} />}
-        {prosjekt && <Prosjektpanel doc={doc} endre={endre} lukk={() => setProsjekt(false)} kanSkrive={b.kanSkrive} start={prosjekt} />}
-        {nyttReg && <NyttRegisterDialog kilde={doc} backendType={b.type} lukk={() => setNyttReg(false)} />}
+        {prosjekt && (
+          <Prosjektpanel
+            doc={doc}
+            endre={endre}
+            lukk={() => setProsjekt(false)}
+            kanSkrive={b.kanSkrive}
+            start={prosjekt}
+            hentOppsett={() => (setProsjekt(false), setHentOppsett(true))}
+          />
+        )}
+        {hentOppsett && (
+          <HentOppsett doc={doc} endre={endre} lukk={() => setHentOppsett(false)} type={b.type} bruker={b.bruker} egetNavn={b.tittel.replace('Demo › ', '')} />
+        )}
         {filvelger === 'aapne' && (
           <Filvelger
             modus="aapne"
