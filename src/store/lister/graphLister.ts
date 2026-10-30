@@ -32,6 +32,13 @@ interface GraphElement {
 // Selve registeret. Resten er appens egne lister, som appen lager når de mangler.
 const PAAKREVD: ListeNavn[] = ['risker', 'tiltak']
 const VALGFRI: ListeNavn[] = ['innstillinger', 'tilstede', 'snapshots', 'snapshotdata']
+// Kolonnene som knytter radene til risker og tiltak. Lages de på nytt, er de tomme, og radene kan ikke leses.
+const NOKKEL: Partial<Record<ListeNavn, string[]>> = { risker: ['RiskId'], tiltak: ['RiskId', 'TiltakId'] }
+
+export interface ManglendeKolonne {
+  liste: ListeNavn
+  kolonne: string
+}
 
 function shareId(url: string) {
   const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(url)))
@@ -131,6 +138,22 @@ async function opprettListe(siteId: string, navn: ListeNavn): Promise<GraphListe
   })
 }
 
+// Henter navnene på kolonnene i listene (internnavn), og finner dem appen bruker som mangler
+async function finnManglende(siteId: string, lister: Partial<Record<ListeNavn, GraphListe>>): Promise<ManglendeKolonne[]> {
+  const navn = (Object.keys(lister) as ListeNavn[]).filter((n) => lister[n])
+  const svar = await batch(navn.map((n) => ({ method: 'GET', url: `/sites/${siteId}/lists/${lister[n]!.id}/columns?$select=name&$top=500` })))
+  const ut: ManglendeKolonne[] = []
+  navn.forEach((n, i) => {
+    const s = svar[i]
+    if (s.status !== 200) return // Usikkert, så la heller lagringen si fra
+    const fins = new Set(((s.body as { value?: { name: string }[] })?.value ?? []).map((k) => k.name.toLowerCase()))
+    for (const k of LISTER[n].kolonner) if (!fins.has(k.navn.toLowerCase())) ut.push({ liste: n, kolonne: k.navn })
+  })
+  return ut
+}
+
+const listeTekst = (m: ManglendeKolonne[]) => m.map((k) => `«${k.kolonne}» i «${LISTER[k.liste].visningsnavn}»`).join(', ')
+
 const tilElement = (i: GraphElement): Element => ({
   id: i.id,
   etag: i.eTag,
@@ -145,10 +168,13 @@ export class GraphLister implements ListeLager {
   readonly type = 'sharepoint' as const
   readonly omraade: Omraade
   private lister: Partial<Record<ListeNavn, GraphListe>>
+  // Kolonner appen bruker som er slettet fra listene (f.eks. i SharePoint i nettleseren). Disse feltene lagres ikke.
+  private manglende: ManglendeKolonne[]
 
-  private constructor(omraade: Omraade, lister: Partial<Record<ListeNavn, GraphListe>>) {
+  private constructor(omraade: Omraade, lister: Partial<Record<ListeNavn, GraphListe>>, manglende: ManglendeKolonne[] = []) {
     this.omraade = omraade
     this.lister = lister
+    this.manglende = manglende
   }
 
   get tittel() {
@@ -176,7 +202,13 @@ export class GraphLister implements ListeLager {
     if (mangler.length === PAAKREVD.length) throw new Error(`Området «${omraade.navn}» har ikke noe riskregister ennå. Bruk «Sett opp riskregister på et område» på startsiden.`)
     if (mangler.length) throw new Error(`Riskregisteret på «${omraade.navn}» mangler listene ${mangler.map((n) => `«${LISTER[n].visningsnavn}»`).join(', ')}.`)
     for (const n of VALGFRI) if (!lister[n]) lister[n] = await opprettListe(omraade.id, n).catch(() => undefined)
-    return new GraphLister(omraade, lister)
+    const manglende = await finnManglende(omraade.id, lister)
+    const nokler = manglende.filter((k) => NOKKEL[k.liste]?.includes(k.kolonne))
+    if (nokler.length)
+      throw new Error(
+        `Riskregisteret på «${omraade.navn}» mangler kolonnen ${listeTekst(nokler)}. Den knytter radene til riskene, så registeret kan ikke åpnes uten den. En slettet kolonne havner ikke i papirkurven, så kontakt eieren av området eller IT, som kan gjenopprette området fra sikkerhetskopi.`,
+      )
+    return new GraphLister(omraade, lister, manglende)
   }
 
   // Lager listene for et nytt register. Det kan bare være ett register per område.
@@ -186,6 +218,22 @@ export class GraphLister implements ListeLager {
     if (lister.risker) throw new Error(`Området «${omraade.navn}» har allerede et riskregister. Det kan bare være ett register per område.`)
     for (const n of Object.keys(LISTER) as ListeNavn[]) lister[n] ??= await opprettListe(omraade.id, n)
     return new GraphLister(omraade, lister)
+  }
+
+  manglendeKolonner() {
+    return this.manglende
+  }
+
+  // Lager de manglende kolonnene på nytt, tomme. Krever at brukeren kan endre listene.
+  async opprettKolonner() {
+    for (const k of [...this.manglende]) {
+      const def = LISTER[k.liste].kolonner.find((x) => x.navn === k.kolonne)!
+      await graphJson(`${this.sti(k.liste)}/columns`, jsonInit('POST', kolonneDef(def))).catch((e) => {
+        if (e instanceof GraphFeil && e.status === 403) throw new Error('Du har ikke lov til å endre listene på dette området. Be eieren av området om å trykke på knappen, eller om å lage kolonnene.')
+        throw e
+      })
+      this.manglende = this.manglende.filter((x) => x !== k)
+    }
   }
 
   har(liste: ListeNavn) {
@@ -221,10 +269,15 @@ export class GraphLister implements ListeLager {
 
   async skriv(endringer: Endring[]): Promise<Resultat[]> {
     if (!endringer.length) return []
+    // Felt i kolonner som mangler, sendes ikke, så resten av endringen blir lagret
+    const uten = <T extends Record<string, unknown>>(liste: ListeNavn, felt: T) => {
+      const borte = this.manglende.filter((k) => k.liste === liste).map((k) => k.kolonne)
+      return borte.length ? Object.fromEntries(Object.entries(felt).filter(([k]) => !borte.includes(k))) : felt
+    }
     const kall: BatchKall[] = endringer.map((e) => {
       const sti = this.sti(e.liste)
-      if (e.type === 'ny') return { method: 'POST', url: `${sti}/items`, body: { fields: e.felt } }
-      if (e.type === 'endre') return { method: 'PATCH', url: `${sti}/items/${e.id}/fields`, body: e.felt, headers: e.etag ? { 'If-Match': e.etag } : undefined }
+      if (e.type === 'ny') return { method: 'POST', url: `${sti}/items`, body: { fields: uten(e.liste, e.felt) } }
+      if (e.type === 'endre') return { method: 'PATCH', url: `${sti}/items/${e.id}/fields`, body: uten(e.liste, e.felt), headers: e.etag ? { 'If-Match': e.etag } : undefined }
       return { method: 'DELETE', url: `${sti}/items/${e.id}` }
     })
     const svar = await batch(kall)
@@ -238,6 +291,12 @@ export class GraphLister implements ListeLager {
       if (e.type === 'slett' && s.status === 404) return { ok: true }
       // 412: raden er endret av andre siden vi hentet den. 404 ved endring: raden er slettet av andre.
       if (s.status === 412 || s.status === 409 || (e.type === 'endre' && s.status === 404)) return { ok: false, konflikt: true }
+      // Kolonnen er slettet mens registeret var åpent. Neste lagring hopper over den, og brukeren får beskjed.
+      const borte = /Field '([^']+)' is not recognized/i.exec((s.body as { error?: { message?: string } } | undefined)?.error?.message ?? '')?.[1]
+      if (s.status === 400 && borte && e.type !== 'slett') {
+        if (!this.manglende.some((k) => k.liste === e.liste && k.kolonne === borte)) this.manglende = [...this.manglende, { liste: e.liste, kolonne: borte }]
+        return { ok: false, konflikt: false, feil: new GraphFeil(400, `Kolonnen «${borte}» finnes ikke lenger i listen «${LISTER[e.liste].visningsnavn}» i SharePoint. Endringen lagres uten den ved neste forsøk.`) }
+      }
       return { ok: false, konflikt: false, feil: batchFeil(s) }
     })
   }
