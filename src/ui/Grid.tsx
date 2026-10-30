@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Kolonne } from '../columns'
-import { GRUPPER, KOLONNER, editorTekst, formatTall, tolkInput, visTekst } from '../columns'
+import { GRUPPER, KOLONNER, editorTekst, formatEndring, formatTall, tolkInput, visTekst } from '../columns'
 import type { Register, Risk, Tiltak } from '../model'
 import { eksponering, eksponeringFarge, fv, nyRisk, nyttTiltak } from '../model'
 import type { Op, RiskFelt, TiltakFelt } from '../ops'
@@ -38,6 +38,8 @@ interface Props {
   aapneDetalj: (riskId: string) => void
   melding: (tekst: string, handling?: { tekst: string; gjor: () => void }) => void
   kanSkrive: boolean
+  // Riskene i snapshotet det sammenlignes med, etter id. Endringer i tallene vises i cellene.
+  mot?: Map<string, Risk>
 }
 
 const Kalenderikon = () => (
@@ -59,7 +61,7 @@ export function synligeKolonner(v: Visning, egendef2Aktiv = false): Kolonne[] {
 // Fulle navn på kostkolonnene, vist som hjelpetekst på overskriften
 const KOST_NAVN: Record<string, string> = { bc: 'Best case', ml: 'Most likely', wc: 'Worst case' }
 
-export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapneDetalj, melding, kanSkrive }: Props) {
+export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapneDetalj, melding, kanSkrive, mot }: Props) {
   const [aktiv, setAktiv] = useState<Posisjon | null>(null)
   const [redigerer, setRedigerer] = useState<(Posisjon & { start: string; erstatt: boolean }) | null>(null)
   const [meny, setMeny] = useState<{ kol: string; x: number; y: number } | null>(null)
@@ -489,6 +491,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                 antallKol={kolonner.length}
                 lukket={lukketGrupper.includes(g.navn)}
                 bytt={() => setLukketGrupper((l) => (l.includes(g.navn) ? l.filter((x) => x !== g.navn) : [...l, g.navn]))}
+                mot={mot}
               />
             )}
             {!lukketGrupper.includes(g.navn) &&
@@ -521,6 +524,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                     setFagVelger({ riskId, x: b.left, y: b.bottom + 4 })
                   }}
                   kanSkrive={kanSkrive}
+                  mot={mot}
                 />
               ))}
           </Fragment>
@@ -591,9 +595,15 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   )
 }
 
-function GruppeOverskrift({ gruppe, antallKol, lukket, bytt }: { gruppe: Gruppe; antallKol: number; lukket: boolean; bytt: () => void }) {
+function GruppeOverskrift({ gruppe, antallKol, lukket, bytt, mot }: { gruppe: Gruppe; antallKol: number; lukket: boolean; bytt: () => void; mot?: Map<string, Risk> }) {
   const r = summer(gruppe.risker, 'R')
   const m = summer(gruppe.risker, 'M')
+  // Samme risker slik de var i snapshotet (risker som er nye siden, teller som 0 der)
+  const gamle = mot && gruppe.risker.map((x) => mot.get(x.id)).filter((x): x is Risk => !!x)
+  const endring = (rm: 'R' | 'M', naa: number) => {
+    const e = gamle ? formatEndring(naa - summer(gamle, rm).fv) : ''
+    return e ? ` (${e})` : ''
+  }
   return (
     <tbody className="gruppe-tbody">
       <tr>
@@ -602,8 +612,8 @@ function GruppeOverskrift({ gruppe, antallKol, lukket, bytt }: { gruppe: Gruppe;
           <strong>{gruppe.navn}</strong>
           <span className="gruppe-info">
             {gruppe.risker.length} {gruppe.risker.length === 1 ? 'risk' : 'risker'}
-            {r.antall > 0 && ` · R: FV ${formatTall(r.fv)}`}
-            {m.antall > 0 && ` · M: FV ${formatTall(m.fv)}`}
+            {r.antall > 0 && ` · R: FV ${formatTall(r.fv)}${endring('R', r.fv)}`}
+            {m.antall > 0 && ` · M: FV ${formatTall(m.fv)}${endring('M', m.fv)}`}
           </span>
         </td>
       </tr>
@@ -629,7 +639,11 @@ interface RaderProps {
   nyttTiltak: (p: Posisjon) => void
   kanSkrive: boolean
   fagVelger: (riskId: string, e: React.MouseEvent) => void
+  mot?: Map<string, Risk>
 }
+
+// Tallkolonnene som viser endring når et snapshot er aktivt
+const TALL_ENDRING: Record<string, (r: Risk) => number> = { bc: (r) => r.bc, ml: (r) => r.ml, wc: (r) => r.wc, fv: (r) => fv(r), eksponering: (r) => eksponering(r) }
 
 function RiskRader(p: RaderProps) {
   const { risk: r, kolonner } = p
@@ -640,6 +654,21 @@ function RiskRader(p: RaderProps) {
   const klasser = ['risk', p.laastAv ? 'laast' : '', p.minLaas ? 'min-laas' : '', r.status === 'Lukket' ? 'lukket' : ''].join(' ')
   const stripe = p.tilstede[0]?.farge
   const fag = r.fag ? p.doc.lister.fag.find((f) => f.id === r.fag) : undefined
+  const gammel = p.mot?.get(r.id)
+  const endring = (k: Kolonne) => {
+    const f = TALL_ENDRING[k.key]
+    if (!p.mot || !f || !gammel) return null
+    const d = f(r) - f(gammel)
+    const tekst = k.key === 'eksponering' ? (d ? (d > 0 ? '+' : '−') + Math.abs(d) : '') : formatEndring(d)
+    if (!tekst) return null
+    // For risiko er høyere tall verre, for mulighet bedre
+    const bra = r.rm === 'M' ? d > 0 : d < 0
+    return (
+      <span className={'delta ' + (bra ? 'bedre' : 'verre')} title={`Snapshot: ${k.key === 'eksponering' ? f(gammel) : formatTall(f(gammel))}`}>
+        {tekst}
+      </span>
+    )
+  }
 
   const celle = (k: Kolonne, t: Tiltak | undefined, rad: number) => {
     const pos: Posisjon = { riskId: r.id, tiltakId: k.nivaa === 'risk' ? r.tiltak[0]?.id : t?.id, kol: k.key }
@@ -681,6 +710,11 @@ function RiskRader(p: RaderProps) {
             )
           )}
           <span className="nr-tall">{r.nr}</span>
+          {p.mot && !gammel && (
+            <span className="ny-siden" title="Risken er lagt til etter snapshotet">
+              ny
+            </span>
+          )}
         </div>
       )
     if (k.key === 'tilSkarisk') innhold = r.tilSkarisk ? <span className="hake">✓</span> : <span className="kryss">✗</span>
@@ -699,6 +733,7 @@ function RiskRader(p: RaderProps) {
         onContextMenu={(ev) => p.kontekst(pos, ev)}
       >
         {k.type === 'langtekst' ? <div className="tekstklipp">{innhold}</div> : innhold}
+        {endring(k)}
         {andreHer.map((x) => (
           <span key={x.brukerId} className="navnelapp" style={{ background: x.farge }}>
             {x.navn}

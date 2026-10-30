@@ -1991,3 +1991,379 @@ td .valgpil.synlig {
   flex-direction: column;
   gap: 8px;
 }
+
+/* Kom i gang på startsiden */
+.kom-i-gang {
+  flex-direction: column;
+  align-items: flex-start;
+  margin: 8px 0;
+}
+.kom-i-gang ol {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.kom-i-gang li.ferdig {
+  color: var(--dempet);
+  text-decoration: line-through;
+}
+.kom-i-gang li .knapp {
+  margin-left: 8px;
+}
+.omraadesok {
+  margin: 4px 0 8px;
+}
+.omraadesok summary {
+  cursor: pointer;
+  color: var(--aksent);
+  margin-bottom: 6px;
+}
+.omraadesok .liste li {
+  gap: 12px;
+}
+
+/* Snapshots og sammenligning */
+.snapshot-ny {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin: 8px 0 12px;
+}
+.snapshot-ny .felt {
+  flex: 1;
+  min-width: 200px;
+}
+.snapshotliste,
+.endringer {
+  width: 100%;
+  border-collapse: collapse;
+}
+.snapshotliste th,
+.snapshotliste td {
+  text-align: left;
+  padding: 6px 8px;
+  border-top: 1px solid var(--linje);
+  vertical-align: top;
+}
+.snapshotliste td.tall {
+  text-align: right;
+}
+.snapshotliste td.handlinger {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.sammenligning {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+.sammenligning table.summer th:first-child {
+  text-align: left;
+}
+.endring-kort {
+  border: 1px solid var(--linje);
+  border-left: 4px solid var(--aksent);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.endring-kort.ny {
+  border-left-color: var(--ok);
+}
+.endring-kort.fjernet {
+  border-left-color: var(--fare);
+}
+.endring-topp {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.endring-merke {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--dempet);
+}
+.endringer {
+  margin-top: 6px;
+  font-size: 13px;
+}
+.endringer th {
+  text-align: left;
+  font-weight: 600;
+  width: 28%;
+  padding: 3px 8px 3px 0;
+  vertical-align: top;
+}
+.endringer td {
+  padding: 3px 4px;
+  vertical-align: top;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.endringer td.fra {
+  color: var(--fare);
+  text-decoration: line-through;
+}
+.endringer td.til {
+  color: var(--ok);
+}
+.endringer td.pil {
+  color: var(--dempet);
+}
+
+/* Rådata */
+.raadata {
+  overflow: auto;
+  max-height: 60vh;
+}
+.raadata table {
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.raadata th,
+.raadata td {
+  border: 1px solid var(--linje);
+  padding: 3px 6px;
+  white-space: nowrap;
+  text-align: left;
+}
+.raadata thead th {
+  position: sticky;
+  top: 0;
+  background: var(--hode);
+}
+
+/* Sammenligning med snapshot */
+.banner.sammenligner {
+  border-radius: 0;
+  border-bottom: 1px solid #a5c8f0;
+}
+.delta {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--dempet);
+  white-space: nowrap;
+}
+.delta.verre {
+  color: #c92a2a;
+}
+.delta.bedre {
+  color: #2b8a3e;
+}
+.grid td .delta {
+  text-align: right;
+}
+.ny-siden {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: #2b8a3e;
+  color: #fff;
+  border-radius: 3px;
+  padding: 0 3px;
+}
+.matrise-tittel {
+  font-weight: 600;
+  color: inherit;
+}
+.matrise-tittel:hover {
+  color: var(--aksent);
+}
+
+/* Stor risikomatrise */
+.modal.stormatrise {
+  width: min(1100px, 100%);
+}
+.modal.stormatrise header .faner {
+  margin: 0 auto 0 16px;
+}
+.smatrise {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+  margin-top: 6px;
+}
+.saksey {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  text-align: center;
+  font-size: 12px;
+  color: var(--dempet);
+}
+.saksex {
+  text-align: center;
+  font-size: 12px;
+  color: var(--dempet);
+  padding-left: 96px;
+}
+.srutenett {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.srad {
+  display: grid;
+  grid-template-columns: 90px repeat(5, minmax(0, 1fr));
+  gap: 3px;
+}
+.slabel {
+  font-size: 11px;
+  color: var(--dempet);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  text-align: right;
+  padding-right: 4px;
+}
+.slabel.x {
+  justify-content: center;
+  text-align: center;
+  padding: 2px 0 0;
+}
+.srute {
+  min-height: 92px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 6px;
+  position: relative;
+}
+.srute.over,
+.ikke-vurdert.over {
+  outline: 3px dashed #1d2733;
+  outline-offset: -3px;
+}
+.srute.kan-slippe {
+  cursor: pointer;
+}
+.sverdi {
+  position: absolute;
+  right: 6px;
+  bottom: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.45;
+}
+.mboble {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid #1d2733;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1d2733;
+  cursor: grab;
+  user-select: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+.mboble.valgt {
+  outline: 3px solid var(--aksent);
+  outline-offset: 2px;
+}
+.mboble.laast {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.mboble.lukket {
+  border-style: dashed;
+  opacity: 0.7;
+}
+.mboble.borte {
+  border-style: dotted;
+  opacity: 0.55;
+  cursor: default;
+}
+.mpil {
+  position: absolute;
+  top: -9px;
+  right: -11px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 0 1.5px currentColor;
+}
+.mpil svg {
+  width: 15px;
+  height: 15px;
+}
+.mpil.verre,
+.mpil-forklaring.verre {
+  color: #c92a2a;
+}
+.mpil.bedre,
+.mpil-forklaring.bedre {
+  color: #2b8a3e;
+}
+.mpil.lik,
+.mpil-forklaring.lik {
+  color: #b08800;
+}
+.mpil-forklaring {
+  font-weight: 700;
+}
+.mny {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: #2b8a3e;
+  color: #fff;
+  border-radius: 3px;
+  padding: 0 3px;
+}
+.ikke-vurdert {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 8px;
+  border: 1px dashed var(--linje-sterk);
+  border-radius: 6px;
+  min-height: 52px;
+}
+@media (max-width: 760px) {
+  .srad {
+    grid-template-columns: 44px repeat(5, minmax(0, 1fr));
+  }
+  .slabel {
+    font-size: 9px;
+  }
+  .srute {
+    min-height: 64px;
+    padding: 3px;
+    gap: 3px;
+  }
+  .mboble {
+    width: 28px;
+    height: 28px;
+    font-size: 11px;
+    border-width: 2px;
+  }
+  .saksex {
+    padding-left: 50px;
+  }
+}

@@ -11,7 +11,8 @@ import type { Okt } from '../sync'
 import type { Visning } from '../view'
 import { GRUPPERINGER, STANDARD_VISNING, filtrer } from '../view'
 import { DemoFiler, type FilKilde } from '../store/filer'
-import { GraphBackend, GraphFiler } from '../store/graphBackend'
+import { GraphFiler } from '../store/graphFiler'
+import { GraphLister } from '../store/lister/graphLister'
 import { Detaljpanel } from './Detaljpanel'
 import { Filvelger } from './Filvelger'
 import { ImportDialog } from './ImportDialog'
@@ -21,6 +22,11 @@ import { Laas } from './Ikoner'
 import { NyttRegisterDialog } from './NyttRegister'
 import { Oversikt } from './Oversikt'
 import { Prosjektpanel } from './Prosjektpanel'
+import { RaadataDialog } from './Raadata'
+import { SnapshotDialog } from './Snapshots'
+import { StorMatrise } from './StorMatrise'
+import type { SnapshotInfo } from '../store/backend'
+import type { Risk } from '../model'
 
 interface Props {
   okt: Okt
@@ -97,6 +103,12 @@ export function RegisterView({ okt, tilbake }: Props) {
   const [importert, setImportert] = useState<{ reg: Register; filnavn: string } | null>(null)
   const [meldinger, setMeldinger] = useState<Melding[]>([])
   const [sim, setSim] = useState<SimulertKollega | null>(null)
+  const [snapshots, setSnapshots] = useState<false | 'liste' | 'endringer'>(false)
+  const [storMatrise, setStorMatrise] = useState<'R' | 'M' | null>(null)
+  // Snapshotet registeret sammenlignes med akkurat nå
+  const [mot, setMot] = useState<{ info: SnapshotInfo; doc: Register } | null>(null)
+  const motRisker = useMemo(() => (mot ? new Map<string, Risk>(mot.doc.risker.map((r) => [r.id, r])) : undefined), [mot])
+  const [raadata, setRaadata] = useState(false)
   const angreStabel = useRef<Op[][]>([])
   const mobil = useMobil()
   const kompakt = mobil || !!visning.kompakt
@@ -167,16 +179,13 @@ export function RegisterView({ okt, tilbake }: Props) {
     [doc, visning],
   )
 
-  // Ligger registeret et annet sted enn der det ble opprettet? Da er det trolig en kopi.
-  const hjem = b.hjem?.()
-  const erKopi = !!(hjem && doc.hjem && (doc.hjem.driveId !== hjem.driveId || doc.hjem.itemId !== hjem.itemId))
-  const manglerHjem = !!(hjem && !doc.hjem)
-  useEffect(() => {
-    if (manglerHjem && b.kanSkrive) okt.utfor({ t: 'setHjem', hjem: hjem! })
-  }, [manglerHjem, b.kanSkrive, okt, hjem])
-
-  // Mappene import og eksport starter i: mappen registeret ligger i
-  const filKilde = (): FilKilde => (b instanceof GraphBackend ? new GraphFiler(b.plassering) : new DemoFiler(doc))
+  // Import og eksport starter i dokumentbiblioteket på området registeret ligger på
+  const filKilde = (): FilKilde => (b.lager instanceof GraphLister ? new GraphFiler(b.lager.dokumenter()) : new DemoFiler(doc))
+  const lukkSnapshot = () => {
+    const p = new URLSearchParams(window.location.search)
+    p.delete('snapshot')
+    window.location.search = '?' + p.toString()
+  }
 
   const filterAktivt = !!visning.sok || Object.keys(visning.filter.verdier).length > 0 || Object.values(visning.filter.tekst).some(Boolean) || !!visning.filter.matrise || !!visning.fag?.length
   const tittel = [doc.prosjekt.nummer, doc.prosjekt.navn].filter(Boolean).join(' ') || 'Riskregister uten navn'
@@ -193,8 +202,17 @@ export function RegisterView({ okt, tilbake }: Props) {
         <div className="tittel">
           <h1>{tittel}</h1>
           <div className="undertittel">
-            {b.type === 'demo' ? 'Demomodus (lagres bare i denne nettleseren)' : `SharePoint › ${b.tittel}`}
-            {!b.kanSkrive && ' · bare lesetilgang'}
+            {b.type === 'demo' ? (
+              'Demomodus (lagres bare i denne nettleseren)'
+            ) : (
+              <>
+                SharePoint ›{' '}
+                <a href={b.webUrl} target="_blank" rel="noreferrer">
+                  {b.tittel}
+                </a>
+              </>
+            )}
+            {b.snapshot ? ` · snapshot «${b.snapshot.navn}»` : !b.kanSkrive && ' · bare lesetilgang'}
           </div>
         </div>
         <div className={'lagrestatus ' + visStatus} title={snap.feil}>
@@ -245,7 +263,17 @@ export function RegisterView({ okt, tilbake }: Props) {
               <hr />
               <button onClick={() => setProsjekt('lister')}>Lister og valg…</button>
               <button onClick={() => setNyttReg(true)}>Lag nytt register fra dette…</button>
-              {b.type === 'demo' && (
+              {b.snapshots && !b.snapshot && (
+                <>
+                  <hr />
+                  <button onClick={() => setSnapshots('liste')} title="Ta vare på registeret slik det er nå, og se hva som er endret siden et tidligere snapshot">
+                    Snapshots og sammenligning…
+                  </button>
+                </>
+              )}
+              <button onClick={() => setStorMatrise('R')}>Stor risikomatrise…</button>
+              {b.lager && <button onClick={() => setRaadata(true)}>Vis rådata (listene)…</button>}
+              {b.type === 'demo' && !b.snapshot && (
                 <>
                   <hr />
                   <button
@@ -271,19 +299,33 @@ export function RegisterView({ okt, tilbake }: Props) {
         </div>
       </header>
 
-      {erKopi && (
+      {b.snapshot && (
         <div className="banner advarsel">
-          Dette registeret ser ut til å være kopiert fra et annet prosjekt. Vil du gjøre det om til et nytt, eget register?
-          <button className="knapp" onClick={() => setNyttReg(true)}>
-            Nullstill / lag nytt
-          </button>
-          <button className="lenkeknapp" onClick={() => okt.utfor({ t: 'setHjem', hjem: hjem! })}>
-            Nei, behold som det er
+          Du ser på snapshotet «{b.snapshot.navn}» fra {new Date(b.snapshot.tidspunkt).toLocaleString('nb-NO')}, tatt av {b.snapshot.tattAv}. Det kan ikke endres.
+          <button className="knapp" onClick={lukkSnapshot}>
+            Til registeret slik det er nå
           </button>
         </div>
       )}
 
-      {visning.visOversikt && <Oversikt doc={doc} visning={visning} setVisning={setVisning} />}
+      {mot && (
+        <div className="banner info sammenligner">
+          <span title="Endringer i BC, ML, WC, FV og summene vises i tabellen og oversikten, og som piler i risikomatrisen.">
+            Sammenligner med snapshot <b>«{mot.info.navn}»</b> ({new Date(mot.info.tidspunkt).toLocaleString('nb-NO', { dateStyle: 'short', timeStyle: 'short' })})
+          </span>
+          <button className="knapp liten" onClick={() => setStorMatrise('R')}>
+            Risikomatrise
+          </button>
+          <button className="knapp liten" onClick={() => setSnapshots('endringer')}>
+            Endringsliste
+          </button>
+          <button className="lenkeknapp" onClick={() => setMot(null)}>
+            Avslutt sammenligning
+          </button>
+        </div>
+      )}
+
+      {visning.visOversikt && <Oversikt doc={doc} visning={visning} setVisning={setVisning} mot={mot?.doc} aapneMatrise={setStorMatrise} />}
 
       <div className="verktoylinje">
         <nav className="faner">
@@ -383,11 +425,39 @@ export function RegisterView({ okt, tilbake }: Props) {
           aapneDetalj={setDetalj}
           melding={melding}
           kanSkrive={b.kanSkrive}
+          mot={motRisker}
         />
         )}
         {detalj && <Detaljpanel okt={okt} doc={doc} riskId={detalj} endre={endre} lukk={() => setDetalj(null)} kanSkrive={b.kanSkrive} />}
       </div>
 
+      {snapshots && b.snapshots && (
+        <SnapshotDialog
+          snapshots={b.snapshots}
+          doc={doc}
+          kanSkrive={b.kanSkrive}
+          lukk={() => setSnapshots(false)}
+          melding={melding}
+          aapneRisk={setDetalj}
+          aktiver={setMot}
+          start={snapshots === 'endringer' && mot ? mot : undefined}
+        />
+      )}
+      {storMatrise && (
+        <StorMatrise
+          doc={doc}
+          risker={filtrer(doc, { ...visning, filter: { ...visning.filter, matrise: undefined } })}
+          rm={storMatrise}
+          mot={mot ? { navn: mot.info.navn, risker: motRisker! } : undefined}
+          okt={okt}
+          endre={endre}
+          kanSkrive={b.kanSkrive}
+          aapneRisk={(id) => (setDetalj(id), setStorMatrise(null))}
+          melding={melding}
+          lukk={() => setStorMatrise(null)}
+        />
+      )}
+      {raadata && b.lager && <RaadataDialog lager={b.lager} lukk={() => setRaadata(false)} />}
       {prosjekt && <Prosjektpanel doc={doc} endre={endre} lukk={() => setProsjekt(false)} kanSkrive={b.kanSkrive} start={prosjekt} />}
       {nyttReg && <NyttRegisterDialog kilde={doc} backendType={b.type} lukk={() => setNyttReg(false)} />}
       {filvelger === 'aapne' && (

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { AuthConfig } from './store/auth'
 import { aktivKonto, hentConfig, initAuth, loggInn } from './store/auth'
-import { DemoBackend, demoFinnes } from './store/demoBackend'
-import { GraphBackend } from './store/graphBackend'
+import { demoBackend, demoFinnes } from './store/demoBackend'
+import { ListeBackend, SnapshotBackend } from './store/listeBackend'
+import { GraphLister } from './store/lister/graphLister'
 import { Okt } from './sync'
 import { RegisterView } from './ui/RegisterView'
 import { Start, husk } from './ui/Start'
@@ -31,12 +32,24 @@ export default function App() {
   const [tilstand, setTilstand] = useState<Tilstand>({ t: 'laster', tekst: 'Starter…' })
   const [konto, setKonto] = useState<{ navn: string; epost: string } | null>(null)
 
-  const aapneDemo = async (navn: string, bruker: Bruker) => {
-    const okt = new Okt(new DemoBackend(navn, bruker))
+  // Åpner registeret, eller et snapshot av det hvis adressen har &snapshot=<id>
+  const aapne = async (backend: ListeBackend, tittel: (doc: Okt['doc']) => string) => {
+    const snapshotId = params.get('snapshot')
+    if (snapshotId) {
+      if (!backend.snapshots) throw new Error('Dette registeret har ikke snapshots.')
+      setTilstand({ t: 'laster', tekst: 'Henter snapshotet…' })
+      const { info, doc } = await backend.snapshots.hent(snapshotId)
+      const okt = new Okt(new SnapshotBackend(backend, info, doc))
+      await okt.start()
+      return setTilstand({ t: 'register', okt })
+    }
+    const okt = new Okt(backend)
     await okt.start()
-    husk(`${okt.doc.prosjekt.navn || navn} (demo)`)
+    husk(tittel(okt.doc))
     setTilstand({ t: 'register', okt })
   }
+
+  const aapneDemo = async (navn: string, bruker: Bruker) => aapne(await demoBackend(navn, bruker), (doc) => `${doc.prosjekt.navn || navn} (demo)`)
 
   useEffect(() => {
     void (async () => {
@@ -58,8 +71,13 @@ export default function App() {
           const k = await initAuth(config)
           if (k) setKonto({ navn: k.name ?? k.username, epost: k.username })
         }
-        const reg = params.get('reg')
-        if (!reg) return setTilstand({ t: 'start', config })
+        if (params.get('reg'))
+          return setTilstand({
+            t: 'feil',
+            tekst: 'Lenken går til et register i en SharePoint-mappe (register.json). Registeret ligger nå i SharePoint-lister, ett register per område. Åpne området fra startsiden i stedet.',
+          })
+        const site = params.get('site')
+        if (!site) return setTilstand({ t: 'start', config })
         if (!config) return setTilstand({ t: 'feil', tekst: 'SharePoint-tilkoblingen er ikke satt opp ennå (mangler appregistrering). Se Tilkoblingsinnstillinger på startsiden.' })
         const k = aktivKonto()
         if (!k) {
@@ -72,11 +90,9 @@ export default function App() {
           return setTilstand({ t: 'feil', tekst: 'Du må logge inn med Microsoft-kontoen din for å åpne registeret.', loggInn: true })
         }
         setTilstand({ t: 'laster', tekst: 'Åpner registeret fra SharePoint…' })
-        const backend = await GraphBackend.aapne(reg, { id: k.localAccountId || k.homeAccountId, navn: k.name ?? k.username })
-        const okt = new Okt(backend)
-        await okt.start()
-        husk(okt.doc.prosjekt.navn || backend.tittel)
-        setTilstand({ t: 'register', okt })
+        const lager = await GraphLister.aapne(site)
+        const backend = new ListeBackend(lager, { id: k.localAccountId || k.homeAccountId, navn: k.name ?? k.username })
+        await aapne(backend, (doc) => doc.prosjekt.navn || backend.tittel)
       } catch (e) {
         setTilstand({ t: 'feil', tekst: e instanceof Error ? e.message : String(e) })
       }

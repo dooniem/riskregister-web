@@ -1,27 +1,50 @@
-import { formatTall } from '../columns'
+import { formatEndring, formatTall } from '../columns'
 import type { Register, Risk } from '../model'
 import { eksponeringFarge } from '../model'
 import type { Visning } from '../view'
 import { filtrer, iFane, summer } from '../view'
 
+interface Props {
+  doc: Register
+  visning: Visning
+  setVisning: (f: (v: Visning) => Visning) => void
+  mot?: Register // snapshot det sammenlignes med
+  aapneMatrise?: (rm: 'R' | 'M') => void
+}
+
 // Summer for risiko og mulighet (som M:/R:-radene øverst i Excel) og en klikkbar risikomatrise
-export function Oversikt({ doc, visning, setVisning }: { doc: Register; visning: Visning; setVisning: (f: (v: Visning) => Visning) => void }) {
-  const filtrerte = filtrer(doc, visning)
-  const grunnlag: Risk[] = visning.kunFiltrerteSummer ? filtrerte : doc.risker.filter((r) => iFane(r, visning.fane))
+export function Oversikt({ doc, visning, setVisning, mot, aapneMatrise }: Props) {
+  const grunnlagFor = (d: Register): Risk[] => (visning.kunFiltrerteSummer ? filtrer(d, visning) : d.risker.filter((r) => iFane(r, visning.fane)))
+  const grunnlag = grunnlagFor(doc)
   const r = summer(grunnlag, 'R')
   const m = summer(grunnlag, 'M')
+  // Samme utvalg i snapshotet, slik at summene kan sammenlignes
+  const gammel = mot && { R: summer(grunnlagFor(mot), 'R'), M: summer(grunnlagFor(mot), 'M') }
   const matriseRisker = filtrer(doc, { ...visning, filter: { ...visning.filter, matrise: undefined } })
 
-  const rad = (navn: string, s: ReturnType<typeof summer>, kl: string) => (
-    <tr className={kl}>
-      <th>{navn}</th>
-      <td>{s.antall}</td>
-      <td>{formatTall(s.bc)}</td>
-      <td>{formatTall(s.ml)}</td>
-      <td>{formatTall(s.wc)}</td>
-      <td className="fv">{formatTall(s.fv)}</td>
-    </tr>
-  )
+  const rad = (navn: string, s: ReturnType<typeof summer>, rm: 'R' | 'M') => {
+    const celle = (felt: 'antall' | 'bc' | 'ml' | 'wc' | 'fv', kl?: string) => {
+      const d = gammel ? s[felt] - gammel[rm][felt] : 0
+      const tekst = formatEndring(d)
+      const bra = rm === 'M' ? d > 0 : d < 0
+      return (
+        <td className={kl}>
+          {felt === 'antall' ? s.antall : formatTall(s[felt])}
+          {gammel && tekst && <span className={'delta ' + (felt === 'antall' ? '' : bra ? 'bedre' : 'verre')}>{tekst}</span>}
+        </td>
+      )
+    }
+    return (
+      <tr className={'rm-' + rm}>
+        <th>{navn}</th>
+        {celle('antall')}
+        {celle('bc')}
+        {celle('ml')}
+        {celle('wc')}
+        {celle('fv', 'fv')}
+      </tr>
+    )
+  }
 
   return (
     <div className="oversikt">
@@ -49,13 +72,13 @@ export function Oversikt({ doc, visning, setVisning }: { doc: Register; visning:
             </tr>
           </thead>
           <tbody>
-            {rad('Risiko (R)', r, 'rm-R')}
-            {rad('Mulighet (M)', m, 'rm-M')}
+            {rad('Risiko (R)', r, 'R')}
+            {rad('Mulighet (M)', m, 'M')}
           </tbody>
         </table>
       </div>
-      <Matrise risker={matriseRisker} valgt={visning.filter.matrise} setVisning={setVisning} rm="R" tittel="Risikomatrise" />
-      <Matrise risker={matriseRisker} valgt={visning.filter.matrise} setVisning={setVisning} rm="M" tittel="Mulighetsmatrise" />
+      <Matrise risker={matriseRisker} valgt={visning.filter.matrise} setVisning={setVisning} rm="R" tittel="Risikomatrise" forstorr={aapneMatrise} />
+      <Matrise risker={matriseRisker} valgt={visning.filter.matrise} setVisning={setVisning} rm="M" tittel="Mulighetsmatrise" forstorr={aapneMatrise} />
     </div>
   )
 }
@@ -66,18 +89,26 @@ function Matrise({
   setVisning,
   rm,
   tittel,
+  forstorr,
 }: {
   risker: Risk[]
   valgt?: { s: number; k: number }
   setVisning: (f: (v: Visning) => Visning) => void
   rm: 'R' | 'M'
   tittel: string
+  forstorr?: (rm: 'R' | 'M') => void
 }) {
   const antall = (s: number, k: number) => risker.filter((r) => r.rm === rm && r.sannsynlighet === s && r.konsekvens === k).length
   return (
     <div className="kort">
       <div className="kort-tittel">
-        {tittel}
+        {forstorr ? (
+          <button className="lenkeknapp matrise-tittel" onClick={() => forstorr(rm)} title="Åpne stor matrise der riskene kan flyttes">
+            {tittel} ⤢
+          </button>
+        ) : (
+          tittel
+        )}
         {valgt && (
           <button className="lenkeknapp liten" onClick={() => setVisning((v) => ({ ...v, filter: { ...v.filter, matrise: undefined } }))}>
             fjern filter

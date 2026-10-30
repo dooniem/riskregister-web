@@ -4,7 +4,9 @@ import type { PrefixValg } from '../model'
 import { brukPrefixValg, kopierRegister, nyttRegister } from '../model'
 import { appUrl } from '../store/auth'
 import { demoFinnes, opprettDemo } from '../store/demoBackend'
-import { appLenke, opprettRegisterISharePoint } from '../store/graphBackend'
+import { skrivNyttRegister } from '../store/listeBackend'
+import { GraphLister, omraadeLenke } from '../store/lister/graphLister'
+import { LISTER } from '../store/lister/skjema'
 import { DelregisterValg } from './ImportDialog'
 
 interface Props {
@@ -18,8 +20,7 @@ interface Props {
 // Oppretter et nytt register, tomt eller som kopi av et eksisterende (valgfritt hva som følger med)
 export function NyttRegisterDialog({ kilde, importert, filnavn, backendType, lukk }: Props) {
   const [navn, setNavn] = useState(importert ? kilde?.prosjekt.navn ?? '' : '')
-  const [mappe, setMappe] = useState('')
-  const [mappenavn, setMappenavn] = useState('Riskregister')
+  const [omraade, setOmraade] = useState('')
   const [hvor, setHvor] = useState<'demo' | 'sharepoint'>(backendType)
   const [behold, setBehold] = useState<KopiValg['behold']>({
     lister: true,
@@ -44,12 +45,13 @@ export function NyttRegisterDialog({ kilde, importert, filnavn, backendType, luk
       if (hvor === 'demo') {
         let n = navn.trim()
         for (let i = 2; demoFinnes(n); i++) n = `${navn.trim()} (${i})`
-        opprettDemo(n, doc)
+        await opprettDemo(n, doc)
         setFerdig({ lenke: `${appUrl()}?demo=${encodeURIComponent(n)}` })
       } else {
-        if (!mappe.trim()) throw new Error('Lim inn lenken til mappen i SharePoint der registeret skal ligge.')
-        const p = await opprettRegisterISharePoint(mappe.trim(), mappenavn.trim() || 'Riskregister', doc)
-        setFerdig({ lenke: appLenke(p), nettside: p.webUrl })
+        if (!omraade.trim()) throw new Error('Lim inn adressen til SharePoint-området der registeret skal ligge.')
+        const lager = await GraphLister.opprett(omraade.trim())
+        await skrivNyttRegister(lager, doc)
+        setFerdig({ lenke: omraadeLenke(lager.webUrl), nettside: lager.webUrl })
       }
     } catch (e) {
       setFeil(e instanceof Error ? e.message : String(e))
@@ -82,11 +84,11 @@ export function NyttRegisterDialog({ kilde, importert, filnavn, backendType, luk
             <p>Registeret er opprettet.</p>
             {ferdig.nettside && (
               <p>
-                Mappen i SharePoint:{' '}
+                Området i SharePoint:{' '}
                 <a href={ferdig.nettside} target="_blank" rel="noreferrer">
                   {ferdig.nettside}
                 </a>
-                . Der ligger også snarveien «Åpne Riskregister».
+                . Listene ligger under Områdeinnhold. Legg gjerne lenken nedenfor i navigasjonen på området, så finner alle registeret.
               </p>
             )}
             <label className="felt">
@@ -112,7 +114,7 @@ export function NyttRegisterDialog({ kilde, importert, filnavn, backendType, luk
               <span>Hvor skal registeret ligge?</span>
               <label className="avkrysning">
                 <input type="radio" checked={hvor === 'sharepoint'} onChange={() => setHvor('sharepoint')} />
-                <span>I en mappe i prosjektets SharePoint (tilgangen styres av SharePoint)</span>
+                <span>På prosjektets SharePoint-område (tilgangen styres av området)</span>
               </label>
               <label className="avkrysning">
                 <input type="radio" checked={hvor === 'demo'} onChange={() => setHvor('demo')} />
@@ -120,17 +122,14 @@ export function NyttRegisterDialog({ kilde, importert, filnavn, backendType, luk
               </label>
             </div>
             {hvor === 'sharepoint' && (
-              <>
-                <label className="felt">
-                  <span>Lenke til mappen i SharePoint der registeret skal opprettes</span>
-                  <input value={mappe} onChange={(e) => setMappe(e.target.value)} placeholder="https://firma.sharepoint.com/sites/Prosjekt123/Delte dokumenter/…" />
-                  <small>Åpne mappen i SharePoint og kopier adressen, eller bruk «Kopier lenke». Du må ha skrivetilgang. Registeret får sin egen nye mappe her, for det kan bare være ett register per mappe.</small>
-                </label>
-                <label className="felt">
-                  <span>Navn på ny mappe</span>
-                  <input value={mappenavn} onChange={(e) => setMappenavn(e.target.value)} />
-                </label>
-              </>
+              <label className="felt">
+                <span>Adressen til SharePoint-området</span>
+                <input value={omraade} onChange={(e) => setOmraade(e.target.value)} placeholder="https://firma.sharepoint.com/sites/Prosjekt123" />
+                <small>
+                  Det kan være ett riskregister per område. Appen lager listene {Object.values(LISTER).map((l) => `«${l.visningsnavn}»`).join(', ')}. Du må være eier av
+                  området.
+                </small>
+              </label>
             )}
             {kilde && (
               <div className="felt">

@@ -2,13 +2,17 @@ import { useEffect, useState } from 'react'
 import { eksempelRegister } from '../eksempel'
 import { lesExcel } from '../excel'
 import type { Register } from '../model'
-import type { AuthConfig, Tillatelse } from '../store/auth'
+import type { AuthConfig, ConfigKilde, Tillatelse } from '../store/auth'
 import { lagreConfig, loggInn, loggUt, redirectUri } from '../store/auth'
 import { demoRegistre, opprettDemo, slettDemo, demoFinnes } from '../store/demoBackend'
 import { DemoFiler } from '../store/filer'
-import { GraphFiler } from '../store/graphBackend'
+import { GraphFiler } from '../store/graphFiler'
+import type { Omraade } from '../store/lister/graphLister'
+import { omraadeLenke, sokOmraader } from '../store/lister/graphLister'
 import { Filvelger } from './Filvelger'
 import { NyttRegisterDialog } from './NyttRegister'
+
+const DOKUMENTASJON = 'https://github.com/dooniem/riskregister-web/blob/main/docs/'
 
 export interface Nylig {
   tittel: string
@@ -39,11 +43,17 @@ interface Props {
   konto: { navn: string; epost: string } | null
 }
 
+const KILDE: Record<ConfigKilde, string> = {
+  nettleser: 'lagt inn i denne nettleseren (testoppsett)',
+  bygg: 'bygget inn i appen',
+  fil: 'fra config.json',
+}
+
 export function Start({ config, konto }: Props) {
-  const [lenke, setLenke] = useState('')
+  const [omraade, setOmraade] = useState('')
   const [demoer, setDemoer] = useState(demoRegistre())
   const [ny, setNy] = useState<null | { kilde?: Register; importert?: boolean; filnavn?: string; type: 'demo' | 'sharepoint' }>(null)
-  const [visOppsett, setVisOppsett] = useState(false)
+  const [visOppsett, setVisOppsett] = useState(!config)
   const [importFra, setImportFra] = useState<null | 'demo' | 'sharepoint'>(null)
   const nylige = lesNylige()
 
@@ -53,12 +63,14 @@ export function Start({ config, konto }: Props) {
     return () => window.removeEventListener('storage', h)
   }, [])
 
-  const lagEksempel = () => {
+  const lagEksempel = async () => {
     let n = 'Demo – Nytt kontorbygg'
     for (let i = 2; demoFinnes(n); i++) n = `Demo – Nytt kontorbygg (${i})`
-    opprettDemo(n, eksempelRegister(n))
+    await opprettDemo(n, eksempelRegister(n))
     window.location.search = '?demo=' + encodeURIComponent(n)
   }
+
+  const klar = !!config && !!konto
 
   return (
     <div className="startside">
@@ -82,36 +94,47 @@ export function Start({ config, konto }: Props) {
 
       <main className="start-innhold">
         <section className="kort stort">
-          <h2>Åpne et register i SharePoint</h2>
-          <p>Lim inn lenken til mappen der registeret ligger. Du får bare åpnet registre du har tilgang til i SharePoint.</p>
+          <h2>Riskregister i SharePoint</h2>
+          <p>
+            Hvert prosjekt har sitt riskregister på sitt eget SharePoint-område, lagret i SharePoint-lister. Tilgangen styres av området: du får bare åpnet og endret
+            registre på områder du selv har tilgang til.
+          </p>
+          {!klar && <KomIGang config={config} konto={konto} />}
           <form
             className="knapperad"
             onSubmit={(e) => {
               e.preventDefault()
-              if (lenke.trim()) window.location.search = '?reg=' + encodeURIComponent(lenke.trim())
+              if (omraade.trim()) window.location.search = '?site=' + encodeURIComponent(omraade.trim())
             }}
           >
-            <input className="vid" value={lenke} onChange={(e) => setLenke(e.target.value)} placeholder="https://firma.sharepoint.com/sites/…/Riskregister" disabled={!config} />
-            <button className="knapp primær" disabled={!config || !lenke.trim()}>
-              Åpne
+            <input
+              className="vid"
+              value={omraade}
+              onChange={(e) => setOmraade(e.target.value)}
+              placeholder="Adressen til området, f.eks. https://firma.sharepoint.com/sites/Prosjekt123"
+              disabled={!klar}
+            />
+            <button className="knapp primær" disabled={!klar || !omraade.trim()}>
+              Åpne register
             </button>
           </form>
-          {!config && (
-            <p className="banner info">
-              SharePoint-tilkoblingen er ikke satt opp ennå. Den krever en appregistrering i Entra ID fra IT. Til da kan du bruke demomodus nedenfor.
-            </p>
-          )}
+          {klar && config?.tillatelse !== 'sites' && <OmraadeSok />}
           <div className="knapperad">
-            <button className="knapp" disabled={!config} onClick={() => setNy({ type: 'sharepoint' })}>
-              Opprett nytt register i SharePoint
+            <button className="knapp" disabled={!klar} onClick={() => setNy({ type: 'sharepoint' })}>
+              Sett opp riskregister på et område
             </button>
-            <button className="knapp" disabled={!config} onClick={() => setImportFra('sharepoint')}>
+            <button className="knapp" disabled={!klar} onClick={() => setImportFra('sharepoint')}>
               Nytt register fra Excel…
             </button>
             <button className="lenkeknapp" onClick={() => setVisOppsett(!visOppsett)}>
               Tilkoblingsinnstillinger
             </button>
           </div>
+          {config && (
+            <p className="liten">
+              Tilkobling: tenant <code>{config.tenantId}</code>, {KILDE[config.kilde ?? 'fil']}.
+            </p>
+          )}
           {visOppsett && <Oppsett config={config} />}
         </section>
 
@@ -132,11 +155,11 @@ export function Start({ config, konto }: Props) {
         <section className="kort">
           <h2>Demo uten SharePoint</h2>
           <p>
-            Registrene lagres bare i denne nettleseren. Åpne samme register i flere faner for å se hvordan flere brukere jobber samtidig, med tilstedeværelse og
-            låsing av risker.
+            Registrene lagres bare i denne nettleseren, i liksomlister som oppfører seg som SharePoint-listene. Åpne samme register i flere faner for å se hvordan flere
+            brukere jobber samtidig, med tilstedeværelse og låsing av risker. Under Mer › Vis rådata ser du listene slik de ville sett ut i SharePoint.
           </p>
           <div className="knapperad">
-            <button className="knapp primær" onClick={lagEksempel}>
+            <button className="knapp primær" onClick={() => void lagEksempel()}>
               Lag demoregister med eksempeldata
             </button>
             <button className="knapp" onClick={() => setNy({ type: 'demo' })}>
@@ -185,15 +208,94 @@ export function Start({ config, konto }: Props) {
   )
 }
 
+// Hva som mangler før SharePoint kan brukes
+function KomIGang({ config, konto }: Props) {
+  return (
+    <div className="banner info kom-i-gang">
+      <ol>
+        <li className={config ? 'ferdig' : ''}>
+          <b>Koble appen til Microsoft 365.</b> Krever en appregistrering i Entra ID (se{' '}
+          <a href={DOKUMENTASJON + 'Testmiljo.md'} target="_blank" rel="noreferrer">
+            veiledningen for testmiljø
+          </a>{' '}
+          eller{' '}
+          <a href={DOKUMENTASJON + 'IT-oppsett.md'} target="_blank" rel="noreferrer">
+            oppsett hos IT
+          </a>
+          ). Fyll inn verdiene under Tilkoblingsinnstillinger.
+        </li>
+        <li className={konto ? 'ferdig' : ''}>
+          <b>Logg inn</b> med Microsoft-kontoen i samme organisasjon (tenant).
+          {config && !konto && (
+            <button className="knapp liten" onClick={() => void loggInn()}>
+              Logg inn
+            </button>
+          )}
+        </li>
+        <li>
+          <b>Åpne eller sett opp registeret</b> på prosjektets SharePoint-område. Første gang lager appen listene registeret trenger.
+        </li>
+      </ol>
+      <span className="liten">Til da kan du bruke demomodus nedenfor.</span>
+    </div>
+  )
+}
+
+// Søk etter SharePoint-områder brukeren har tilgang til
+function OmraadeSok() {
+  const [tekst, setTekst] = useState('')
+  const [treff, setTreff] = useState<Omraade[] | null>(null)
+  const [feil, setFeil] = useState('')
+  const sok = async () => {
+    setFeil('')
+    try {
+      setTreff(await sokOmraader(tekst.trim()))
+    } catch (e) {
+      setFeil(e instanceof Error ? e.message : String(e))
+    }
+  }
+  return (
+    <details className="omraadesok">
+      <summary>Finn området i stedet for å lime inn adressen</summary>
+      <form
+        className="knapperad"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void sok()
+        }}
+      >
+        <input value={tekst} onChange={(e) => setTekst(e.target.value)} placeholder="Navn på området (tomt viser alle)" />
+        <button className="knapp">Søk</button>
+      </form>
+      {feil && <div className="banner feil">{feil}</div>}
+      {treff && (
+        <ul className="liste">
+          {treff.length === 0 && <li>Fant ingen områder.</li>}
+          {treff.map((o) => (
+            <li key={o.id}>
+              <a href={omraadeLenke(o.webUrl)}>{o.navn}</a>
+              <span className="liten">{o.webUrl.replace(/^https:\/\//, '')}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </details>
+  )
+}
+
 function Oppsett({ config }: { config: AuthConfig | null }) {
   const [clientId, setClientId] = useState(config?.clientId ?? '')
   const [tenantId, setTenantId] = useState(config?.tenantId ?? '')
-  const [tillatelse, setTillatelse] = useState<Tillatelse>(config?.tillatelse ?? 'files')
+  const [tillatelse, setTillatelse] = useState<Tillatelse>(config?.tillatelse ?? 'manage')
   return (
     <div className="oppsett">
       <p className="liten">
-        Fylles ut med verdiene fra appregistreringen i Entra ID. Lagres bare i denne nettleseren og er ment for testing. I drift legges de i <code>config.json</code>.
-        Omdirigerings-URI som må registreres: <code>{redirectUri()}</code>
+        Fylles ut med verdiene fra appregistreringen i Entra ID. Det du legger inn her, lagres bare i denne nettleseren og overstyrer det som er bygget inn i appen.
+        Det er ment for testing, f.eks. mot en egen test-tenant. I drift legges verdiene inn ved bygging (repo-variablene <code>AZURE_CLIENT_ID</code> og{' '}
+        <code>AZURE_TENANT_ID</code>) eller i <code>config.json</code>, slik at brukerne slipper dette.
+      </p>
+      <p className="liten">
+        Omdirigerings-URI som må registreres (plattform «Single-page application»): <code>{redirectUri()}</code>
       </p>
       <label className="felt">
         <span>Application (client) ID</span>
@@ -207,16 +309,16 @@ function Oppsett({ config }: { config: AuthConfig | null }) {
       <fieldset className="felt tillatelse">
         <legend>Tillatelse appen ber om ved innlogging</legend>
         <label>
-          <input type="radio" name="tillatelse" checked={tillatelse === 'files'} onChange={() => setTillatelse('files')} />
+          <input type="radio" name="tillatelse" checked={tillatelse === 'manage'} onChange={() => setTillatelse('manage')} />
           <span>
-            <b>Files.ReadWrite.All</b> (standard). Appen kan åpne registre i alle SharePoint-mapper du selv har tilgang til.
+            <b>Sites.Manage.All</b> (standard). Appen kan åpne registre på alle områder du selv har tilgang til, og lage listene for et nytt register på områder du eier.
           </span>
         </label>
         <label>
           <input type="radio" name="tillatelse" checked={tillatelse === 'sites'} onChange={() => setTillatelse('sites')} />
           <span>
-            <b>Sites.Selected</b>. Appen kan bare åpne registre på SharePoint-områdene IT har gitt den tilgang til, f.eks. i en pilot. Lim inn adressen fra nettleserens
-            adresselinje når du åpner et register. Delingslenker («Kopier kobling») virker ikke alltid med dette valget.
+            <b>Sites.Selected</b>. Appen kan bare åpne registre på SharePoint-områdene IT har gitt den tilgang til, f.eks. i en pilot. For å sette opp et nytt register
+            må appen ha rollen «manage» på området. Søk etter områder virker ikke med dette valget.
           </span>
         </label>
         <p className="liten">Velg det samme som IT har lagt inn under API permissions i appregistreringen. Feil valg gir en feilmelding ved innlogging.</p>
