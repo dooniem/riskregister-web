@@ -270,12 +270,13 @@ function Infokort({ r, doc, gammel, kanFlytte, flytt, aapne, lukk }: { r: Risk; 
             {fag.navn}
           </span>
         )}
+        {gammel && <span className="liten">Nå:</span>}
         <span className="eksp" style={{ background: farge?.bg, color: farge?.fg }}>
           {r.sannsynlighet || '–'} × {r.konsekvens || '–'} = {e || '–'}
         </span>
-        {gammel && vurdert(gammel) && eksponering(gammel) !== e && <span className="liten">snapshot: {eksponering(gammel)}</span>}
         <span className="liten">{r.status}</span>
       </div>
+      {gammel && <Snapshotverdi r={r} gammel={gammel} />}
       <dl>
         {felt.map(([navn, verdi]) => (
           <div key={navn}>
@@ -295,5 +296,30 @@ function Infokort({ r, doc, gammel, kanFlytte, flytt, aapne, lukk }: { r: Risk; 
         )}
       </div>
     </aside>
+  )
+}
+
+// Sannsynlighet og konsekvens slik de var i snapshotet det sammenlignes med
+function Snapshotverdi({ r, gammel }: { r: Risk; gammel: Risk }) {
+  const ge = eksponering(gammel)
+  const f = eksponeringFarge(gammel.rm, ge)
+  const lik = gammel.sannsynlighet === r.sannsynlighet && gammel.konsekvens === r.konsekvens
+  return (
+    <div className="infokort-snapshot">
+      <span className="liten">I snapshotet:</span>
+      <span className="eksp" style={{ background: f?.bg, color: f?.fg }}>
+        {gammel.sannsynlighet || '–'} × {gammel.konsekvens || '–'} = {ge || '–'}
+      </span>
+      <span className="liten">
+        {lik
+          ? 'uendret'
+          : [
+              gammel.sannsynlighet !== r.sannsynlighet && `sannsynlighet ${gammel.sannsynlighet || '–'} → ${r.sannsynlighet || '–'}`,
+              gammel.konsekvens !== r.konsekvens && `konsekvens ${gammel.konsekvens || '–'} → ${r.konsekvens || '–'}`,
+            ]
+              .filter(Boolean)
+              .join(', ')}
+      </span>
+    </div>
   )
 }

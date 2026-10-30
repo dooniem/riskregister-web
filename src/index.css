@@ -2461,3 +2461,17 @@ td .valgpil.synlig {
     border-top: 1px solid var(--linje);
   }
 }
+.infokort-snapshot {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: -4px;
+}
+.infokort-snapshot .eksp {
+  font-weight: 700;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px dashed rgba(0, 0, 0, 0.35);
+}
