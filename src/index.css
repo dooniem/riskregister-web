@@ -2479,9 +2479,8 @@ td .valgpil.synlig {
 .infokort .etikett {
   min-width: 62px;
 }
-/* Forklaringen på egen linje, innrykket under Snapshot-boksen */
+/* Forklaringen på egen linje */
 .infokort-forklaring {
   flex-basis: 100%;
-  padding-left: 70px;
   margin-top: -4px;
 }
