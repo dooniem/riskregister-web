@@ -112,7 +112,8 @@ export function StorMatrise(p: Props) {
         onClick={(e) => {
           e.stopPropagation()
           setValgt(null)
-          setSide(side?.riskId === r.id && !side.hel ? null : { riskId: r.id, hel: false })
+          // Er hele risken åpen, vises hele den nye risken også. Ellers vises infokortet (et nytt klikk lukker det).
+          setSide(side?.hel ? { riskId: r.id, hel: true } : side?.riskId === r.id ? null : { riskId: r.id, hel: false })
         }}
         onDoubleClick={() => setSide({ riskId: r.id, hel: true })}
         title={tittel + '\nKlikk for mer, dobbeltklikk for å åpne hele risken.'}
@@ -217,7 +218,14 @@ export function StorMatrise(p: Props) {
         </div>
         {sideRisk &&
           (side.hel ? (
-            <div className="stormatrise-side hel">{p.detalj(sideRisk.id, () => setSide(null))}</div>
+            <div className="stormatrise-side hel">
+              <div className="side-verktoy">
+                <button className="lenkeknapp" onClick={() => setSide({ riskId: sideRisk.id, hel: false })} title="Vis bare årsak, hendelse, konsekvenser og risikoeier">
+                  ◂ Kortvisning
+                </button>
+              </div>
+              {p.detalj(sideRisk.id, () => setSide(null))}
+            </div>
           ) : (
             <Infokort
               r={sideRisk}
