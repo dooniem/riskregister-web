@@ -112,6 +112,7 @@ Appen sier også fra om andre feil som kan oppstå ved redigering direkte i Shar
 - Er en risk kopiert, slik at samme `RiskId` finnes flere ganger, brukes den eldste raden. Kopiene kan gjøres til egne risker eller slettes.
 - Har noen slettet en risk, men ikke tiltakene, slettes ikke tiltakene ved lagring. Risken kan hentes fra papirkurven på området, lages på nytt i appen, eller tiltakene kan slettes.
 - Endringer som ikke er lagret, tas vare på i nettleseren. Det gjelder hvis fanen lukkes, innloggingen må fornyes eller skrivetilgangen forsvinner. Neste gang registeret åpnes, får brukeren spørsmål om å lagre dem.
+- Har noen andre endret samme felt mens endringene ventet, lagres de ikke uten videre. Brukeren ser verdien før, den nye verdien og sin egen, og velger hvilken som skal gjelde. Den andres er forhåndsvalgt.
 
 Slettes en kolonne i listene (f.eks. i SharePoint i nettleseren), sier appen fra når registeret åpnes. Resten lagres som før, mens feltene i kolonnen som mangler, ikke lagres. Den som kan endre listene, kan la appen lage kolonnen på nytt. Den blir tom, siden en slettet kolonne ikke havner i papirkurven. Mangler `RiskId` (eller `TiltakId` i Tiltak), åpnes ikke registeret, fordi radene da ikke kan knyttes til riskene.
 

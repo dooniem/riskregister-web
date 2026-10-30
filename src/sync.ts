@@ -18,6 +18,9 @@ export interface Snapshot {
   ventende: number
   // Endringer fra en tidligere økt i denne nettleseren som aldri ble lagret
   ulagret?: { antall: number; tid: number }
+  // Endringer gjort mens appen var frakoblet (eller i en tidligere økt) der noen andre har endret samme felt i mellomtiden.
+  // Holdes igjen til brukeren har valgt hvilken verdi som skal gjelde.
+  avklar: Konflikt[]
 }
 
 function les(nokkel: string): { ops: Op[]; tid: number } | undefined {
@@ -49,6 +52,9 @@ export class Okt {
   private publiserTimer?: number
   private samleTimer?: number
   private ulagret?: { ops: Op[]; tid: number }
+  // Endringer som ikke ble lagret med en gang (frakoblet, eller fra en tidligere økt). Ved konflikt spør vi brukeren.
+  private sjekkes = new WeakSet<Op>()
+  private avklar: Konflikt[] = []
   onKonflikt?: (k: Konflikt[]) => void
   onLaasTapt?: (riskId: string, av: string) => void
 
@@ -102,7 +108,7 @@ export class Okt {
 
   private husk() {
     if (!this.backend.kanSkrive && !this.ventende.length) return
-    const ops = [...(this.ulagret?.ops ?? []), ...this.ventende]
+    const ops = [...(this.ulagret?.ops ?? []), ...this.avklar.map((k) => k.op!), ...this.ventende]
     try {
       if (ops.length) localStorage.setItem(this.nokkel(), JSON.stringify({ ops, tid: this.ulagret?.tid ?? Date.now() }))
       else localStorage.removeItem(this.nokkel())
@@ -119,7 +125,18 @@ export class Okt {
   gjenopprettUlagret() {
     const u = this.ulagret
     this.ulagret = undefined
-    if (u) this.utfor(...u.ops)
+    if (u) {
+      u.ops.forEach((o) => this.sjekkes.add(o))
+      this.utfor(...u.ops)
+    }
+    this.husk()
+    this.oppdaterSnap()
+  }
+
+  // Brukeren har valgt verdi for en konflikt: sin egen (lagres oppå den andres) eller den andres (endringen forkastes)
+  avgjor(k: Konflikt, brukMin: boolean) {
+    this.avklar = this.avklar.filter((x) => x !== k)
+    if (brukMin && k.op && !k.slettet && (k.op.t === 'setRisk' || k.op.t === 'setTiltak')) this.utfor({ ...k.op, fra: k.deres })
     this.husk()
     this.oppdaterSnap()
   }
@@ -145,6 +162,7 @@ export class Okt {
       sistHentet: this.sistHentet,
       ventende: this.ventende.length,
       ulagret: this.ulagret && { antall: this.ulagret.ops.length, tid: this.ulagret.tid },
+      avklar: this.avklar,
     }
     this.lyttere.forEach((l) => l())
   }
@@ -157,6 +175,7 @@ export class Okt {
   utfor(...ops: Op[]) {
     if (!this.backend.kanSkrive) return
     this.ventende.push(...ops)
+    if (this.status === 'frakoblet') ops.forEach((o) => this.sjekkes.add(o))
     this.husk()
     this.visning = brukAlle(this.base, this.ventende, this.backend.bruker).doc
     this.oppdaterSnap()
@@ -182,13 +201,24 @@ export class Okt {
         this.oppdaterSnap()
         const n = this.ventende.length
         const { doc, konflikter } = brukAlle(this.base, this.ventende.slice(0, n), this.backend.bruker)
+        // Gamle endringer som kolliderer med andres: hold dem igjen og spør brukeren
+        const holdt = konflikter.filter((k) => k.op && this.sjekkes.has(k.op))
+        if (holdt.length) {
+          const ops = new Set(holdt.map((k) => k.op))
+          this.ventende = this.ventende.filter((o) => !ops.has(o))
+          this.avklar = [...this.avklar, ...holdt]
+          this.husk()
+          forsok--
+          continue
+        }
         const svar = await this.backend.lagre(doc, this.etag)
         if (svar.ok) {
           this.base = doc
           this.etag = svar.etag
           this.ventende.splice(0, n)
           this.husk()
-          if (konflikter.length) this.onKonflikt?.(konflikter)
+          const vis = konflikter.filter((k) => !k.slettet)
+          if (vis.length) this.onKonflikt?.(vis)
           // Endringer som kom mens vi lagret, venter til neste samlede lagring
           if (this.backend.samleMs && this.ventende.length) {
             senere = true
@@ -211,6 +241,7 @@ export class Okt {
     } catch (e) {
       this.status = 'frakoblet'
       this.feil = e instanceof Error ? e.message : String(e)
+      this.ventende.forEach((o) => this.sjekkes.add(o))
       window.setTimeout(() => void this.lagre(), 5000)
     } finally {
       this.lagrer = false
@@ -245,6 +276,7 @@ export class Okt {
     } catch (e) {
       this.status = 'frakoblet'
       this.feil = e instanceof Error ? e.message : String(e)
+      this.ventende.forEach((o) => this.sjekkes.add(o))
       this.oppdaterSnap()
     }
   }

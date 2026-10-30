@@ -2590,3 +2590,27 @@ td .valgpil.synlig {
   color: #8a1c1c;
   font-size: 12px;
 }
+.modal.avklar {
+  width: min(820px, calc(100vw - 32px));
+  max-width: none;
+}
+.avklar-tabell {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 12px;
+  font-size: 13px;
+}
+.avklar-tabell th,
+.avklar-tabell td {
+  text-align: left;
+  vertical-align: top;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--linje, #e5e7eb);
+}
+.avklar-tabell th {
+  font-size: 12px;
+  color: var(--dempet);
+}
+.avklar-tabell td span {
+  white-space: pre-wrap;
+}

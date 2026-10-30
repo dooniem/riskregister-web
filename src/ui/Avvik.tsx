@@ -1,5 +1,8 @@
 import { useState } from 'react'
+import { KOLONNER } from '../columns'
+import type { Register } from '../model'
 import { nyRisk } from '../model'
+import type { Konflikt } from '../ops'
 import { loggInn } from '../store/auth'
 import { ListeBackend } from '../store/listeBackend'
 import type { Okt, Snapshot } from '../sync'
@@ -158,6 +161,87 @@ export function AvvikBanner({ okt }: { okt: Okt }) {
           )}
         </div>
       ))}
+    </div>
+  )
+}
+
+const feltNavn = (felt: string, doc: Register) => {
+  const tiltak = felt.startsWith('tiltak.')
+  const f = tiltak ? felt.slice(7) : felt
+  const k = KOLONNER.find((x) => x.felt === f && x.nivaa === (tiltak ? 'tiltak' : 'risk'))
+  const navn = k?.tittel(doc) ?? f
+  return tiltak && !/tiltak/i.test(navn) ? `Tiltak, ${navn.toLowerCase()}` : navn
+}
+const vis = (v: unknown) => (v === null || v === undefined || v === '' ? '(tom)' : typeof v === 'boolean' ? (v ? 'Ja' : 'Nei') : String(v))
+
+// Endringer fra da appen var frakoblet, der noen andre har endret samme felt i mellomtiden
+export function AvklarDialog({ okt, konflikter }: { okt: Okt; konflikter: Konflikt[] }) {
+  const [brukMin, setBrukMin] = useState<Set<Konflikt>>(new Set())
+  if (!konflikter.length) return null
+  const doc = okt.doc
+  const ferdig = () => konflikter.forEach((k) => okt.avgjor(k, brukMin.has(k)))
+  return (
+    <div className="modal-bakgrunn">
+      <div className="modal avklar">
+        <header>
+          <h2>Endret av andre mens du var frakoblet</h2>
+        </header>
+        <div className="modal-innhold">
+          <p>
+            Noen av endringene dine ble ikke lagret med en gang, og i mellomtiden har noen andre endret de samme feltene. Velg hvilken verdi som skal gjelde. Den andres er valgt,
+            så ingenting blir overskrevet uten at du bestemmer det.
+          </p>
+          <table className="avklar-tabell">
+            <thead>
+              <tr>
+                <th>Felt</th>
+                <th>Da du endret</th>
+                <th>Nå</th>
+                <th>Din endring</th>
+              </tr>
+            </thead>
+            <tbody>
+              {konflikter.map((k, i) => (
+                <tr key={i}>
+                  <td>
+                    {k.riskNr ? `Risk ${k.riskNr}: ` : ''}
+                    {feltNavn(k.felt, doc)}
+                  </td>
+                  <td>{vis(k.fra)}</td>
+                  {k.slettet ? (
+                    <td colSpan={2}>
+                      {k.felt.startsWith('tiltak.') && k.riskNr ? 'Tiltaket' : 'Risken'} er slettet av andre, så endringen din ({vis(k.min)}) kan ikke lagres.
+                    </td>
+                  ) : (
+                    <>
+                      <td>
+                        <label className="avkrysning">
+                          <input type="radio" checked={!brukMin.has(k)} onChange={() => setBrukMin((s) => new Set([...s].filter((x) => x !== k)))} />
+                          <span>
+                            {vis(k.deres)}
+                            {k.av && <span className="liten"> ({k.av})</span>}
+                          </span>
+                        </label>
+                      </td>
+                      <td>
+                        <label className="avkrysning">
+                          <input type="radio" checked={brukMin.has(k)} onChange={() => setBrukMin((s) => new Set([...s, k]))} />
+                          <span>{vis(k.min)}</span>
+                        </label>
+                      </td>
+                    </>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="knapperad">
+            <button className="knapp primær" onClick={ferdig}>
+              Bruk valgene
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
