@@ -82,7 +82,7 @@ export class ListeBackend implements Backend {
   async hent(): Promise<Versjon> {
     // Tidsstempelet hentes før radene, så en endring som kommer mens vi leser, fanges opp ved neste sjekk
     const tid = await this.lager.sistEndret(REGISTERLISTER)
-    const [ie, re, te] = await Promise.all([this.lager.hentAlle('innstillinger'), this.lager.hentAlle('risker'), this.lager.hentAlle('tiltak')])
+    const [ie, re, te] = await Promise.all([this.lager.har('innstillinger') ? this.lager.hentAlle('innstillinger') : [], this.lager.hentAlle('risker'), this.lager.hentAlle('tiltak')])
     this.innst.clear()
     this.risker.clear()
     this.tiltak.clear()

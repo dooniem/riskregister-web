@@ -19,6 +19,7 @@ export interface Kolonne {
 
 export interface ListeDef {
   visningsnavn: string // navnet listen får i SharePoint
+  tidligereNavn?: string[] // navn listen hadde i tidligere versjoner, slik at eldre registre fortsatt åpnes
   beskrivelse: string
   kolonner: Kolonne[]
 }
@@ -70,13 +71,15 @@ export const LISTER: Record<ListeNavn, ListeDef> = {
     kolonner: [idx(t('RiskId')), t('TiltakId'), n('Rekkefolge'), lt('Tekst'), t('Eier'), t('Frist'), lt('Beskrivelse'), t('Status')],
   },
   innstillinger: {
-    visningsnavn: 'Riskregister Innstillinger',
-    beskrivelse: 'Prosjektinfo, deltakere, gjennomganger og nedtrekkslister. Én rad per nøkkel, verdien er JSON.',
+    visningsnavn: 'Riskregister Klientinnstillinger',
+    tidligereNavn: ['Riskregister Innstillinger'],
+    beskrivelse: 'Riskregister-appens innstillinger: prosjektinfo, deltakere, gjennomganger og nedtrekkslister. Én rad per nøkkel, verdien er JSON.',
     kolonner: [lt('Verdi')],
   },
   tilstede: {
-    visningsnavn: 'Riskregister Tilstede',
-    beskrivelse: 'Hvem som har registeret åpent nå, og hvilken risk de redigerer. Radene slettes når brukeren lukker appen.',
+    visningsnavn: 'Riskregister Klienttilstede',
+    tidligereNavn: ['Riskregister Tilstede'],
+    beskrivelse: 'Riskregister-appen: hvem som har registeret åpent nå, og hvilken risk de redigerer. Radene slettes når brukeren lukker appen.',
     kolonner: [lt('Data')],
   },
   snapshots: {

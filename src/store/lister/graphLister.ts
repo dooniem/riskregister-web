@@ -29,8 +29,9 @@ interface GraphElement {
   lastModifiedBy?: { user?: { displayName?: string } }
 }
 
-const PAAKREVD: ListeNavn[] = ['risker', 'tiltak', 'innstillinger']
-const VALGFRI: ListeNavn[] = ['tilstede', 'snapshots', 'snapshotdata']
+// Selve registeret. Resten er appens egne lister, som appen lager når de mangler.
+const PAAKREVD: ListeNavn[] = ['risker', 'tiltak']
+const VALGFRI: ListeNavn[] = ['innstillinger', 'tilstede', 'snapshots', 'snapshotdata']
 
 function shareId(url: string) {
   const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(url)))
@@ -160,7 +161,8 @@ export class GraphLister implements ListeLager {
   private static finn(alle: GraphListe[]) {
     const lister: Partial<Record<ListeNavn, GraphListe>> = {}
     for (const navn of Object.keys(LISTER) as ListeNavn[]) {
-      const l = alle.find((x) => x.displayName.toLowerCase() === LISTER[navn].visningsnavn.toLowerCase())
+      const navnene = [LISTER[navn].visningsnavn, ...(LISTER[navn].tidligereNavn ?? [])].map((x) => x.toLowerCase())
+      const l = alle.find((x) => navnene.includes(x.displayName.toLowerCase()))
       if (l) lister[navn] = l
     }
     return lister
