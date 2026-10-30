@@ -1,4 +1,4 @@
-// Datamodell for et riskregister. Én JSON-fil (register.json) per prosjekt.
+// Datamodell for et riskregister. I SharePoint ligger registeret i lister på prosjektets område (se store/lister/skjema.ts).
 
 export const SCHEMA_VERSION = 1
 
@@ -109,16 +109,10 @@ export interface Prosjekt {
   notering: string
 }
 
-export interface Hjem {
-  driveId: string
-  itemId: string
-}
-
 export interface Register {
   schemaVersion: number
   registerId: string
   opprettet: string
-  hjem?: Hjem // hvor registeret ble opprettet, brukes til å oppdage kopier
   prosjekt: Prosjekt
   deltakere: Deltaker[]
   gjennomganger: Gjennomgang[]
@@ -126,8 +120,6 @@ export interface Register {
   risker: Risk[]
   // Neste ledige risknummer. Nummer brukes aldri på nytt, heller ikke etter at en risk er slettet.
   nesteNr?: number
-  // Antall lagringer siden register.json sist ble arkivert, og datoen den ble startet. Se GraphBackend.lagre.
-  lagring?: { antall: number; dato: string }
   // Nøkkelen Excel-registeret bygger UnikID av (cellene AC2 og AC3 i Riskregister-arket). Tas vare på ved import fra Excel.
   excelNokkel?: { ac2: string; ac3: string }
 }
@@ -278,5 +270,9 @@ export function migrer(doc: Register): Register {
   d.gjennomganger ??= []
   d.risker ??= []
   d.schemaVersion = SCHEMA_VERSION
+  // Felt fra tiden registeret var én JSON-fil i en mappe
+  const gammel = d as Register & { hjem?: unknown; lagring?: unknown }
+  delete gammel.hjem
+  delete gammel.lagring
   return d
 }

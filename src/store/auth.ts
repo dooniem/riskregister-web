@@ -2,20 +2,28 @@
 // den henter et token for den innloggede brukeren og får bare tilgang til det brukeren har tilgang til i SharePoint.
 import { InteractionRequiredAuthError, PublicClientApplication, type AccountInfo } from '@azure/msal-browser'
 
-// Hvilken Graph-tillatelse appen ber om ved innlogging. Må stemme med det IT har lagt inn i appregistreringen.
-// files: Files.ReadWrite.All, appen når alle filer brukeren selv har tilgang til (standard).
+// Hvilken Graph-tillatelse appen ber om ved innlogging. Må stemme med det som er lagt inn i appregistreringen.
+// manage: Sites.Manage.All, appen når listene på alle områder brukeren selv har tilgang til, og kan lage listene
+//         for et nytt register (standard).
 // sites: Sites.Selected, appen når bare SharePoint-områdene IT har gitt den tilgang til. Tenkt for en pilot.
 // Innstillingen er midlertidig, til vi vet hva IT velger.
-export type Tillatelse = 'files' | 'sites'
+export type Tillatelse = 'manage' | 'sites'
+
+// Hvor tilkoblingen er hentet fra: lagt inn i denne nettleseren (testing), bygget inn i appen, eller config.json
+export type ConfigKilde = 'nettleser' | 'bygg' | 'fil'
 
 export interface AuthConfig {
   clientId: string
   tenantId: string
   tillatelse?: Tillatelse
+  kilde?: ConfigKilde
 }
 
-const SCOPE: Record<Tillatelse, string> = { files: 'Files.ReadWrite.All', sites: 'Sites.Selected' }
-let scopes = [SCOPE.files, 'User.Read']
+const SCOPE: Record<Tillatelse, string> = { manage: 'Sites.Manage.All', sites: 'Sites.Selected' }
+let scopes = [SCOPE.manage, 'User.Read']
+
+// Eldre innstillinger kan ha «files» (Files.ReadWrite.All), som ikke gir tilgang til lister
+const tillatelse = (t?: string): Tillatelse => (t === 'sites' ? 'sites' : 'manage')
 const CONFIG_KEY = 'rr-auth-config'
 const RETUR_KEY = 'rr-retur-url'
 
@@ -27,7 +35,7 @@ export async function hentConfig(): Promise<AuthConfig | null> {
     const lokal = localStorage.getItem(CONFIG_KEY)
     if (lokal) {
       const c = JSON.parse(lokal) as AuthConfig
-      if (c.clientId && c.tenantId) return c
+      if (c.clientId && c.tenantId) return { ...c, tillatelse: tillatelse(c.tillatelse), kilde: 'nettleser' }
     }
   } catch {
     /* ignorer */
@@ -35,14 +43,15 @@ export async function hentConfig(): Promise<AuthConfig | null> {
   const env: AuthConfig = {
     clientId: import.meta.env.VITE_AZURE_CLIENT_ID ?? '',
     tenantId: import.meta.env.VITE_AZURE_TENANT_ID ?? '',
-    tillatelse: import.meta.env.VITE_AZURE_TILLATELSE === 'sites' ? 'sites' : 'files',
+    tillatelse: tillatelse(import.meta.env.VITE_AZURE_TILLATELSE),
+    kilde: 'bygg',
   }
   if (env.clientId && env.tenantId) return env
   try {
     const r = await fetch(import.meta.env.BASE_URL + 'config.json', { cache: 'no-store' })
     if (r.ok) {
       const c = (await r.json()) as AuthConfig
-      if (c.clientId && c.tenantId) return c
+      if (c.clientId && c.tenantId) return { ...c, tillatelse: tillatelse(c.tillatelse), kilde: 'fil' }
     }
   } catch {
     /* ignorer */
@@ -52,7 +61,7 @@ export async function hentConfig(): Promise<AuthConfig | null> {
 
 export function lagreConfig(c: AuthConfig | null) {
   try {
-    if (c) localStorage.setItem(CONFIG_KEY, JSON.stringify(c))
+    if (c) localStorage.setItem(CONFIG_KEY, JSON.stringify({ clientId: c.clientId, tenantId: c.tenantId, tillatelse: c.tillatelse }))
     else localStorage.removeItem(CONFIG_KEY)
   } catch {
     /* ignorer */
@@ -70,7 +79,7 @@ export function redirectUri() {
 
 // Kalles ved oppstart. Fullfører en innlogging som kom tilbake fra Microsoft.
 export async function initAuth(c: AuthConfig): Promise<AccountInfo | null> {
-  scopes = [SCOPE[c.tillatelse ?? 'files'], 'User.Read']
+  scopes = [SCOPE[tillatelse(c.tillatelse)], 'User.Read']
   pca = new PublicClientApplication({
     auth: {
       clientId: c.clientId,

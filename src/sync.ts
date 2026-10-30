@@ -106,7 +106,7 @@ export class Okt {
     this.ventende.push(...ops)
     this.visning = brukAlle(this.base, this.ventende, this.backend.bruker).doc
     this.oppdaterSnap()
-    // Hver lagring blir en ny filversjon i SharePoint, så endringer som kommer tett samles i én lagring
+    // Endringer som kommer tett, samles i én lagring for å spare kall mot SharePoint
     if (!this.backend.samleMs) void this.lagre()
     else this.planleggLagring()
   }

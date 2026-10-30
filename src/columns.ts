@@ -163,3 +163,10 @@ export function editorTekst(k: Kolonne, r: Risk, t?: Tiltak): string {
   if (k.type === 'dato') return formatDato(v as string)
   return String(v ?? '')
 }
+
+// Endring siden et snapshot, f.eks. «+150» eller «−20». Tom når det ikke er noen endring.
+export function formatEndring(n: number): string {
+  const r = Math.round(n)
+  if (!r) return ''
+  return (r > 0 ? '+' : '−') + Math.abs(r).toLocaleString('nb-NO')
+}

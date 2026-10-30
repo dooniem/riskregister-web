@@ -1,6 +1,6 @@
 // Simulert kollega for demonstrasjon: flytter seg rundt i registeret, låser en risk,
 // skriver i et tiltak og slipper låsen. Kjører som en egen bruker mot samme lagring.
-import { DemoBackend } from './store/demoBackend'
+import { demoBackend } from './store/demoBackend'
 import { Okt } from './sync'
 
 const FRASER = [
@@ -13,20 +13,26 @@ const FRASER = [
 const vent = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 export class SimulertKollega {
-  private okt: Okt
+  private okt!: Okt
   private stopp = false
+  private registerNavn: string
+  private navn: string
 
   constructor(registerNavn: string, navn = 'Kari (simulert)') {
-    this.okt = new Okt(new DemoBackend(registerNavn, { id: 'sim-' + navn.replace(/\W/g, ''), navn }))
+    this.registerNavn = registerNavn
+    this.navn = navn
   }
 
   async start() {
+    this.okt = new Okt(await demoBackend(this.registerNavn, { id: 'sim-' + this.navn.replace(/\W/g, ''), navn: this.navn }))
     await this.okt.start()
+    if (this.stopp) return this.okt.stopp()
     void this.loop()
   }
 
   avslutt() {
     this.stopp = true
+    if (!this.okt) return
     this.okt.slippLaas()
     this.okt.stopp()
   }

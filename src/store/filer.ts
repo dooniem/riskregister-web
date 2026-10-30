@@ -49,7 +49,7 @@ interface DemoNode {
 }
 
 const noder = new Map<string, DemoNode>()
-let registerMappe = ''
+let startMappe = ''
 
 const dagerSiden = (n: number) => new Date(Date.now() - n * 86400000).toISOString()
 
@@ -81,10 +81,7 @@ function delregister(hoved: Register, firma: string, nye: Risk[]): ArrayBuffer {
 function byggDemo(doc: Register) {
   noder.clear()
   const rot = node('Dokumenter', undefined, true)
-  registerMappe = node('Riskregister', rot, true)
-  node('register.json', registerMappe, false, new ArrayBuffer(0), dagerSiden(0))
-  node('Åpne Riskregister.url', registerMappe, false, new ArrayBuffer(0), dagerSiden(30))
-  node('_historikk', registerMappe, true)
+  startMappe = rot
   const ue = node('Risikovurderinger fra UE', rot, true)
   const t = (tekst: string, eier: string) => [{ id: uid(), tekst, eier, frist: '', beskrivelse: '', status: 'Ikke startet' }]
   node('Delregister grunnarbeider – Grunn og Graving AS.xlsx', ue, false, delregister(doc, 'Grunn og Graving AS', [
@@ -112,7 +109,7 @@ export class DemoFiler implements FilKilde {
     return n
   }
   async start() {
-    return this.mappe(registerMappe)
+    return this.mappe(startMappe)
   }
   async mappe(id: string) {
     const n = this.finn(id)
