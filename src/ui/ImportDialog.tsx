@@ -102,7 +102,7 @@ export function ImportDialog({ doc, kilde, filnavn, bruker, endre, ferdig, lukk 
             {antLukket > 0 && (
               <label className="avkrysning">
                 <input type="checkbox" checked={lukkede} onChange={(e) => setLukkede(e.target.checked)} />
-                <span>Ta med lukkede risker</span>
+                <span>Importer lukkede risker (de legges til i fanen «Lukkede»)</span>
               </label>
             )}
             <DelregisterValg risker={kilde.risker} filnavn={filnavn} valg={prefix} setValg={setPrefix} />
