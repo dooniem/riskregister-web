@@ -40,8 +40,8 @@ export const GRUPPER: Kolonnegruppe[] = [
 const deltakerNavn = (doc: Register) => doc.deltakere.map((d) => d.navn).filter(Boolean).sort((a, b) => a.localeCompare(b, 'nb'))
 
 export const KOLONNER: Kolonne[] = [
-  { key: 'nr', tittel: () => 'Nr.', nivaa: 'risk', type: 'beregnet', bredde: 64, gruppe: 'fast', verdi: (r) => r.nr, frosset: true },
-  { key: 'rm', tittel: () => 'R&M', nivaa: 'risk', type: 'valg', bredde: 64, gruppe: 'fast', felt: 'rm', valg: () => ['R', 'M', '-'], verdi: (r) => r.rm, frosset: true },
+  { key: 'nr', tittel: () => 'Nr.', nivaa: 'risk', type: 'beregnet', bredde: 54, gruppe: 'fast', verdi: (r) => r.nr, frosset: true },
+  { key: 'rm', tittel: () => 'R&M', nivaa: 'risk', type: 'valg', bredde: 56, gruppe: 'fast', felt: 'rm', valg: () => ['R', 'M', '-'], verdi: (r) => r.rm, frosset: true },
   { key: 'aarsak', tittel: () => 'Årsak', nivaa: 'risk', type: 'langtekst', bredde: 210, gruppe: 'beskrivelse', felt: 'aarsak', verdi: (r) => r.aarsak, frosset: true },
   { key: 'hendelse', tittel: () => 'Hendelse (risiko/mulighet)', nivaa: 'risk', type: 'langtekst', bredde: 230, gruppe: 'beskrivelse', felt: 'hendelse', verdi: (r) => r.hendelse, frosset: true },
   { key: 'konsekvenser', tittel: () => 'Konsekvenser hvis det skjer', nivaa: 'risk', type: 'langtekst', bredde: 210, gruppe: 'beskrivelse', felt: 'konsekvenser', verdi: (r) => r.konsekvenser },
