@@ -265,16 +265,16 @@ function Infokort({ r, doc, gammel, kanFlytte, flytt, aapne, lukk }: { r: Risk; 
         </button>
       </header>
       <div className="infokort-merker">
+        {gammel && <span className="liten etikett">Nå:</span>}
+        <span className="eksp" style={{ background: farge?.bg, color: farge?.fg }}>
+          {r.sannsynlighet || '–'} × {r.konsekvens || '–'} = {e || '–'}
+        </span>
+        <span className="liten">{r.status}</span>
         {fag && (
           <span className="fagmerke" style={{ background: fagFarge(fag).bg, color: fagFarge(fag).fg }}>
             {fag.navn}
           </span>
         )}
-        {gammel && <span className="liten">Nå:</span>}
-        <span className="eksp" style={{ background: farge?.bg, color: farge?.fg }}>
-          {r.sannsynlighet || '–'} × {r.konsekvens || '–'} = {e || '–'}
-        </span>
-        <span className="liten">{r.status}</span>
       </div>
       {gammel && <Snapshotverdi r={r} gammel={gammel} />}
       <dl>
@@ -306,11 +306,11 @@ function Snapshotverdi({ r, gammel }: { r: Risk; gammel: Risk }) {
   const lik = gammel.sannsynlighet === r.sannsynlighet && gammel.konsekvens === r.konsekvens
   return (
     <div className="infokort-snapshot">
-      <span className="liten">I snapshotet:</span>
+      <span className="liten etikett">Snapshot:</span>
       <span className="eksp" style={{ background: f?.bg, color: f?.fg }}>
         {gammel.sannsynlighet || '–'} × {gammel.konsekvens || '–'} = {ge || '–'}
       </span>
-      <span className="liten">
+      <span className="liten infokort-forklaring">
         {lik
           ? 'uendret'
           : [

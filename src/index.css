@@ -2475,3 +2475,13 @@ td .valgpil.synlig {
   border-radius: 4px;
   border: 1px dashed rgba(0, 0, 0, 0.35);
 }
+/* Lik bredde på «Nå:» og «Snapshot:», så boksene står rett under hverandre */
+.infokort .etikett {
+  min-width: 62px;
+}
+/* Forklaringen på egen linje, innrykket under Snapshot-boksen */
+.infokort-forklaring {
+  flex-basis: 100%;
+  padding-left: 70px;
+  margin-top: -4px;
+}
