@@ -2484,3 +2484,8 @@ td .valgpil.synlig {
   flex-basis: 100%;
   margin-top: -4px;
 }
+
+.omraadesok-felt {
+  flex: 1 1 260px;
+  min-width: 0;
+}
