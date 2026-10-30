@@ -8,7 +8,7 @@ import { demoRegistre, opprettDemo, slettDemo, demoFinnes } from '../store/demoB
 import { DemoFiler } from '../store/filer'
 import { GraphFiler } from '../store/graphFiler'
 import type { Omraade } from '../store/lister/graphLister'
-import { omraadeLenke, sokOmraader } from '../store/lister/graphLister'
+import { erRotomraade, omraadeLenke, sokOmraader } from '../store/lister/graphLister'
 import { Filvelger } from './Filvelger'
 import { NyttRegisterDialog } from './NyttRegister'
 
@@ -274,6 +274,7 @@ function OmraadeSok() {
           {treff.map((o) => (
             <li key={o.id}>
               <a href={omraadeLenke(o.webUrl)}>{o.navn}</a>
+              {erRotomraade(o.webUrl) && <span className="liten"> (rotområdet, ikke et prosjektområde)</span>}
               <span className="liten">{o.webUrl.replace(/^https:\/\//, '')}</span>
             </li>
           ))}

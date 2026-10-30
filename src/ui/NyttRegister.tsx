@@ -5,7 +5,7 @@ import { brukPrefixValg, kopierRegister, nyttRegister } from '../model'
 import { appUrl } from '../store/auth'
 import { demoFinnes, opprettDemo } from '../store/demoBackend'
 import { skrivNyttRegister } from '../store/listeBackend'
-import { GraphLister, omraadeLenke } from '../store/lister/graphLister'
+import { GraphLister, erRotomraade, omraadeLenke } from '../store/lister/graphLister'
 import { LISTER } from '../store/lister/skjema'
 import { DelregisterValg } from './ImportDialog'
 
@@ -49,6 +49,8 @@ export function NyttRegisterDialog({ kilde, importert, filnavn, backendType, luk
         setFerdig({ lenke: `${appUrl()}?demo=${encodeURIComponent(n)}` })
       } else {
         if (!omraade.trim()) throw new Error('Lim inn adressen til SharePoint-området der registeret skal ligge.')
+        if (erRotomraade(omraade.trim()) && !confirm('Dette er rotområdet, altså startsiden for hele SharePoint, ikke et prosjektområde. Prosjektområder har adresser som …sharepoint.com/sites/Prosjektnavn.\n\nVil du likevel sette opp registeret her?'))
+          return
         const lager = await GraphLister.opprett(omraade.trim())
         await skrivNyttRegister(lager, doc)
         setFerdig({ lenke: omraadeLenke(lager.webUrl), nettside: lager.webUrl })

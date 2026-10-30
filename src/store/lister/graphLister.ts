@@ -58,7 +58,9 @@ export async function finnOmraade(ref: string): Promise<Omraade> {
       // Delingslenke («Kopier kobling»)
       s = await graphJson<S>(`/shares/${shareId(tekst)}/site?${velg}`)
     } else {
-      const sti = deler[0] === 'sites' || deler[0] === 'teams' ? '/' + deler.slice(0, 2).map(encodeURIComponent).join('/') : ''
+      // /sites/ og /teams/ kan ha stor forbokstav når adressen er skrevet eller limt inn for hånd
+      const type = deler[0]?.toLowerCase()
+      const sti = (type === 'sites' || type === 'teams') && deler[1] ? `/${type}/${encodeURIComponent(deler[1])}` : ''
       s = await graphJson<S>(sti ? `/sites/${url.hostname}:${sti}?${velg}` : `/sites/${url.hostname}?${velg}`).catch((e) => {
         if (e instanceof GraphFeil && e.status === 404) throw new Error(`Fant ikke SharePoint-området ${url.origin}${sti}. Sjekk adressen, og at du har tilgang til området.`)
         throw e
@@ -251,6 +253,15 @@ export class GraphLister implements ListeLager {
 }
 
 // Lenke som åpner registeret på området direkte
+// Rotområdet (https://firma.sharepoint.com uten /sites/…) er startsiden for hele tenanten, ikke et prosjektområde
+export function erRotomraade(adresse: string) {
+  try {
+    return /\.sharepoint\.com$/i.test(new URL(adresse).hostname) && new URL(adresse).pathname.replace(/\/+$/, '') === ''
+  } catch {
+    return false
+  }
+}
+
 export function omraadeLenke(webUrl: string) {
   return `${appUrl()}?site=${encodeURIComponent(webUrl)}`
 }
