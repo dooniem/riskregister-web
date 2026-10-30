@@ -43,11 +43,65 @@ Startsiden viser hvilken tenant appen er koblet til og hvor innstillingen kom fr
 
 ## Hosting
 
-Statiske filer (`dist/`). Alternativer:
+Appen er statiske filer (`dist/`) og kan ligge hvor som helst som serverer HTTPS:
 
-- Azure Static Web Apps (gratisnivå holder)
-- GitHub Pages fra dette repoet (brukes under utvikling)
-- Senere: SharePoint Framework-webdel, så appen ligger inne på prosjektsiden
+| Alternativ | Passer for | Merk |
+| --- | --- | --- |
+| GitHub Pages (`https://dooniem.github.io/riskregister-web/`) | Utvikling og testing | Bygges og publiseres automatisk fra `main`. Ligger utenfor organisasjonens kontroll. |
+| Azure Static Web Apps (gratisnivå holder) | Pilot og drift | Organisasjonen eier adressen og publiseringen. Kan få eget domene, f.eks. `https://riskregister.firma.no/`. |
+| SharePoint Framework-webdel | Senere | Appen ligger inne på prosjektsiden. Krever ombygging. |
+
+Adressen appen ligger på bestemmer tre ting, og alle tre må endres hvis appen flyttes:
+
+1. **Redirect URI** i appregistreringen (type SPA, nøyaktig adresse med `/` til slutt).
+2. **Lenkene** fra prosjektområdene (se under), som begynner med adressen.
+3. **Klient-ID og tenant-ID** bygges inn ved bygg (repo-variabler) eller legges i `config.json` ved siden av `index.html`.
+
+Med et eget domene (f.eks. `riskregister.firma.no`) kan appen senere flyttes mellom vertstjenester uten at lenkene på prosjektområdene må endres.
+
+Dataene ligger uansett i SharePoint-listene på hvert prosjektområde. Hvor appen ligger, påvirker ikke hvor dataene lagres, og appen har ingen egen server.
+
+## Lenke fra prosjektområdet
+
+Appen er en ekstra klient til listene på prosjektområdet. Brukerne åpner den fra en lenke på området. Lenken peker på appen og forteller hvilket område registeret ligger på:
+
+```
+<appens adresse>?site=<områdets adresse, URL-kodet>
+```
+
+Eksempel for området `https://firma.sharepoint.com/sites/Prosjekt1234` og appen på `https://riskregister.firma.no/`:
+
+```
+https://riskregister.firma.no/?site=https%3A%2F%2Ffirma.sharepoint.com%2Fsites%2FProsjekt1234
+```
+
+Appen viser lenken ferdig laget når et register settes opp, og under **Mer › Kopier lenke til registeret**.
+
+### Legge lenken i navigasjonen
+
+Hvis området allerede har en overskrift «Riskregister» i navigasjonen (med visninger av listene under), legges lenken til som et nytt valg under den:
+
+1. På områdets hjemmeside: **Rediger** nederst i navigasjonen til venstre (eller i toppmenyen på kommunikasjonsområder).
+2. Hold over overskriften «Riskregister», trykk **…** › **Legg til underkobling** (eller **+** og flytt den inn under overskriften).
+3. Velg **Kobling**, lim inn lenken, og gi den et navn, f.eks. «Åpne i Riskregister-appen». **Lagre**.
+
+For mange områder kan det skriptes med PnP PowerShell:
+
+```powershell
+Connect-PnPOnline -Url https://firma.sharepoint.com/sites/Prosjekt1234 -Interactive
+$site = "https://firma.sharepoint.com/sites/Prosjekt1234"
+$lenke = "https://riskregister.firma.no/?site=" + [uri]::EscapeDataString($site)
+$overskrift = Get-PnPNavigationNode -Location QuickLaunch | Where-Object Title -eq "Riskregister"
+Add-PnPNavigationNode -Location QuickLaunch -Title "Åpne i Riskregister-appen" -Url $lenke -Parent $overskrift.Id
+```
+
+Lenken kan også ligge i en områdemal, så nye prosjektområder får den automatisk.
+
+### Når IT lager listene
+
+Appen kan lage listene selv (Sett opp riskregister på startsiden), men IT kan også lage dem, f.eks. med en områdemal. Da må listene hete og ha kolonnene som i tabellen under. Appen åpner registeret når listene Risker, Tiltak og Innstillinger finnes. Tilstede, Snapshots og Snapshotdata lages av appen første gang registeret åpnes, hvis brukeren har lov til det.
+
+Bruker piloten andre lister eller kolonner, kan koblingen tilpasses i `src/store/lister/skjema.ts`. Det krever en oversikt over listene og kolonnene (internnavn og type).
 
 ## Listene på hvert område
 

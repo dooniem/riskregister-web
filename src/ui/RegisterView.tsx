@@ -12,7 +12,7 @@ import type { Visning } from '../view'
 import { GRUPPERINGER, STANDARD_VISNING, filtrer } from '../view'
 import { DemoFiler, type FilKilde } from '../store/filer'
 import { GraphFiler } from '../store/graphFiler'
-import { GraphLister } from '../store/lister/graphLister'
+import { GraphLister, omraadeLenke } from '../store/lister/graphLister'
 import { Detaljpanel } from './Detaljpanel'
 import { Filvelger } from './Filvelger'
 import { ImportDialog } from './ImportDialog'
@@ -291,6 +291,20 @@ export function RegisterView({ okt, tilbake }: Props) {
                 )}
                 <button onClick={() => setStorMatrise('R')}>Stor risikomatrise…</button>
                 {b.lager && <button onClick={() => setRaadata(true)}>Vis rådata (listene)…</button>}
+                {b.lager instanceof GraphLister && (
+                  <button
+                    title="Lenken kan legges i navigasjonen på SharePoint-området, så alle finner registeret"
+                    onClick={() => {
+                      const lenke = omraadeLenke(b.lager instanceof GraphLister ? b.lager.omraade.webUrl : '')
+                      navigator.clipboard.writeText(lenke).then(
+                        () => melding('Lenken til registeret er kopiert.'),
+                        () => melding(lenke),
+                      )
+                    }}
+                  >
+                    Kopier lenke til registeret
+                  </button>
+                )}
                 {b.type === 'demo' && !b.snapshot && (
                   <>
                     <hr />
