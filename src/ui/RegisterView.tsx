@@ -452,7 +452,7 @@ export function RegisterView({ okt, tilbake }: Props) {
           okt={okt}
           endre={endre}
           kanSkrive={b.kanSkrive}
-          aapneRisk={(id) => (setDetalj(id), setStorMatrise(null))}
+          detalj={(id, lukk) => <Detaljpanel okt={okt} doc={doc} riskId={id} endre={endre} lukk={lukk} kanSkrive={b.kanSkrive} />}
           melding={melding}
           lukk={() => setStorMatrise(null)}
         />

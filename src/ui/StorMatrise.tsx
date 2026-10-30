@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useState } from 'react'
 import type { Register, Risk } from '../model'
 import { KONSEKVENS, SANNSYNLIGHET, eksponering, eksponeringFarge, fagFarge } from '../model'
@@ -12,7 +13,8 @@ interface Props {
   okt: Okt
   endre: (...ops: Op[]) => void
   kanSkrive: boolean
-  aapneRisk: (riskId: string) => void
+  // Det samme panelet som åpnes for en risk ellers i registeret, vist ved siden av matrisen
+  detalj: (riskId: string, lukk: () => void) => ReactNode
   melding: (tekst: string) => void
   lukk: () => void
 }
@@ -42,6 +44,9 @@ export function StorMatrise(p: Props) {
   const [rm, setRm] = useState(p.rm)
   const [valgt, setValgt] = useState<string | null>(null)
   const [over, setOver] = useState<string | null>(null)
+  // Risken som vises i sidefeltet: som infokort, eller med hele risken (samme panel som i registeret)
+  const [side, setSide] = useState<{ riskId: string; hel: boolean } | null>(null)
+  const sideRisk = side && p.doc.risker.find((r) => r.id === side.riskId)
   const risker = p.risker.filter((r) => r.rm === rm)
   const ikkeVurdert = risker.filter((r) => !vurdert(r))
   const naa = new Set(p.risker.map((r) => r.id))
@@ -83,13 +88,21 @@ export function StorMatrise(p: Props) {
     const fag = r.fag ? p.doc.lister.fag.find((f) => f.id === r.fag) : undefined
     const laast = p.okt.laastAv(r.id)
     const kanFlytte = p.kanSkrive && !laast
-    const tittel = [`Risk ${r.nr}: ${r.hendelse || r.aarsak}`, fag && `Fag: ${fag.navn}`, laast && `Redigeres av ${laast.navn}`, pil?.tekst, p.mot && !g && 'Ny siden snapshotet']
+    const tittel = [
+      `Risk ${r.nr}`,
+      `Årsak: ${r.aarsak || '–'}`,
+      `Risikoeier: ${r.eier || '–'}`,
+      fag && `Fag: ${fag.navn}`,
+      laast && `Redigeres av ${laast.navn}`,
+      pil?.tekst,
+      p.mot && !g && 'Ny siden snapshotet',
+    ]
       .filter(Boolean)
       .join('\n')
     return (
       <div
         key={r.id}
-        className={'mboble' + (valgt === r.id ? ' valgt' : '') + (laast ? ' laast' : '') + (r.status === 'Lukket' ? ' lukket' : '')}
+        className={'mboble' + (valgt === r.id || side?.riskId === r.id ? ' valgt' : '') + (laast ? ' laast' : '') + (r.status === 'Lukket' ? ' lukket' : '')}
         style={fag ? { borderColor: fagFarge(fag).bg } : undefined}
         draggable={kanFlytte}
         onDragStart={(e) => {
@@ -98,10 +111,11 @@ export function StorMatrise(p: Props) {
         }}
         onClick={(e) => {
           e.stopPropagation()
-          if (kanFlytte) setValgt(valgt === r.id ? null : r.id)
+          setValgt(null)
+          setSide(side?.riskId === r.id && !side.hel ? null : { riskId: r.id, hel: false })
         }}
-        onDoubleClick={() => p.aapneRisk(r.id)}
-        title={tittel + '\nDobbeltklikk for å åpne risken.'}
+        onDoubleClick={() => setSide({ riskId: r.id, hel: true })}
+        title={tittel + '\nKlikk for mer, dobbeltklikk for å åpne hele risken.'}
       >
         {r.nr}
         {pil && (
@@ -118,7 +132,7 @@ export function StorMatrise(p: Props) {
 
   return (
     <div className="modal-bakgrunn" onMouseDown={(e) => e.target === e.currentTarget && p.lukk()}>
-      <div className="modal stormatrise">
+      <div className={'modal stormatrise' + (sideRisk ? ' med-side' : '')}>
         <header>
           <h2>{rm === 'R' ? 'Risikomatrise' : 'Mulighetsmatrise'}</h2>
           <nav className="faner">
@@ -133,10 +147,11 @@ export function StorMatrise(p: Props) {
             ✕
           </button>
         </header>
+        <div className="stormatrise-innhold">
         <div className="modal-innhold">
           <p className="liten">
-            {p.kanSkrive ? 'Dra en risk til en annen rute for å endre sannsynlighet og konsekvens (eller trykk på risken og så på ruten). ' : ''}
-            Dobbeltklikk for å åpne risken.
+            {p.kanSkrive ? 'Dra en risk til en annen rute for å endre sannsynlighet og konsekvens. ' : ''}
+            Klikk på en risk for å se mer om den, dobbeltklikk for å åpne og redigere hele risken.
             {p.mot && (
               <>
                 {' '}
@@ -146,6 +161,14 @@ export function StorMatrise(p: Props) {
               </>
             )}
           </p>
+          {valgt && (
+            <div className="banner info">
+              Trykk på ruten risk {p.doc.risker.find((r) => r.id === valgt)?.nr} skal flyttes til.
+              <button className="lenkeknapp" onClick={() => setValgt(null)}>
+                Avbryt
+              </button>
+            </div>
+          )}
           <div className="smatrise">
             <div className="saksey">Sannsynlighet</div>
             <div className="srutenett">
@@ -192,7 +215,77 @@ export function StorMatrise(p: Props) {
             </div>
           )}
         </div>
+        {sideRisk &&
+          (side.hel ? (
+            <div className="stormatrise-side hel">{p.detalj(sideRisk.id, () => setSide(null))}</div>
+          ) : (
+            <Infokort
+              r={sideRisk}
+              doc={p.doc}
+              gammel={p.mot?.risker.get(sideRisk.id)}
+              kanFlytte={p.kanSkrive && !p.okt.laastAv(sideRisk.id)}
+              flytt={() => (setValgt(sideRisk.id), setSide(null))}
+              aapne={() => setSide({ riskId: sideRisk.id, hel: true })}
+              lukk={() => setSide(null)}
+            />
+          ))}
+        </div>
       </div>
     </div>
+  )
+}
+
+// Kort med det viktigste om risken, vist når den klikkes i matrisen
+function Infokort({ r, doc, gammel, kanFlytte, flytt, aapne, lukk }: { r: Risk; doc: Register; gammel?: Risk; kanFlytte: boolean; flytt: () => void; aapne: () => void; lukk: () => void }) {
+  const fag = r.fag ? doc.lister.fag.find((f) => f.id === r.fag) : undefined
+  const e = eksponering(r)
+  const farge = eksponeringFarge(r.rm, e)
+  const felt: [string, string][] = [
+    ['Årsak', r.aarsak],
+    ['Hendelse', r.hendelse],
+    ['Konsekvenser hvis det skjer', r.konsekvenser],
+    ['Risikoeier', r.eier],
+  ]
+  return (
+    <aside className="stormatrise-side infokort">
+      <header>
+        <h3>
+          Risk {r.nr} <span className={'rm-' + r.rm}>{r.rm}</span>
+        </h3>
+        <button className="ikonknapp" onClick={lukk} title="Lukk">
+          ✕
+        </button>
+      </header>
+      <div className="infokort-merker">
+        {fag && (
+          <span className="fagmerke" style={{ background: fagFarge(fag).bg, color: fagFarge(fag).fg }}>
+            {fag.navn}
+          </span>
+        )}
+        <span className="eksp" style={{ background: farge?.bg, color: farge?.fg }}>
+          {r.sannsynlighet || '–'} × {r.konsekvens || '–'} = {e || '–'}
+        </span>
+        {gammel && vurdert(gammel) && eksponering(gammel) !== e && <span className="liten">snapshot: {eksponering(gammel)}</span>}
+        <span className="liten">{r.status}</span>
+      </div>
+      <dl>
+        {felt.map(([navn, verdi]) => (
+          <div key={navn}>
+            <dt>{navn}</dt>
+            <dd>{verdi || '–'}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="knapperad">
+        <button className="knapp primær" onClick={aapne}>
+          Åpne hele risken
+        </button>
+        {kanFlytte && (
+          <button className="knapp" onClick={flytt} title="Trykk så på ruten risken skal til">
+            Flytt til rute…
+          </button>
+        )}
+      </div>
+    </aside>
   )
 }
