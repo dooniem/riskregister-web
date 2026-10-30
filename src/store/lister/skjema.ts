@@ -206,6 +206,18 @@ export function innstillingerFraRegister(doc: Register): Record<Innstilling, str
   return ut
 }
 
+// Innstillinger som ikke kan leses (f.eks. JSON som er ødelagt ved redigering i SharePoint)
+export function odelagteInnstillinger(innst: Partial<Record<string, string>>): Innstilling[] {
+  return INNSTILLINGER.filter((k) => {
+    try {
+      if (innst[k]) JSON.parse(innst[k]!)
+      return false
+    } catch {
+      return true
+    }
+  })
+}
+
 export function byggRegister(innst: Partial<Record<string, string>>, risker: Risk[], tiltak: ReturnType<typeof feltTilTiltak>[]): Register {
   const verdi = <T>(k: Innstilling, standard: T): T => {
     try {

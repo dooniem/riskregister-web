@@ -16,6 +16,17 @@ export interface Snapshot {
   andre: Tilstede[] // andre brukere som er inne nå
   sistHentet: number
   ventende: number
+  // Endringer fra en tidligere økt i denne nettleseren som aldri ble lagret
+  ulagret?: { antall: number; tid: number }
+}
+
+function les(nokkel: string): { ops: Op[]; tid: number } | undefined {
+  try {
+    const v = localStorage.getItem(nokkel)
+    return v ? JSON.parse(v) : undefined
+  } catch {
+    return undefined
+  }
 }
 
 export class Okt {
@@ -37,6 +48,7 @@ export class Okt {
   private sistPublisert = 0
   private publiserTimer?: number
   private samleTimer?: number
+  private ulagret?: { ops: Op[]; tid: number }
   onKonflikt?: (k: Konflikt[]) => void
   onLaasTapt?: (riskId: string, av: string) => void
 
@@ -52,6 +64,10 @@ export class Okt {
     this.visning = this.base
     this.status = 'lagret'
     this.sistHentet = Date.now()
+    if (this.backend.kanSkrive && !this.backend.snapshot) {
+      const u = les(this.nokkel())
+      if (u?.ops?.length) this.ulagret = u
+    }
     this.oppdaterSnap()
     this.timere.push(window.setInterval(() => this.poll(), this.backend.pollMs))
     this.timere.push(window.setInterval(() => this.publiser(true), this.backend.hjerteslagMs))
@@ -78,6 +94,42 @@ export class Okt {
     void this.backend.fjernTilstede()
   }
 
+  // ---- Endringer som ikke er lagret, tas vare på i nettleseren ----
+  // Slik overlever de at fanen lukkes, at innloggingen må fornyes (sender nettleseren til Microsoft) og at tilgangen forsvinner.
+  private nokkel() {
+    return `rr-ulagret:${this.backend.webUrl ?? this.backend.tittel}:${this.base.registerId}`
+  }
+
+  private husk() {
+    if (!this.backend.kanSkrive && !this.ventende.length) return
+    const ops = [...(this.ulagret?.ops ?? []), ...this.ventende]
+    try {
+      if (ops.length) localStorage.setItem(this.nokkel(), JSON.stringify({ ops, tid: this.ulagret?.tid ?? Date.now() }))
+      else localStorage.removeItem(this.nokkel())
+    } catch {
+      // full eller blokkert lagring i nettleseren
+    }
+  }
+
+  // Hent registeret på nytt med en gang (etter endringer gjort direkte i listene)
+  oppdater() {
+    void this.poll()
+  }
+
+  gjenopprettUlagret() {
+    const u = this.ulagret
+    this.ulagret = undefined
+    if (u) this.utfor(...u.ops)
+    this.husk()
+    this.oppdaterSnap()
+  }
+
+  forkastUlagret() {
+    this.ulagret = undefined
+    this.husk()
+    this.oppdaterSnap()
+  }
+
   // ---- React-binding ----
   abonner = (cb: () => void) => {
     this.lyttere.add(cb)
@@ -92,6 +144,7 @@ export class Okt {
       andre: this.andre,
       sistHentet: this.sistHentet,
       ventende: this.ventende.length,
+      ulagret: this.ulagret && { antall: this.ulagret.ops.length, tid: this.ulagret.tid },
     }
     this.lyttere.forEach((l) => l())
   }
@@ -104,6 +157,7 @@ export class Okt {
   utfor(...ops: Op[]) {
     if (!this.backend.kanSkrive) return
     this.ventende.push(...ops)
+    this.husk()
     this.visning = brukAlle(this.base, this.ventende, this.backend.bruker).doc
     this.oppdaterSnap()
     // Endringer som kommer tett, samles i én lagring for å spare kall mot SharePoint
@@ -133,6 +187,7 @@ export class Okt {
           this.base = doc
           this.etag = svar.etag
           this.ventende.splice(0, n)
+          this.husk()
           if (konflikter.length) this.onKonflikt?.(konflikter)
           // Endringer som kom mens vi lagret, venter til neste samlede lagring
           if (this.backend.samleMs && this.ventende.length) {

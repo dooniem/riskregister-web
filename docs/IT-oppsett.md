@@ -107,6 +107,12 @@ Appen kan lage listene selv (Sett opp riskregister på startsiden), men IT kan o
 
 Er «Riskregister Risker» eller «Riskregister Tiltak» slettet eller omdøpt, viser appen listene på området og lar brukeren velge hvilke den skal bruke. Bare lister med nøkkelkolonnene (`RiskId`, og `TiltakId` for tiltak) kan velges. Valget lagres som liste-ID i raden `sharepointLister` i «Riskregister Klientinnstillinger», så det gjelder for alle og tåler at listene får nytt navn senere. Slettes eller ødelegges den raden, får brukeren velge på nytt.
 
+Appen sier også fra om andre feil som kan oppstå ved redigering direkte i SharePoint, og lar brukeren velge hva som skal skje:
+- En rad i Klientinnstillinger som ikke kan leses, skrives ikke over før brukeren velger standardverdien. Versjonsloggen til raden viser tidligere verdier.
+- Er en risk kopiert, slik at samme `RiskId` finnes flere ganger, brukes den eldste raden. Kopiene kan gjøres til egne risker eller slettes.
+- Har noen slettet en risk, men ikke tiltakene, slettes ikke tiltakene ved lagring. Risken kan hentes fra papirkurven på området, lages på nytt i appen, eller tiltakene kan slettes.
+- Endringer som ikke er lagret, tas vare på i nettleseren. Det gjelder hvis fanen lukkes, innloggingen må fornyes eller skrivetilgangen forsvinner. Neste gang registeret åpnes, får brukeren spørsmål om å lagre dem.
+
 Slettes en kolonne i listene (f.eks. i SharePoint i nettleseren), sier appen fra når registeret åpnes. Resten lagres som før, mens feltene i kolonnen som mangler, ikke lagres. Den som kan endre listene, kan la appen lage kolonnen på nytt. Den blir tom, siden en slettet kolonne ikke havner i papirkurven. Mangler `RiskId` (eller `TiltakId` i Tiltak), åpnes ikke registeret, fordi radene da ikke kan knyttes til riskene.
 
 Bruker piloten andre lister eller kolonner, kan koblingen tilpasses i `src/store/lister/skjema.ts`. Det krever en oversikt over listene og kolonnene (internnavn og type).

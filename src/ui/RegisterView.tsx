@@ -14,6 +14,7 @@ import { DemoFiler, type FilKilde } from '../store/filer'
 import { GraphFiler } from '../store/graphFiler'
 import { GraphLister, omraadeLenke } from '../store/lister/graphLister'
 import { LISTER } from '../store/lister/skjema'
+import { AvvikBanner, UlagretBanner } from './Avvik'
 import { Detaljpanel } from './Detaljpanel'
 import { Filvelger } from './Filvelger'
 import { ImportDialog } from './ImportDialog'
@@ -344,6 +345,8 @@ export function RegisterView({ okt, tilbake }: Props) {
           </div>
         )}
 
+        <UlagretBanner okt={okt} snap={snap} />
+        <AvvikBanner okt={okt} />
         {manglende.length > 0 && (
           <div className="banner advarsel">
             <span>
