@@ -5,7 +5,7 @@ import type { Op } from '../ops'
 import type { Kobling } from './Personer'
 import { KoblingListe, LeggTilFraOrg, SokFeil, finnKoblinger, usePersoner } from './Personer'
 
-type Fane = 'prosjekt' | 'deltakere' | 'lister'
+type Fane = 'prosjekt' | 'deltakere' | 'gjennomganger' | 'lister'
 
 interface Props {
   doc: Register
@@ -32,6 +32,7 @@ export function Prosjektpanel({ doc, endre, lukk, kanSkrive, start = 'prosjekt' 
             [
               ['prosjekt', 'Prosjektinfo'],
               ['deltakere', `Deltakere (${doc.deltakere.length})`],
+              ['gjennomganger', `Gjennomganger (${doc.gjennomganger.length})`],
               ['lister', 'Lister og valg'],
             ] as const
           ).map(([k, t]) => (
@@ -43,6 +44,7 @@ export function Prosjektpanel({ doc, endre, lukk, kanSkrive, start = 'prosjekt' 
         <div className="modal-innhold">
           {fane === 'prosjekt' && <ProsjektInfo doc={doc} endre={endre} kanSkrive={kanSkrive} />}
           {fane === 'deltakere' && <Deltakere doc={doc} endre={endre} kanSkrive={kanSkrive} />}
+          {fane === 'gjennomganger' && <Gjennomganger doc={doc} endre={endre} kanSkrive={kanSkrive} />}
           {fane === 'lister' && <ListerRed doc={doc} endre={endre} kanSkrive={kanSkrive} />}
         </div>
       </div>
@@ -228,7 +230,13 @@ function Deltakere({ doc, endre, kanSkrive }: { doc: Register; endre: Props['end
         også være folk utenfor organisasjonen.
       </p>
       {kanSkrive && <Organisasjonen doc={doc} endre={endre} />}
+    </>
+  )
+}
 
+function Gjennomganger({ doc, endre, kanSkrive }: { doc: Register; endre: Props['endre']; kanSkrive: boolean }) {
+  return (
+    <>
       <h3>Historikk riskgjennomgang</h3>
       <table className="enkel-tabell">
         <thead>

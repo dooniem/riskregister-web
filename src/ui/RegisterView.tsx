@@ -99,7 +99,7 @@ export function RegisterView({ okt, tilbake }: Props) {
   const visningKey = `rr-visning:${doc.registerId}`
   const [visning, setVisningRaw] = useState<Visning>(() => lesVisning(visningKey))
   const [detalj, setDetalj] = useState<string | null>(null)
-  const [prosjekt, setProsjekt] = useState<false | 'prosjekt' | 'deltakere' | 'lister'>(false)
+  const [prosjekt, setProsjekt] = useState<false | 'prosjekt' | 'deltakere' | 'gjennomganger' | 'lister'>(false)
   const [kolVelger, setKolVelger] = useState(false)
   const [meny, setMeny] = useState(false)
   const [nyttReg, setNyttReg] = useState(false)
