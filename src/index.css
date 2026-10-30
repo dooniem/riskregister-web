@@ -189,6 +189,14 @@ code {
   font-size: 12px;
   opacity: 0.8;
 }
+.undertittel a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.undertittel a:hover {
+  color: #fff;
+}
 .lagrestatus {
   font-size: 12px;
   display: flex;
