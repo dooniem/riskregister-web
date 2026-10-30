@@ -717,6 +717,16 @@ function RiskRader(p: RaderProps) {
           )}
         </div>
       )
+    if (k.key === 'rm')
+      innhold = (
+        <div className="rm-celle">
+          {(r.rm === 'R' || r.rm === 'M') && (
+            <span className={'rm-merke rm-' + r.rm} title={r.rm === 'R' ? 'Risiko' : 'Mulighet'}>
+              {r.rm}
+            </span>
+          )}
+        </div>
+      )
     if (k.key === 'tilSkarisk') innhold = r.tilSkarisk ? <span className="hake">✓</span> : <span className="kryss">✗</span>
     if (k.nivaa === 'tiltak' && !t && k.key === 'tiltak' && p.kanSkrive) innhold = <span className="plassholder">+ legg til tiltak</span>
     if (k.key === 'fv') innhold = formatTall(fv(r))

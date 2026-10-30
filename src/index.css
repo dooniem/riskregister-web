@@ -692,15 +692,27 @@ table.grid {
 .grid td.langtekst.aktiv .tekstklipp {
   max-height: none;
 }
-.grid td.rm-R {
-  color: var(--r);
+/* R&M som et lite merke, midtstilt i en smal kolonne */
+.rm-celle {
+  display: flex;
+  justify-content: center;
+}
+.rm-merke {
+  display: inline-block;
+  min-width: 20px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  color: #fff !important;
   font-weight: 700;
+  font-size: 12px;
+  line-height: 16px;
   text-align: center;
 }
-.grid td.rm-M {
-  color: var(--m);
-  font-weight: 700;
-  text-align: center;
+.rm-merke.rm-R {
+  background: var(--r);
+}
+.rm-merke.rm-M {
+  background: var(--m);
 }
 .grid td.lesecelle {
   color: #333;
@@ -2621,4 +2633,23 @@ td .valgpil.synlig {
 }
 .avklar-tabell td span {
   white-space: pre-wrap;
+}
+
+/* Smale kolonner (Nr. og R&M): mindre luft rundt overskriften så den får plass */
+.grid .kol-rad th.kol-nr,
+.grid .kol-rad th.kol-rm {
+  padding-left: 5px;
+  padding-right: 16px;
+}
+.grid td.nr-td,
+.grid td.rm-R,
+.grid td.rm-M,
+.grid td.rm-- {
+  padding-left: 3px;
+  padding-right: 3px;
+}
+.grid td.rm-R,
+.grid td.rm-M,
+.grid td.rm-- {
+  vertical-align: middle;
 }
