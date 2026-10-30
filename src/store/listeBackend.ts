@@ -7,7 +7,7 @@
 import type { Register } from '../model'
 import { migrer, uid } from '../model'
 import type { Bruker } from '../ops'
-import type { Backend, LagreSvar, SnapshotInfo, Snapshots, Tilstede, Versjon } from './backend'
+import type { Avvik, Backend, LagreSvar, SnapshotInfo, Snapshots, Tilstede, Versjon } from './backend'
 import { GraphFeil } from './graph'
 import type { Element, Endring, ListeLager } from './lister/lager'
 import type { Felt } from './lister/skjema'
@@ -16,6 +16,7 @@ import {
   feltTilRisk,
   feltTilTiltak,
   innstillingerFraRegister,
+  odelagteInnstillinger,
   REGISTERLISTER,
   riskTilFelt,
   riskTilSnapshotFelt,
@@ -52,6 +53,7 @@ export class ListeBackend implements Backend {
   private tilstedeRad?: string
   private tilstedeKo: Promise<unknown> = Promise.resolve()
   private ryddet = false
+  avvik: Avvik = { innstillinger: [], doble: [], forelderlose: [] }
 
   constructor(lager: ListeLager, bruker: Bruker) {
     this.lager = lager
@@ -82,7 +84,7 @@ export class ListeBackend implements Backend {
   async hent(): Promise<Versjon> {
     // Tidsstempelet hentes før radene, så en endring som kommer mens vi leser, fanges opp ved neste sjekk
     const tid = await this.lager.sistEndret(REGISTERLISTER)
-    const [ie, re, te] = await Promise.all([this.lager.hentAlle('innstillinger'), this.lager.hentAlle('risker'), this.lager.hentAlle('tiltak')])
+    const [ie, re, te] = await Promise.all([this.lager.har('innstillinger') ? this.lager.hentAlle('innstillinger') : [], this.lager.hentAlle('risker'), this.lager.hentAlle('tiltak')])
     this.innst.clear()
     this.risker.clear()
     this.tiltak.clear()
@@ -93,10 +95,19 @@ export class ListeBackend implements Backend {
       innst[k] = String(e.felt.Verdi ?? '')
       this.innst.set(k, { id: e.id, etag: e.etag, verdi: JSON.stringify({ Title: k, Verdi: innst[k] }) })
     }
+    const odelagt = odelagteInnstillinger(innst)
     const risker = []
-    for (const e of re) {
+    const doble = new Map<string, Avvik['doble'][number]>()
+    // Eldste rad først, så det er den som brukes når samme RiskId finnes flere ganger
+    for (const e of [...re].sort((a, b) => Number(a.id) - Number(b.id) || a.id.localeCompare(b.id))) {
       const r = feltTilRisk(e.felt)
-      if (!r.id || this.risker.has(r.id)) continue
+      if (!r.id) continue
+      if (this.risker.has(r.id)) {
+        const d = doble.get(r.id) ?? { riskId: r.id, nr: r.nr, tittel: r.hendelse || r.aarsak, kopier: [] }
+        d.kopier.push({ radId: e.id, risk: r })
+        doble.set(r.id, d)
+        continue
+      }
       if (!r.opprettet) {
         r.opprettet = e.opprettet
         r.opprettetAv = e.opprettetAv
@@ -111,7 +122,49 @@ export class ListeBackend implements Backend {
       this.tiltak.set(t.id, { id: e.id, etag: e.etag, verdi: JSON.stringify(tiltakTilFelt(t, t.riskId, t.rekkefolge)) })
       tiltak.push(t)
     }
+    // Tiltak til risker som er slettet direkte i SharePoint. De ligger i cache, men slettes ikke ved lagring før brukeren bestemmer det.
+    const forelderlose = new Map<string, Avvik['forelderlose'][number]>()
+    for (const t of tiltak) {
+      if (this.risker.has(t.riskId)) continue
+      const { riskId, rekkefolge: _n, ...tt } = t
+      const f = forelderlose.get(riskId) ?? { riskId, tiltak: [] }
+      f.tiltak.push(tt)
+      forelderlose.set(riskId, f)
+    }
+    this.avvik = { innstillinger: odelagt, doble: [...doble.values()], forelderlose: [...forelderlose.values()] }
     return { doc: byggRegister(innst, risker, tiltak), etag: this.etagFra(tid) }
+  }
+
+  // Skriver verdien som vises (standardverdien) over innstillinger som ikke kan leses
+  async overskrivInnstillinger(doc: Register) {
+    const verdier = innstillingerFraRegister(doc) as Record<string, string>
+    const nokler = this.avvik.innstillinger.filter((k) => this.innst.has(k))
+    await this.skrivDirekte(nokler.map((k): Endring => ({ type: 'endre', liste: 'innstillinger', id: this.innst.get(k)!.id, felt: { Verdi: verdier[k] } })))
+    this.avvik = { ...this.avvik, innstillinger: [] }
+  }
+
+  // Sletter radene som er kopier av en annen risk
+  async slettKopier(riskId: string) {
+    const d = this.avvik.doble.find((x) => x.riskId === riskId)
+    if (!d) return
+    await this.skrivDirekte(d.kopier.map((k): Endring => ({ type: 'slett', liste: 'risker', id: k.radId })))
+    this.avvik = { ...this.avvik, doble: this.avvik.doble.filter((x) => x !== d) }
+  }
+
+  // Sletter tiltakene til en risk som ikke finnes lenger
+  async slettForelderlose(riskId: string) {
+    const f = this.avvik.forelderlose.find((x) => x.riskId === riskId)
+    if (!f) return
+    const ider = f.tiltak.map((t) => this.tiltak.get(t.id)?.id).filter(Boolean) as string[]
+    await this.skrivDirekte(ider.map((id): Endring => ({ type: 'slett', liste: 'tiltak', id })))
+    f.tiltak.forEach((t) => this.tiltak.delete(t.id))
+    this.avvik = { ...this.avvik, forelderlose: this.avvik.forelderlose.filter((x) => x !== f) }
+  }
+
+  private async skrivDirekte(endringer: Endring[]) {
+    const res = await this.lager.skriv(endringer)
+    const feil = res.find((r) => !r.ok)
+    if (feil) throw 'feil' in feil ? feil.feil : new Error('Noen av radene er endret av andre. Prøv igjen.')
   }
 
   // Lager endringene som skal til for at radene i cache blir lik ønsket innhold
@@ -157,12 +210,16 @@ export class ListeBackend implements Backend {
     // den andre får konflikt her før riskene skrives, henter på nytt og får neste ledige nummer.
     const innst = new Map(Object.entries(innstillingerFraRegister(doc)).map(([k, v]) => [k, { Title: k, Verdi: v } as Felt]))
     // Nøkler som ikke er i bruk, slettes ikke
-    const innstJobber = this.jobber(this.innst, innst, 'innstillinger').filter((j) => j.endring.type !== 'slett')
+    // Innstillinger som ikke kan leses, skrives ikke over før brukeren har bestemt det
+    const innstJobber = this.jobber(this.innst, innst, 'innstillinger').filter((j) => j.endring.type !== 'slett' && !this.avvik.innstillinger.includes(j.nokkel))
     if (!(await this.utfor(innstJobber))) return { ok: false, konflikt: true }
 
     const risker = new Map(doc.risker.map((r) => [r.id, riskTilFelt(r)]))
     const tiltak = new Map(doc.risker.flatMap((r) => r.tiltak.map((t, i) => [t.id, tiltakTilFelt(t, r.id, i)] as const)))
-    const ok = await this.utfor([...this.jobber(this.risker, risker, 'risker'), ...this.jobber(this.tiltak, tiltak, 'tiltak')])
+    // Tiltak uten risk slettes ikke før brukeren har bestemt det. Gjenopprettes risken, er de med i registeret igjen.
+    const forelderlose = new Set(this.avvik.forelderlose.flatMap((f) => (risker.has(f.riskId) ? [] : f.tiltak.map((t) => t.id))))
+    const tiltakJobber = this.jobber(this.tiltak, tiltak, 'tiltak').filter((j) => !(j.endring.type === 'slett' && forelderlose.has(j.nokkel)))
+    const ok = await this.utfor([...this.jobber(this.risker, risker, 'risker'), ...tiltakJobber])
     if (!ok) return { ok: false, konflikt: true }
     // Egen etag som ikke stemmer med listene, så neste sjekk henter registeret med eventuelle endringer fra andre
     return { ok: true, etag: 'lokal:' + uid() }

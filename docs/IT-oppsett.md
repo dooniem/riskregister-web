@@ -99,7 +99,22 @@ Lenken kan også ligge i en områdemal, så nye prosjektområder får den automa
 
 ### Når IT lager listene
 
-Appen kan lage listene selv (Sett opp riskregister på startsiden), men IT kan også lage dem, f.eks. med en områdemal. Da må listene hete og ha kolonnene som i tabellen under. Appen åpner registeret når listene Risker, Tiltak og Innstillinger finnes. Tilstede, Snapshots og Snapshotdata lages av appen første gang registeret åpnes, hvis brukeren har lov til det.
+Appen kan lage listene selv (Sett opp riskregister på startsiden), men IT kan også lage dem, f.eks. med en områdemal. Da må listene hete og ha kolonnene som i tabellen under.
+
+- **Registeret:** «Riskregister Risker» og «Riskregister Tiltak». Appen åpner registeret når begge finnes, og finner dem ut fra visningsnavnet (store og små bokstaver spiller ingen rolle). Kolonnene leses med internnavn.
+- **Appens egne lister:** «Riskregister Klientinnstillinger», «Riskregister Klienttilstede», «Riskregister Snapshots» og «Riskregister Snapshotdata». Disse trenger ikke IT å lage. Appen lager dem første gang registeret åpnes av noen som har lov til å lage lister på området (eier). Til da virker registeret med standardinnstillinger, men uten låsing av risker og uten snapshots.
+- Eldre registre med listene «Riskregister Innstillinger» og «Riskregister Tilstede» åpnes som før.
+
+Er «Riskregister Risker» eller «Riskregister Tiltak» slettet eller omdøpt, viser appen listene på området og lar brukeren velge hvilke den skal bruke. Bare lister med nøkkelkolonnene (`RiskId`, og `TiltakId` for tiltak) kan velges. Valget lagres som liste-ID i raden `sharepointLister` i «Riskregister Klientinnstillinger», så det gjelder for alle og tåler at listene får nytt navn senere. Slettes eller ødelegges den raden, får brukeren velge på nytt.
+
+Appen sier også fra om andre feil som kan oppstå ved redigering direkte i SharePoint, og lar brukeren velge hva som skal skje:
+- En rad i Klientinnstillinger som ikke kan leses, skrives ikke over før brukeren velger standardverdien. Versjonsloggen til raden viser tidligere verdier.
+- Er en risk kopiert, slik at samme `RiskId` finnes flere ganger, brukes den eldste raden. Kopiene kan gjøres til egne risker eller slettes.
+- Har noen slettet en risk, men ikke tiltakene, slettes ikke tiltakene ved lagring. Risken kan hentes fra papirkurven på området, lages på nytt i appen, eller tiltakene kan slettes.
+- Endringer som ikke er lagret, tas vare på i nettleseren. Det gjelder hvis fanen lukkes, innloggingen må fornyes eller skrivetilgangen forsvinner. Neste gang registeret åpnes, får brukeren spørsmål om å lagre dem.
+- Har noen andre endret samme felt mens endringene ventet, lagres de ikke uten videre. Brukeren ser verdien før, den nye verdien og sin egen, og velger hvilken som skal gjelde. Den andres er forhåndsvalgt.
+
+Slettes en kolonne i listene (f.eks. i SharePoint i nettleseren), sier appen fra når registeret åpnes. Resten lagres som før, mens feltene i kolonnen som mangler, ikke lagres. Den som kan endre listene, kan la appen lage kolonnen på nytt. Den blir tom, siden en slettet kolonne ikke havner i papirkurven. Mangler `RiskId` (eller `TiltakId` i Tiltak), åpnes ikke registeret, fordi radene da ikke kan knyttes til riskene.
 
 Bruker piloten andre lister eller kolonner, kan koblingen tilpasses i `src/store/lister/skjema.ts`. Det krever en oversikt over listene og kolonnene (internnavn og type).
 
@@ -111,8 +126,8 @@ Når et register settes opp, lager appen disse listene på området (vanlige ege
 | --- | --- |
 | Riskregister Risker | Én rad per risk: `RiskId` (indeksert), `Nr`, `RM`, `Aarsak`, `Hendelse`, `Konsekvenser`, `Eier`, `Status`, `Kategori`, `Egendef`, `Egendef2`, `FagId`, `Sannsynlighet`, `Konsekvens`, `BC`, `ML`, `WC`, `TilSkarisk`, `Kilde`, `EndretTid`, `EndretAv`, `OpprettetTid`, `OpprettetAv`, `LukketTid`, `LukketAv` |
 | Riskregister Tiltak | Én rad per tiltak: `RiskId` (indeksert, peker på risken), `TiltakId`, `Rekkefolge`, `Tekst`, `Eier`, `Frist`, `Beskrivelse`, `Status` |
-| Riskregister Innstillinger | Én rad per nøkkel (`Title`), verdien som JSON i `Verdi`: `prosjekt`, `deltakere` (med e-post når deltakeren er koblet til en bruker), `gjennomganger`, `lister` (nedtrekkslister og fag), `nesteNr`, `registerId`, `opprettet`, `excelNokkel` |
-| Riskregister Tilstede | Hvem som har registeret åpent, og hvilken risk de redigerer. Én rad per åpen økt, slettes når brukeren lukker |
+| Riskregister Klientinnstillinger | Én rad per nøkkel (`Title`), verdien som JSON i `Verdi`: `prosjekt`, `deltakere` (med e-post når deltakeren er koblet til en bruker), `gjennomganger`, `lister` (nedtrekkslister og fag), `nesteNr`, `registerId`, `opprettet`, `excelNokkel` |
+| Riskregister Klienttilstede | Hvem som har registeret åpent, og hvilken risk de redigerer. Én rad per åpen økt, slettes når brukeren lukker |
 | Riskregister Snapshots | Én rad per snapshot: `SnapshotId` (indeksert), `Tidspunkt`, `TattAv`, `AntallRisker`, `Kommentar`, `Register` (prosjektinfo og lister som JSON) |
 | Riskregister Snapshotdata | Riskene slik de var da snapshotet ble tatt: `SnapshotId` (indeksert) og de samme kolonnene som i Risker, pluss `Tiltak` (JSON) |
 
@@ -123,7 +138,7 @@ Listene kan gjerne skjules fra navigasjonen. Brukerne trenger ikke å åpne dem 
 ## Samtidig redigering
 
 - Hver risk og hvert tiltak er en egen rad. Ved lagring skrives bare radene som er endret, med radens etag (`If-Match`). Har noen andre endret samme rad i mellomtiden, henter appen registeret på nytt og legger endringene oppå. To som endrer ulike risker, kommer aldri i konflikt.
-- Mens en bruker redigerer en risk, er den låst for andre (via Tilstede-listen).
+- Mens en bruker redigerer en risk, er den låst for andre (via Klienttilstede-listen).
 - Nye risker får nummer fra `nesteNr` i innstillingene, som skrives først. To som legger til en risk samtidig, får dermed ulike nummer.
 
 ## Belastning mot SharePoint
@@ -135,7 +150,7 @@ Per åpen bruker, omtrent:
 | Sjekk om listene er endret (`GET /sites/{id}/lists?$select=lastModifiedDateTime`) | hvert 3. sekund |
 | Lese tilstedelisten | hvert 3. sekund |
 | Skrive egen tilstederad | hvert 10. sekund og ved flytting |
-| Hente registeret (alle rader i Risker, Tiltak og Innstillinger) | ved endringer, og minst hvert 30. sekund |
+| Hente registeret (alle rader i Risker, Tiltak og Klientinnstillinger) | ved endringer, og minst hvert 30. sekund |
 | Lagre endrede rader (`$batch`, opptil 20 rader per kall) | ved endring, samlet over 2 sekunder |
 
 Appen respekterer `Retry-After` ved struping (429/503). Intervallene kan økes ved behov.

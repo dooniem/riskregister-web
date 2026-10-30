@@ -26,6 +26,10 @@ export interface Konflikt {
   felt: string
   deres: unknown
   min: unknown
+  op?: Op // endringen som ga konflikten
+  fra?: unknown // verdien da endringen ble gjort
+  av?: string // sist endret av
+  slettet?: boolean // risken eller tiltaket er slettet av andre
 }
 
 export interface Bruker {
@@ -46,9 +50,9 @@ export function brukOp(doc: Register, op: Op, bruker: Bruker): Konflikt | null {
   switch (op.t) {
     case 'setRisk': {
       const r = doc.risker.find((x) => x.id === op.riskId)
-      if (!r) return null
+      if (!r) return { riskNr: 0, felt: op.felt, deres: undefined, min: op.verdi, op, fra: op.fra, slettet: true }
       const naa = r[op.felt]
-      const konflikt = !lik(naa, op.fra) && !lik(naa, op.verdi) ? { riskNr: r.nr, felt: op.felt, deres: naa, min: op.verdi } : null
+      const konflikt = !lik(naa, op.fra) && !lik(naa, op.verdi) ? { riskNr: r.nr, felt: op.felt, deres: naa, min: op.verdi, op, fra: op.fra, av: r.endretAv !== bruker.navn ? r.endretAv : undefined } : null
       ;(r as unknown as Record<string, unknown>)[op.felt] = op.verdi
       merk(r, bruker)
       if (op.felt === 'status' && op.verdi !== naa) {
@@ -60,9 +64,9 @@ export function brukOp(doc: Register, op: Op, bruker: Bruker): Konflikt | null {
     case 'setTiltak': {
       const r = doc.risker.find((x) => x.id === op.riskId)
       const t = r?.tiltak.find((x) => x.id === op.tiltakId)
-      if (!r || !t) return null
+      if (!r || !t) return { riskNr: r?.nr ?? 0, felt: 'tiltak.' + op.felt, deres: undefined, min: op.verdi, op, fra: op.fra, slettet: true }
       const naa = t[op.felt]
-      const konflikt = !lik(naa, op.fra) && !lik(naa, op.verdi) ? { riskNr: r.nr, felt: 'tiltak.' + op.felt, deres: naa, min: op.verdi } : null
+      const konflikt = !lik(naa, op.fra) && !lik(naa, op.verdi) ? { riskNr: r.nr, felt: 'tiltak.' + op.felt, deres: naa, min: op.verdi, op, fra: op.fra, av: r.endretAv !== bruker.navn ? r.endretAv : undefined } : null
       ;(t as unknown as Record<string, unknown>)[op.felt] = op.verdi
       merk(r, bruker)
       return konflikt

@@ -16,6 +16,20 @@ export interface Snapshot {
   andre: Tilstede[] // andre brukere som er inne nå
   sistHentet: number
   ventende: number
+  // Endringer fra en tidligere økt i denne nettleseren som aldri ble lagret
+  ulagret?: { antall: number; tid: number }
+  // Endringer gjort mens appen var frakoblet (eller i en tidligere økt) der noen andre har endret samme felt i mellomtiden.
+  // Holdes igjen til brukeren har valgt hvilken verdi som skal gjelde.
+  avklar: Konflikt[]
+}
+
+function les(nokkel: string): { ops: Op[]; tid: number } | undefined {
+  try {
+    const v = localStorage.getItem(nokkel)
+    return v ? JSON.parse(v) : undefined
+  } catch {
+    return undefined
+  }
 }
 
 export class Okt {
@@ -37,6 +51,10 @@ export class Okt {
   private sistPublisert = 0
   private publiserTimer?: number
   private samleTimer?: number
+  private ulagret?: { ops: Op[]; tid: number }
+  // Endringer som ikke ble lagret med en gang (frakoblet, eller fra en tidligere økt). Ved konflikt spør vi brukeren.
+  private sjekkes = new WeakSet<Op>()
+  private avklar: Konflikt[] = []
   onKonflikt?: (k: Konflikt[]) => void
   onLaasTapt?: (riskId: string, av: string) => void
 
@@ -52,6 +70,10 @@ export class Okt {
     this.visning = this.base
     this.status = 'lagret'
     this.sistHentet = Date.now()
+    if (this.backend.kanSkrive && !this.backend.snapshot) {
+      const u = les(this.nokkel())
+      if (u?.ops?.length) this.ulagret = u
+    }
     this.oppdaterSnap()
     this.timere.push(window.setInterval(() => this.poll(), this.backend.pollMs))
     this.timere.push(window.setInterval(() => this.publiser(true), this.backend.hjerteslagMs))
@@ -78,6 +100,53 @@ export class Okt {
     void this.backend.fjernTilstede()
   }
 
+  // ---- Endringer som ikke er lagret, tas vare på i nettleseren ----
+  // Slik overlever de at fanen lukkes, at innloggingen må fornyes (sender nettleseren til Microsoft) og at tilgangen forsvinner.
+  private nokkel() {
+    return `rr-ulagret:${this.backend.webUrl ?? this.backend.tittel}:${this.base.registerId}`
+  }
+
+  private husk() {
+    if (!this.backend.kanSkrive && !this.ventende.length) return
+    const ops = [...(this.ulagret?.ops ?? []), ...this.avklar.map((k) => k.op!), ...this.ventende]
+    try {
+      if (ops.length) localStorage.setItem(this.nokkel(), JSON.stringify({ ops, tid: this.ulagret?.tid ?? Date.now() }))
+      else localStorage.removeItem(this.nokkel())
+    } catch {
+      // full eller blokkert lagring i nettleseren
+    }
+  }
+
+  // Hent registeret på nytt med en gang (etter endringer gjort direkte i listene)
+  oppdater() {
+    void this.poll()
+  }
+
+  gjenopprettUlagret() {
+    const u = this.ulagret
+    this.ulagret = undefined
+    if (u) {
+      u.ops.forEach((o) => this.sjekkes.add(o))
+      this.utfor(...u.ops)
+    }
+    this.husk()
+    this.oppdaterSnap()
+  }
+
+  // Brukeren har valgt verdi for en konflikt: sin egen (lagres oppå den andres) eller den andres (endringen forkastes)
+  avgjor(k: Konflikt, brukMin: boolean) {
+    this.avklar = this.avklar.filter((x) => x !== k)
+    if (brukMin && k.op && !k.slettet && (k.op.t === 'setRisk' || k.op.t === 'setTiltak')) this.utfor({ ...k.op, fra: k.deres })
+    this.husk()
+    this.oppdaterSnap()
+  }
+
+  forkastUlagret() {
+    this.ulagret = undefined
+    this.husk()
+    this.oppdaterSnap()
+  }
+
   // ---- React-binding ----
   abonner = (cb: () => void) => {
     this.lyttere.add(cb)
@@ -92,6 +161,8 @@ export class Okt {
       andre: this.andre,
       sistHentet: this.sistHentet,
       ventende: this.ventende.length,
+      ulagret: this.ulagret && { antall: this.ulagret.ops.length, tid: this.ulagret.tid },
+      avklar: this.avklar,
     }
     this.lyttere.forEach((l) => l())
   }
@@ -104,6 +175,8 @@ export class Okt {
   utfor(...ops: Op[]) {
     if (!this.backend.kanSkrive) return
     this.ventende.push(...ops)
+    if (this.status === 'frakoblet') ops.forEach((o) => this.sjekkes.add(o))
+    this.husk()
     this.visning = brukAlle(this.base, this.ventende, this.backend.bruker).doc
     this.oppdaterSnap()
     // Endringer som kommer tett, samles i én lagring for å spare kall mot SharePoint
@@ -128,12 +201,24 @@ export class Okt {
         this.oppdaterSnap()
         const n = this.ventende.length
         const { doc, konflikter } = brukAlle(this.base, this.ventende.slice(0, n), this.backend.bruker)
+        // Gamle endringer som kolliderer med andres: hold dem igjen og spør brukeren
+        const holdt = konflikter.filter((k) => k.op && this.sjekkes.has(k.op))
+        if (holdt.length) {
+          const ops = new Set(holdt.map((k) => k.op))
+          this.ventende = this.ventende.filter((o) => !ops.has(o))
+          this.avklar = [...this.avklar, ...holdt]
+          this.husk()
+          forsok--
+          continue
+        }
         const svar = await this.backend.lagre(doc, this.etag)
         if (svar.ok) {
           this.base = doc
           this.etag = svar.etag
           this.ventende.splice(0, n)
-          if (konflikter.length) this.onKonflikt?.(konflikter)
+          this.husk()
+          const vis = konflikter.filter((k) => !k.slettet)
+          if (vis.length) this.onKonflikt?.(vis)
           // Endringer som kom mens vi lagret, venter til neste samlede lagring
           if (this.backend.samleMs && this.ventende.length) {
             senere = true
@@ -156,6 +241,7 @@ export class Okt {
     } catch (e) {
       this.status = 'frakoblet'
       this.feil = e instanceof Error ? e.message : String(e)
+      this.ventende.forEach((o) => this.sjekkes.add(o))
       window.setTimeout(() => void this.lagre(), 5000)
     } finally {
       this.lagrer = false
@@ -190,6 +276,7 @@ export class Okt {
     } catch (e) {
       this.status = 'frakoblet'
       this.feil = e instanceof Error ? e.message : String(e)
+      this.ventende.forEach((o) => this.sjekkes.add(o))
       this.oppdaterSnap()
     }
   }

@@ -34,6 +34,9 @@ export interface ListeLager {
   slettVedLukk(liste: ListeNavn, id: string): void
   // Adressen til listen i SharePoint, for lenker i rådatavisningen
   listeUrl?(liste: ListeNavn): string | undefined
+  // Kolonner appen bruker som er slettet fra listene, og som kan lages på nytt (tomme)
+  manglendeKolonner?(): { liste: ListeNavn; kolonne: string }[]
+  opprettKolonner?(): Promise<void>
   // Beskjed om at noe er endret, slik at klienten kan hente med en gang
   lytt?(cb: () => void): () => void
 }

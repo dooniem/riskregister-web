@@ -1,4 +1,4 @@
-import type { Register } from '../model'
+import type { Register, Risk, Tiltak } from '../model'
 import type { Bruker } from '../ops'
 import type { ListeLager } from './lister/lager'
 
@@ -37,6 +37,16 @@ export interface Snapshots {
 
 export type LagreSvar = { ok: true; etag: string } | { ok: false; konflikt: true }
 
+// Feil i listene som appen ikke kan rette selv uten at brukeren bestemmer
+export interface Avvik {
+  // Innstillinger i Klientinnstillinger som ikke kan leses. De vises med standardverdi og skrives ikke over.
+  innstillinger: string[]
+  // Risker med samme RiskId i flere rader (f.eks. kopiert i SharePoint). Den eldste raden brukes.
+  doble: { riskId: string; nr: number; tittel: string; kopier: { radId: string; risk: Risk }[] }[] // kopier: radene som ikke brukes
+  // Tiltak som peker på en risk som ikke finnes (slettet i SharePoint)
+  forelderlose: { riskId: string; tiltak: Tiltak[] }[]
+}
+
 export interface Backend {
   readonly type: 'demo' | 'sharepoint'
   readonly bruker: Bruker
@@ -55,6 +65,8 @@ export interface Backend {
   fjernTilstede(): Promise<void>
   // Beskjed om at noe er endret, slik at klienten kan hente med en gang
   lytt?(cb: () => void): () => void
+  // Det som ser feil ut i listene etter redigering direkte i SharePoint
+  readonly avvik?: Avvik
   // Listene registeret ligger i (for rådatavisningen)
   readonly lager?: ListeLager
   readonly snapshots?: Snapshots

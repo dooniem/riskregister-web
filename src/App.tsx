@@ -3,10 +3,11 @@ import type { AuthConfig } from './store/auth'
 import { aktivKonto, hentConfig, initAuth, loggInn } from './store/auth'
 import { demoBackend, demoFinnes } from './store/demoBackend'
 import { ListeBackend, SnapshotBackend } from './store/listeBackend'
-import { GraphLister } from './store/lister/graphLister'
+import { GraphLister, ListerMangler } from './store/lister/graphLister'
 import { Okt } from './sync'
 import { RegisterView } from './ui/RegisterView'
 import { Start, husk } from './ui/Start'
+import { VelgLister } from './ui/VelgLister'
 import type { Bruker } from './ops'
 import { uid } from './model'
 
@@ -16,6 +17,7 @@ type Tilstand =
   | { t: 'hvem'; navn: string }
   | { t: 'register'; okt: Okt }
   | { t: 'feil'; tekst: string; loggInn?: boolean }
+  | { t: 'velgLister'; feil: ListerMangler; aapnet: (lager: GraphLister) => Promise<void> }
 
 const params = new URLSearchParams(window.location.search)
 
@@ -90,9 +92,17 @@ export default function App() {
           return setTilstand({ t: 'feil', tekst: 'Du må logge inn med Microsoft-kontoen din for å åpne registeret.', loggInn: true })
         }
         setTilstand({ t: 'laster', tekst: 'Åpner registeret fra SharePoint…' })
-        const lager = await GraphLister.aapne(site)
-        const backend = new ListeBackend(lager, { id: k.localAccountId || k.homeAccountId, navn: k.name ?? k.username })
-        await aapne(backend, (doc) => doc.prosjekt.navn || backend.tittel)
+        const aapnet = async (lager: GraphLister) => {
+          const backend = new ListeBackend(lager, { id: k.localAccountId || k.homeAccountId, navn: k.name ?? k.username })
+          await aapne(backend, (doc) => doc.prosjekt.navn || backend.tittel)
+        }
+        try {
+          await aapnet(await GraphLister.aapne(site))
+        } catch (e) {
+          // Risker eller Tiltak er slettet eller omdøpt: la brukeren velge listene
+          if (e instanceof ListerMangler) return setTilstand({ t: 'velgLister', feil: e, aapnet })
+          throw e
+        }
       } catch (e) {
         setTilstand({ t: 'feil', tekst: e instanceof Error ? e.message : String(e) })
       }
@@ -119,6 +129,8 @@ export default function App() {
       return <HvemErDu onValgt={(b) => void aapneDemo(tilstand.navn, b)} />
     case 'register':
       return <RegisterView okt={tilstand.okt} tilbake={tilbake} />
+    case 'velgLister':
+      return <VelgLister feil={tilstand.feil} aapnet={tilstand.aapnet} tilbake={tilbake} />
     case 'feil':
       return (
         <div className="sentrert">

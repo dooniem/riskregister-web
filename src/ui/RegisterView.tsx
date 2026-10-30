@@ -13,6 +13,8 @@ import { GRUPPERINGER, STANDARD_VISNING, filtrer } from '../view'
 import { DemoFiler, type FilKilde } from '../store/filer'
 import { GraphFiler } from '../store/graphFiler'
 import { GraphLister, omraadeLenke } from '../store/lister/graphLister'
+import { LISTER } from '../store/lister/skjema'
+import { AvklarDialog, AvvikBanner, UlagretBanner } from './Avvik'
 import { Detaljpanel } from './Detaljpanel'
 import { Filvelger } from './Filvelger'
 import { ImportDialog } from './ImportDialog'
@@ -111,6 +113,9 @@ export function RegisterView({ okt, tilbake }: Props) {
   const [mot, setMot] = useState<{ info: SnapshotInfo; doc: Register } | null>(null)
   const motRisker = useMemo(() => (mot ? new Map<string, Risk>(mot.doc.risker.map((r) => [r.id, r])) : undefined), [mot])
   const [raadata, setRaadata] = useState(false)
+  const [kolonneFeil, setKolonneFeil] = useState<string | null>(null)
+  const [lagerKolonner, setLagerKolonner] = useState(false)
+  const manglende = b.snapshot ? [] : (b.lager?.manglendeKolonner?.() ?? [])
   const angreStabel = useRef<Op[][]>([])
   const mobil = useMobil()
   const kompakt = mobil || !!visning.kompakt
@@ -337,6 +342,40 @@ export function RegisterView({ okt, tilbake }: Props) {
             <button className="knapp" onClick={lukkSnapshot}>
               Til registeret slik det er nå
             </button>
+          </div>
+        )}
+
+        <UlagretBanner okt={okt} snap={snap} />
+        <AvklarDialog okt={okt} konflikter={snap.avklar} />
+        <AvvikBanner okt={okt} />
+        {manglende.length > 0 && (
+          <div className="banner advarsel">
+            <span>
+              {manglende.length === 1 ? 'Kolonnen ' : 'Kolonnene '}
+              {manglende.map((k) => `«${k.kolonne}» (${LISTER[k.liste].visningsnavn})`).join(', ')} er slettet fra listene i SharePoint. Endringer i{' '}
+              {manglende.length === 1 ? 'det feltet' : 'de feltene'} blir ikke lagret, resten lagres som vanlig.
+              {b.kanSkrive && b.lager?.opprettKolonner && ' De kan lages på nytt, men verdiene som lå i dem, kommer ikke tilbake.'}
+              {kolonneFeil && <span className="feil"> {kolonneFeil}</span>}
+            </span>
+            {b.kanSkrive && b.lager?.opprettKolonner && (
+              <button
+                className="knapp"
+                disabled={lagerKolonner}
+                onClick={() => {
+                  setLagerKolonner(true)
+                  setKolonneFeil(null)
+                  b.lager!.opprettKolonner!().then(
+                    () => window.location.reload(),
+                    (e) => {
+                      setKolonneFeil(e instanceof Error ? e.message : String(e))
+                      setLagerKolonner(false)
+                    },
+                  )
+                }}
+              >
+                {lagerKolonner ? 'Lager kolonnene…' : manglende.length === 1 ? 'Opprett kolonnen på nytt' : 'Opprett kolonnene på nytt'}
+              </button>
+            )}
           </div>
         )}
 
