@@ -2648,3 +2648,8 @@ td .valgpil.synlig {
   padding-left: 3px;
   padding-right: 3px;
 }
+.grid td.rm-R,
+.grid td.rm-M,
+.grid td.rm-- {
+  vertical-align: middle;
+}
