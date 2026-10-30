@@ -249,7 +249,7 @@ export class GraphLister implements ListeLager {
   }
 
   // Åpner registeret på et område. Lister som kom til i senere versjoner av appen, lages hvis brukeren har lov.
-  static async aapne(ref: string): Promise<GraphLister> {
+  static async aapne(ref: string, bareLese = false): Promise<GraphLister> {
     const omraade = await finnOmraade(ref)
     const alle = await hentLister(omraade.id)
     const lister = GraphLister.finn(alle)
@@ -266,7 +266,7 @@ export class GraphLister implements ListeLager {
         throw new Error(`Området «${omraade.navn}» har ikke noe riskregister ennå. Bruk «Sett opp riskregister på et område» på startsiden.`)
       throw new ListerMangler(omraade, mangler, { risker: lister.risker?.id, tiltak: lister.tiltak?.id }, kandidater)
     }
-    for (const n of VALGFRI) if (!lister[n]) lister[n] = await opprettListe(omraade.id, n).catch(() => undefined)
+    if (!bareLese) for (const n of VALGFRI) if (!lister[n]) lister[n] = await opprettListe(omraade.id, n).catch(() => undefined)
     const manglende = await finnManglende(omraade.id, lister)
     const nokler = manglende.filter((k) => NOKKEL[k.liste]?.includes(k.kolonne))
     if (nokler.length)

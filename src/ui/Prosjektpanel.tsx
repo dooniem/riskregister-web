@@ -5,7 +5,7 @@ import type { Op } from '../ops'
 import type { Kobling } from './Personer'
 import { KoblingListe, LeggTilFraOrg, SokFeil, finnKoblinger, usePersoner } from './Personer'
 
-type Fane = 'prosjekt' | 'deltakere' | 'lister'
+type Fane = 'prosjekt' | 'deltakere' | 'gjennomganger' | 'lister'
 
 interface Props {
   doc: Register
@@ -13,10 +13,11 @@ interface Props {
   lukk: () => void
   kanSkrive: boolean
   start?: Fane
+  hentOppsett?: () => void
 }
 
 // Tilsvarer arkfanene «Deltagere» og «data» i Excel-filen
-export function Prosjektpanel({ doc, endre, lukk, kanSkrive, start = 'prosjekt' }: Props) {
+export function Prosjektpanel({ doc, endre, lukk, kanSkrive, start = 'prosjekt', hentOppsett }: Props) {
   const [fane, setFane] = useState<Fane>(start)
   return (
     <div className="modal-bakgrunn" onMouseDown={(e) => e.target === e.currentTarget && lukk()}>
@@ -32,6 +33,7 @@ export function Prosjektpanel({ doc, endre, lukk, kanSkrive, start = 'prosjekt' 
             [
               ['prosjekt', 'Prosjektinfo'],
               ['deltakere', `Deltakere (${doc.deltakere.length})`],
+              ['gjennomganger', `Gjennomganger (${doc.gjennomganger.length})`],
               ['lister', 'Lister og valg'],
             ] as const
           ).map(([k, t]) => (
@@ -43,7 +45,8 @@ export function Prosjektpanel({ doc, endre, lukk, kanSkrive, start = 'prosjekt' 
         <div className="modal-innhold">
           {fane === 'prosjekt' && <ProsjektInfo doc={doc} endre={endre} kanSkrive={kanSkrive} />}
           {fane === 'deltakere' && <Deltakere doc={doc} endre={endre} kanSkrive={kanSkrive} />}
-          {fane === 'lister' && <ListerRed doc={doc} endre={endre} kanSkrive={kanSkrive} />}
+          {fane === 'gjennomganger' && <Gjennomganger doc={doc} endre={endre} kanSkrive={kanSkrive} />}
+          {fane === 'lister' && <ListerRed doc={doc} endre={endre} kanSkrive={kanSkrive} hentOppsett={hentOppsett} />}
         </div>
       </div>
     </div>
@@ -228,7 +231,13 @@ function Deltakere({ doc, endre, kanSkrive }: { doc: Register; endre: Props['end
         også være folk utenfor organisasjonen.
       </p>
       {kanSkrive && <Organisasjonen doc={doc} endre={endre} />}
+    </>
+  )
+}
 
+function Gjennomganger({ doc, endre, kanSkrive }: { doc: Register; endre: Props['endre']; kanSkrive: boolean }) {
+  return (
+    <>
       <h3>Historikk riskgjennomgang</h3>
       <table className="enkel-tabell">
         <thead>
@@ -286,9 +295,17 @@ const LISTE_TITLER: [keyof Lister, string][] = [
   ['virksomhet', 'Virksomhetsområde'],
 ]
 
-function ListerRed({ doc, endre, kanSkrive }: { doc: Register; endre: Props['endre']; kanSkrive: boolean }) {
+function ListerRed({ doc, endre, kanSkrive, hentOppsett }: { doc: Register; endre: Props['endre']; kanSkrive: boolean; hentOppsett?: () => void }) {
   return (
     <div className="lister">
+      {kanSkrive && hentOppsett && (
+        <p className="liten">
+          Starter dere fra et annet prosjekt?{' '}
+          <button className="lenkeknapp" onClick={hentOppsett}>
+            Hent oppsett fra et annet register…
+          </button>
+        </p>
+      )}
       <label className="felt">
         <span>Navn på den egendefinerte kolonnen</span>
         <Inn verdi={doc.lister.egendefNavn} disabled={!kanSkrive} onLagre={(v) => endre({ t: 'setListe', key: 'egendefNavn', verdi: v })} />
