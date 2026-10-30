@@ -12,7 +12,7 @@ import type { Visning } from '../view'
 import { GRUPPERINGER, STANDARD_VISNING, filtrer } from '../view'
 import { DemoFiler, type FilKilde } from '../store/filer'
 import { GraphFiler } from '../store/graphFiler'
-import { GraphLister } from '../store/lister/graphLister'
+import { GraphLister, omraadeLenke } from '../store/lister/graphLister'
 import { Detaljpanel } from './Detaljpanel'
 import { Filvelger } from './Filvelger'
 import { ImportDialog } from './ImportDialog'
@@ -25,6 +25,8 @@ import { Prosjektpanel } from './Prosjektpanel'
 import { RaadataDialog } from './Raadata'
 import { SnapshotDialog } from './Snapshots'
 import { StorMatrise } from './StorMatrise'
+import { PersonKontekst, deltakerOp, type Personer } from './Personer'
+import { DemoKatalog, GraphKatalog } from '../store/katalog'
 import type { SnapshotInfo } from '../store/backend'
 import type { Risk } from '../model'
 
@@ -191,338 +193,369 @@ export function RegisterView({ okt, tilbake }: Props) {
   const tittel = [doc.prosjekt.nummer, doc.prosjekt.navn].filter(Boolean).join(' ') || 'Riskregister uten navn'
   // Endringer samles noen sekunder før de lagres. Så lenge noen venter, sier vi det i stedet for «lagret».
   const visStatus = status === 'lagret' && snap.ventende ? 'lagrer' : status
+  // Søk i organisasjonen for risikoeier, tiltakseier og deltakere. Demoen har en oppdiktet organisasjon.
+  const personer = useMemo<Personer | null>(
+    () =>
+      b.kanSkrive
+        ? {
+            katalog: b.type === 'demo' ? new DemoKatalog() : new GraphKatalog(),
+            leggTil: (p) => {
+              const op = deltakerOp(okt.doc.deltakere, p)
+              if (op) okt.utfor(op)
+            },
+          }
+        : null,
+    [b, okt],
+  )
+
   const statusTekst = { laster: 'Laster…', lagret: 'Alle endringer er lagret', lagrer: 'Lagrer…', frakoblet: 'Frakoblet, prøver igjen', feil: 'Lagring feilet' }[visStatus]
 
   return (
-    <div className={'app' + (visning.skjulFag ? ' skjul-fag' : '')}>
-      <header className="toppfelt">
-        <button className="ikonknapp hjem" onClick={tilbake} title="Til startsiden">
-          ◂
-        </button>
-        <div className="tittel">
-          <h1>{tittel}</h1>
-          <div className="undertittel">
-            {b.type === 'demo' ? (
-              'Demomodus (lagres bare i denne nettleseren)'
-            ) : (
-              <>
-                SharePoint ›{' '}
-                <a href={b.webUrl} target="_blank" rel="noreferrer">
-                  {b.tittel}
-                </a>
-              </>
-            )}
-            {b.snapshot ? ` · snapshot «${b.snapshot.navn}»` : !b.kanSkrive && ' · bare lesetilgang'}
-          </div>
-        </div>
-        <div className={'lagrestatus ' + visStatus} title={snap.feil}>
-          <span className="prikk" /> {statusTekst}
-        </div>
-        <div className="tilstede">
-          {andre.map((t) => (
-            <span key={t.brukerId} className="avatar" style={{ background: t.farge }} title={`${t.navn}${t.laas ? ' (redigerer)' : ''}`}>
-              {t.navn
-                .split(/\s+/)
-                .map((s) => s[0])
-                .join('')
-                .slice(0, 2)
-                .toUpperCase()}
-              {t.laas && (
-                <span className="avatar-laas">
-                  <Laas />
-                </span>
-              )}
-            </span>
-          ))}
-          <span className="avatar meg" title={`Du: ${b.bruker.navn}`}>
-            {b.bruker.navn.slice(0, 1).toUpperCase()}
-          </span>
-        </div>
-        <button className="knapp" onClick={() => setProsjekt('prosjekt')}>
-          Prosjekt og deltakere
-        </button>
-        <div className="meny-holder">
-          <button className={'knapp mer-knapp' + (meny ? ' aapen' : '')} onClick={() => setMeny(!meny)} title="Import, eksport, utskrift, lister og mer">
-            <span className="mer-ikon" aria-hidden>
-              ☰
-            </span>
-            Mer ▾
+    <PersonKontekst.Provider value={personer}>
+      <div className={'app' + (visning.skjulFag ? ' skjul-fag' : '')}>
+        <header className="toppfelt">
+          <button className="ikonknapp hjem" onClick={tilbake} title="Til startsiden">
+            ◂
           </button>
-          {meny && (
-            <div className="nedtrekk" onClick={() => setMeny(false)}>
-              {b.kanSkrive && (
-                <button onClick={() => setFilvelger('aapne')} title="Legg til risker fra et Excel-register, f.eks. et delregister fra en underentreprenør">
-                  Importer risker fra Excel…
-                </button>
-              )}
-              <button onClick={() => setFilvelger('lagre')} title="Samme oppsett som Excel-registeret. Åpne et tomt Excel-register og bruk Oppgrader for å hente inn filen.">
-                Eksporter til Excel (.xlsx)…
-              </button>
-              <button onClick={() => setVisning((v) => ({ ...v, fane: 'skarisk' }))}>Poster til Skarisk</button>
-              <button onClick={() => window.print()}>Skriv ut / lagre som PDF</button>
-              <hr />
-              <button onClick={() => setProsjekt('lister')}>Lister og valg…</button>
-              <button onClick={() => setNyttReg(true)}>Lag nytt register fra dette…</button>
-              {b.snapshots && !b.snapshot && (
+          <div className="tittel">
+            <h1>{tittel}</h1>
+            <div className="undertittel">
+              {b.type === 'demo' ? (
+                'Demomodus (lagres bare i denne nettleseren)'
+              ) : (
                 <>
-                  <hr />
-                  <button onClick={() => setSnapshots('liste')} title="Ta vare på registeret slik det er nå, og se hva som er endret siden et tidligere snapshot">
-                    Snapshots og sammenligning…
-                  </button>
+                  SharePoint ›{' '}
+                  <a href={b.webUrl} target="_blank" rel="noreferrer">
+                    {b.tittel}
+                  </a>
                 </>
               )}
-              <button onClick={() => setStorMatrise('R')}>Stor risikomatrise…</button>
-              {b.lager && <button onClick={() => setRaadata(true)}>Vis rådata (listene)…</button>}
-              {b.type === 'demo' && !b.snapshot && (
-                <>
-                  <hr />
+              {b.snapshot ? ` · snapshot «${b.snapshot.navn}»` : !b.kanSkrive && ' · bare lesetilgang'}
+            </div>
+          </div>
+          <div className={'lagrestatus ' + visStatus} title={snap.feil}>
+            <span className="prikk" /> {statusTekst}
+          </div>
+          <div className="tilstede">
+            {andre.map((t) => (
+              <span key={t.brukerId} className="avatar" style={{ background: t.farge }} title={`${t.navn}${t.laas ? ' (redigerer)' : ''}`}>
+                {t.navn
+                  .split(/\s+/)
+                  .map((s) => s[0])
+                  .join('')
+                  .slice(0, 2)
+                  .toUpperCase()}
+                {t.laas && (
+                  <span className="avatar-laas">
+                    <Laas />
+                  </span>
+                )}
+              </span>
+            ))}
+            <span className="avatar meg" title={`Du: ${b.bruker.navn}`}>
+              {b.bruker.navn.slice(0, 1).toUpperCase()}
+            </span>
+          </div>
+          <button className="knapp" onClick={() => setProsjekt('prosjekt')}>
+            Prosjekt og deltakere
+          </button>
+          <div className="meny-holder">
+            <button className={'knapp mer-knapp' + (meny ? ' aapen' : '')} onClick={() => setMeny(!meny)} title="Import, eksport, utskrift, lister og mer">
+              <span className="mer-ikon" aria-hidden>
+                ☰
+              </span>
+              Mer ▾
+            </button>
+            {meny && (
+              <div className="nedtrekk" onClick={() => setMeny(false)}>
+                {b.kanSkrive && (
+                  <button onClick={() => setFilvelger('aapne')} title="Legg til risker fra et Excel-register, f.eks. et delregister fra en underentreprenør">
+                    Importer risker fra Excel…
+                  </button>
+                )}
+                <button onClick={() => setFilvelger('lagre')} title="Samme oppsett som Excel-registeret. Åpne et tomt Excel-register og bruk Oppgrader for å hente inn filen.">
+                  Eksporter til Excel (.xlsx)…
+                </button>
+                <button onClick={() => setVisning((v) => ({ ...v, fane: 'skarisk' }))}>Poster til Skarisk</button>
+                <button onClick={() => window.print()}>Skriv ut / lagre som PDF</button>
+                <hr />
+                <button onClick={() => setProsjekt('lister')}>Lister og valg…</button>
+                <button onClick={() => setNyttReg(true)}>Lag nytt register fra dette…</button>
+                {b.snapshots && !b.snapshot && (
+                  <>
+                    <hr />
+                    <button onClick={() => setSnapshots('liste')} title="Ta vare på registeret slik det er nå, og se hva som er endret siden et tidligere snapshot">
+                      Snapshots og sammenligning…
+                    </button>
+                  </>
+                )}
+                <button onClick={() => setStorMatrise('R')}>Stor risikomatrise…</button>
+                {b.lager && <button onClick={() => setRaadata(true)}>Vis rådata (listene)…</button>}
+                {b.lager instanceof GraphLister && (
                   <button
+                    title="Lenken kan legges i navigasjonen på SharePoint-området, så alle finner registeret"
                     onClick={() => {
-                      if (sim) {
-                        sim.avslutt()
-                        setSim(null)
-                      } else {
-                        const s = new SimulertKollega(b.tittel.replace('Demo › ', ''))
-                        void s.start()
-                        setSim(s)
-                        melding('En simulert kollega er inne i registeret og redigerer tiltak innimellom.')
-                      }
+                      const lenke = omraadeLenke(b.lager instanceof GraphLister ? b.lager.omraade.webUrl : '')
+                      navigator.clipboard.writeText(lenke).then(
+                        () => melding('Lenken til registeret er kopiert.'),
+                        () => melding(lenke),
+                      )
                     }}
                   >
-                    {sim ? 'Stopp simulert kollega' : 'Start simulert kollega'}
+                    Kopier lenke til registeret
                   </button>
-                  <button onClick={() => window.open(window.location.href + '&ny=1', '_blank')}>Åpne registeret i ny fane (ny bruker)</button>
-                </>
+                )}
+                {b.type === 'demo' && !b.snapshot && (
+                  <>
+                    <hr />
+                    <button
+                      onClick={() => {
+                        if (sim) {
+                          sim.avslutt()
+                          setSim(null)
+                        } else {
+                          const s = new SimulertKollega(b.tittel.replace('Demo › ', ''))
+                          void s.start()
+                          setSim(s)
+                          melding('En simulert kollega er inne i registeret og redigerer tiltak innimellom.')
+                        }
+                      }}
+                    >
+                      {sim ? 'Stopp simulert kollega' : 'Start simulert kollega'}
+                    </button>
+                    <button onClick={() => window.open(window.location.href + '&ny=1', '_blank')}>Åpne registeret i ny fane (ny bruker)</button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </header>
+
+        {b.snapshot && (
+          <div className="banner advarsel">
+            Du ser på snapshotet «{b.snapshot.navn}» fra {new Date(b.snapshot.tidspunkt).toLocaleString('nb-NO')}, tatt av {b.snapshot.tattAv}. Det kan ikke endres.
+            <button className="knapp" onClick={lukkSnapshot}>
+              Til registeret slik det er nå
+            </button>
+          </div>
+        )}
+
+        {mot && (
+          <div className="banner info sammenligner">
+            <span title="Endringer i BC, ML, WC, FV og summene vises i tabellen og oversikten, og som piler i risikomatrisen.">
+              Sammenligner med snapshot <b>«{mot.info.navn}»</b> ({new Date(mot.info.tidspunkt).toLocaleString('nb-NO', { dateStyle: 'short', timeStyle: 'short' })})
+            </span>
+            <button className="knapp liten" onClick={() => setStorMatrise('R')}>
+              Risikomatrise
+            </button>
+            <button className="knapp liten" onClick={() => setSnapshots('endringer')}>
+              Endringsliste
+            </button>
+            <button className="lenkeknapp" onClick={() => setMot(null)}>
+              Avslutt sammenligning
+            </button>
+          </div>
+        )}
+
+        {visning.visOversikt && <Oversikt doc={doc} visning={visning} setVisning={setVisning} mot={mot?.doc} aapneMatrise={setStorMatrise} />}
+
+        <div className="verktoylinje">
+          <nav className="faner">
+            {(
+              [
+                ['aapne', 'Åpne', antall.aapne],
+                ['lukkede', 'Lukkede', antall.lukkede],
+                ['alle', 'Alle', antall.alle],
+                ['skarisk', 'Til Skarisk', antall.skarisk],
+              ] as const
+            ).map(([k, t, n]) => (
+              <button key={k} className={visning.fane === k ? 'valgt' : ''} onClick={() => setVisning((v) => ({ ...v, fane: k }))}>
+                {t} <span className="teller">{n}</span>
+              </button>
+            ))}
+          </nav>
+          {visning.fane !== 'skarisk' && (
+            <>
+            <input className="sok" placeholder="Søk i alle felt…" value={visning.sok} onChange={(e) => setVisning((v) => ({ ...v, sok: e.target.value }))} />
+            <label className="velg">
+              Grupper etter
+              <select value={visning.gruppering} onChange={(e) => setVisning((v) => ({ ...v, gruppering: e.target.value }))}>
+                {GRUPPERINGER.map((g) => (
+                  <option key={g.key} value={g.key}>
+                    {g.tittel}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <FagMeny doc={doc} visning={visning} setVisning={setVisning} endre={endre} kanSkrive={b.kanSkrive} />
+            {!kompakt && (
+              <div className="meny-holder">
+                <button className="knapp" onClick={() => setKolVelger(!kolVelger)}>
+                  Kolonner ▾
+                </button>
+                {kolVelger && <Kolonnevelger doc={doc} visning={visning} setVisning={setVisning} lukk={() => setKolVelger(false)} />}
+              </div>
+            )}
+            {!mobil && (
+              <button
+                className={'knapp' + (visning.kompakt ? ' aktivt-filter' : '')}
+                title={visning.kompakt ? 'Tilbake til tabellen' : 'Vis riskene som kort, som på mobil'}
+                onClick={() => {
+                  // Lukk sidepanelet når visningen byttes. Feltet som redigeres mister fokus først, så teksten blir lagret.
+                  if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+                  setDetalj(null)
+                  setVisning((v) => ({ ...v, kompakt: !v.kompakt }))
+                }}
+              >
+                {visning.kompakt ? 'Tabell' : 'Kompakt'}
+              </button>
+            )}
+            </>
+          )}
+          <button className="knapp" onClick={() => setVisning((v) => ({ ...v, visOversikt: !v.visOversikt }))}>
+            {visning.visOversikt ? 'Skjul oversikt' : 'Vis oversikt'}
+          </button>
+          {filterAktivt && visning.fane !== 'skarisk' && (
+            <span className="filterinfo">
+              Viser {antall.vist} av {antall[visning.fane]}
+              <button className="lenkeknapp" onClick={() => setVisning((v) => ({ ...v, sok: '', fag: [], filter: { verdier: {}, tekst: {} } }))}>
+                Fjern alle filtre
+              </button>
+            </span>
+          )}
+        </div>
+
+        <div className="hovedflate">
+          {visning.fane === 'skarisk' ? (
+            <SkariskVisning doc={doc} aapneDetalj={setDetalj} melding={melding} />
+          ) : kompakt ? (
+            <div className={'mobilflate' + (mobil ? '' : ' kompaktflate')}>
+              {b.kanSkrive && (
+                <button
+                  className="knapp primær ny-risk-mobil"
+                  onClick={() => {
+                    const r = nyRisk(0)
+                    r.fag = fagForNyRisk(doc, visning)
+                    endre({ t: 'addRisk', risk: r })
+                    setDetalj(r.id)
+                  }}
+                >
+                  + Ny risk
+                </button>
+              )}
+              <Kortliste okt={okt} doc={doc} andre={andre} visning={visning} aapne={setDetalj} endre={endre} kanSkrive={b.kanSkrive} melding={melding} pc={!mobil} />
+            </div>
+          ) : (
+          <Grid
+            okt={okt}
+            doc={doc}
+            andre={andre}
+            visning={visning}
+            setVisning={setVisning}
+            endre={endre}
+            angre={angre}
+            aapneDetalj={setDetalj}
+            melding={melding}
+            kanSkrive={b.kanSkrive}
+            mot={motRisker}
+          />
+          )}
+          {detalj && <Detaljpanel okt={okt} doc={doc} riskId={detalj} endre={endre} lukk={() => setDetalj(null)} kanSkrive={b.kanSkrive} />}
+        </div>
+
+        {snapshots && b.snapshots && (
+          <SnapshotDialog
+            snapshots={b.snapshots}
+            doc={doc}
+            kanSkrive={b.kanSkrive}
+            lukk={() => setSnapshots(false)}
+            melding={melding}
+            aapneRisk={setDetalj}
+            aktiver={setMot}
+            start={snapshots === 'endringer' && mot ? mot : undefined}
+          />
+        )}
+        {storMatrise && (
+          <StorMatrise
+            doc={doc}
+            risker={filtrer(doc, { ...visning, filter: { ...visning.filter, matrise: undefined } })}
+            rm={storMatrise}
+            mot={mot ? { navn: mot.info.navn, risker: motRisker! } : undefined}
+            okt={okt}
+            endre={endre}
+            kanSkrive={b.kanSkrive}
+            detalj={(id, lukk) => <Detaljpanel okt={okt} doc={doc} riskId={id} endre={endre} lukk={lukk} kanSkrive={b.kanSkrive} />}
+            melding={melding}
+            lukk={() => setStorMatrise(null)}
+          />
+        )}
+        {raadata && b.lager && <RaadataDialog lager={b.lager} lukk={() => setRaadata(false)} />}
+        {prosjekt && <Prosjektpanel doc={doc} endre={endre} lukk={() => setProsjekt(false)} kanSkrive={b.kanSkrive} start={prosjekt} />}
+        {nyttReg && <NyttRegisterDialog kilde={doc} backendType={b.type} lukk={() => setNyttReg(false)} />}
+        {filvelger === 'aapne' && (
+          <Filvelger
+            modus="aapne"
+            kilde={filKilde()}
+            valgt={(filnavn, data) => {
+              setImportert({ reg: lesExcel(data, filnavn), filnavn })
+              setFilvelger(null)
+            }}
+            lukk={() => setFilvelger(null)}
+          />
+        )}
+        {filvelger === 'lagre' && (
+          <Filvelger
+            modus="lagre"
+            kilde={filKilde()}
+            filnavn={excelFil(doc).navn}
+            data={() => excelFil(doc).data}
+            lagretPc={() => {
+              const f = excelFil(doc)
+              lastNed(f.navn, f.data)
+              setFilvelger(null)
+            }}
+            lagret={(navn, mappe) => {
+              melding(`Lagret «${navn}» i ${mappe}.`)
+              setFilvelger(null)
+            }}
+            lukk={() => setFilvelger(null)}
+          />
+        )}
+        {importert && (
+          <ImportDialog
+            doc={doc}
+            kilde={importert.reg}
+            filnavn={importert.filnavn}
+            bruker={b.bruker}
+            endre={endre}
+            ferdig={(tekst) => {
+              melding(tekst)
+              setImportert(null)
+            }}
+            lukk={() => setImportert(null)}
+          />
+        )}
+
+        <div className="meldinger">
+          {meldinger.map((m) => (
+            <div key={m.id} className="melding">
+              {m.tekst}
+              {m.handling && (
+                <button
+                  className="lenkeknapp"
+                  onClick={() => {
+                    m.handling!.gjor()
+                    setMeldinger((x) => x.filter((y) => y.id !== m.id))
+                  }}
+                >
+                  {m.handling.tekst}
+                </button>
               )}
             </div>
-          )}
-        </div>
-      </header>
-
-      {b.snapshot && (
-        <div className="banner advarsel">
-          Du ser på snapshotet «{b.snapshot.navn}» fra {new Date(b.snapshot.tidspunkt).toLocaleString('nb-NO')}, tatt av {b.snapshot.tattAv}. Det kan ikke endres.
-          <button className="knapp" onClick={lukkSnapshot}>
-            Til registeret slik det er nå
-          </button>
-        </div>
-      )}
-
-      {mot && (
-        <div className="banner info sammenligner">
-          <span title="Endringer i BC, ML, WC, FV og summene vises i tabellen og oversikten, og som piler i risikomatrisen.">
-            Sammenligner med snapshot <b>«{mot.info.navn}»</b> ({new Date(mot.info.tidspunkt).toLocaleString('nb-NO', { dateStyle: 'short', timeStyle: 'short' })})
-          </span>
-          <button className="knapp liten" onClick={() => setStorMatrise('R')}>
-            Risikomatrise
-          </button>
-          <button className="knapp liten" onClick={() => setSnapshots('endringer')}>
-            Endringsliste
-          </button>
-          <button className="lenkeknapp" onClick={() => setMot(null)}>
-            Avslutt sammenligning
-          </button>
-        </div>
-      )}
-
-      {visning.visOversikt && <Oversikt doc={doc} visning={visning} setVisning={setVisning} mot={mot?.doc} aapneMatrise={setStorMatrise} />}
-
-      <div className="verktoylinje">
-        <nav className="faner">
-          {(
-            [
-              ['aapne', 'Åpne', antall.aapne],
-              ['lukkede', 'Lukkede', antall.lukkede],
-              ['alle', 'Alle', antall.alle],
-              ['skarisk', 'Til Skarisk', antall.skarisk],
-            ] as const
-          ).map(([k, t, n]) => (
-            <button key={k} className={visning.fane === k ? 'valgt' : ''} onClick={() => setVisning((v) => ({ ...v, fane: k }))}>
-              {t} <span className="teller">{n}</span>
-            </button>
           ))}
-        </nav>
-        {visning.fane !== 'skarisk' && (
-          <>
-          <input className="sok" placeholder="Søk i alle felt…" value={visning.sok} onChange={(e) => setVisning((v) => ({ ...v, sok: e.target.value }))} />
-          <label className="velg">
-            Grupper etter
-            <select value={visning.gruppering} onChange={(e) => setVisning((v) => ({ ...v, gruppering: e.target.value }))}>
-              {GRUPPERINGER.map((g) => (
-                <option key={g.key} value={g.key}>
-                  {g.tittel}
-                </option>
-              ))}
-            </select>
-          </label>
-          <FagMeny doc={doc} visning={visning} setVisning={setVisning} endre={endre} kanSkrive={b.kanSkrive} />
-          {!kompakt && (
-            <div className="meny-holder">
-              <button className="knapp" onClick={() => setKolVelger(!kolVelger)}>
-                Kolonner ▾
-              </button>
-              {kolVelger && <Kolonnevelger doc={doc} visning={visning} setVisning={setVisning} lukk={() => setKolVelger(false)} />}
-            </div>
-          )}
-          {!mobil && (
-            <button
-              className={'knapp' + (visning.kompakt ? ' aktivt-filter' : '')}
-              title={visning.kompakt ? 'Tilbake til tabellen' : 'Vis riskene som kort, som på mobil'}
-              onClick={() => {
-                // Lukk sidepanelet når visningen byttes. Feltet som redigeres mister fokus først, så teksten blir lagret.
-                if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
-                setDetalj(null)
-                setVisning((v) => ({ ...v, kompakt: !v.kompakt }))
-              }}
-            >
-              {visning.kompakt ? 'Tabell' : 'Kompakt'}
-            </button>
-          )}
-          </>
-        )}
-        <button className="knapp" onClick={() => setVisning((v) => ({ ...v, visOversikt: !v.visOversikt }))}>
-          {visning.visOversikt ? 'Skjul oversikt' : 'Vis oversikt'}
-        </button>
-        {filterAktivt && visning.fane !== 'skarisk' && (
-          <span className="filterinfo">
-            Viser {antall.vist} av {antall[visning.fane]}
-            <button className="lenkeknapp" onClick={() => setVisning((v) => ({ ...v, sok: '', fag: [], filter: { verdier: {}, tekst: {} } }))}>
-              Fjern alle filtre
-            </button>
-          </span>
-        )}
+        </div>
       </div>
-
-      <div className="hovedflate">
-        {visning.fane === 'skarisk' ? (
-          <SkariskVisning doc={doc} aapneDetalj={setDetalj} melding={melding} />
-        ) : kompakt ? (
-          <div className={'mobilflate' + (mobil ? '' : ' kompaktflate')}>
-            {b.kanSkrive && (
-              <button
-                className="knapp primær ny-risk-mobil"
-                onClick={() => {
-                  const r = nyRisk(0)
-                  r.fag = fagForNyRisk(doc, visning)
-                  endre({ t: 'addRisk', risk: r })
-                  setDetalj(r.id)
-                }}
-              >
-                + Ny risk
-              </button>
-            )}
-            <Kortliste okt={okt} doc={doc} andre={andre} visning={visning} aapne={setDetalj} endre={endre} kanSkrive={b.kanSkrive} melding={melding} pc={!mobil} />
-          </div>
-        ) : (
-        <Grid
-          okt={okt}
-          doc={doc}
-          andre={andre}
-          visning={visning}
-          setVisning={setVisning}
-          endre={endre}
-          angre={angre}
-          aapneDetalj={setDetalj}
-          melding={melding}
-          kanSkrive={b.kanSkrive}
-          mot={motRisker}
-        />
-        )}
-        {detalj && <Detaljpanel okt={okt} doc={doc} riskId={detalj} endre={endre} lukk={() => setDetalj(null)} kanSkrive={b.kanSkrive} />}
-      </div>
-
-      {snapshots && b.snapshots && (
-        <SnapshotDialog
-          snapshots={b.snapshots}
-          doc={doc}
-          kanSkrive={b.kanSkrive}
-          lukk={() => setSnapshots(false)}
-          melding={melding}
-          aapneRisk={setDetalj}
-          aktiver={setMot}
-          start={snapshots === 'endringer' && mot ? mot : undefined}
-        />
-      )}
-      {storMatrise && (
-        <StorMatrise
-          doc={doc}
-          risker={filtrer(doc, { ...visning, filter: { ...visning.filter, matrise: undefined } })}
-          rm={storMatrise}
-          mot={mot ? { navn: mot.info.navn, risker: motRisker! } : undefined}
-          okt={okt}
-          endre={endre}
-          kanSkrive={b.kanSkrive}
-          detalj={(id, lukk) => <Detaljpanel okt={okt} doc={doc} riskId={id} endre={endre} lukk={lukk} kanSkrive={b.kanSkrive} />}
-          melding={melding}
-          lukk={() => setStorMatrise(null)}
-        />
-      )}
-      {raadata && b.lager && <RaadataDialog lager={b.lager} lukk={() => setRaadata(false)} />}
-      {prosjekt && <Prosjektpanel doc={doc} endre={endre} lukk={() => setProsjekt(false)} kanSkrive={b.kanSkrive} start={prosjekt} />}
-      {nyttReg && <NyttRegisterDialog kilde={doc} backendType={b.type} lukk={() => setNyttReg(false)} />}
-      {filvelger === 'aapne' && (
-        <Filvelger
-          modus="aapne"
-          kilde={filKilde()}
-          valgt={(filnavn, data) => {
-            setImportert({ reg: lesExcel(data, filnavn), filnavn })
-            setFilvelger(null)
-          }}
-          lukk={() => setFilvelger(null)}
-        />
-      )}
-      {filvelger === 'lagre' && (
-        <Filvelger
-          modus="lagre"
-          kilde={filKilde()}
-          filnavn={excelFil(doc).navn}
-          data={() => excelFil(doc).data}
-          lagretPc={() => {
-            const f = excelFil(doc)
-            lastNed(f.navn, f.data)
-            setFilvelger(null)
-          }}
-          lagret={(navn, mappe) => {
-            melding(`Lagret «${navn}» i ${mappe}.`)
-            setFilvelger(null)
-          }}
-          lukk={() => setFilvelger(null)}
-        />
-      )}
-      {importert && (
-        <ImportDialog
-          doc={doc}
-          kilde={importert.reg}
-          filnavn={importert.filnavn}
-          bruker={b.bruker}
-          endre={endre}
-          ferdig={(tekst) => {
-            melding(tekst)
-            setImportert(null)
-          }}
-          lukk={() => setImportert(null)}
-        />
-      )}
-
-      <div className="meldinger">
-        {meldinger.map((m) => (
-          <div key={m.id} className="melding">
-            {m.tekst}
-            {m.handling && (
-              <button
-                className="lenkeknapp"
-                onClick={() => {
-                  m.handling!.gjor()
-                  setMeldinger((x) => x.filter((y) => y.id !== m.id))
-                }}
-              >
-                {m.handling.tekst}
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
+    </PersonKontekst.Provider>
   )
 }
 

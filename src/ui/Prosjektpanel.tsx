@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import type { Lister, Prosjekt, Register } from '../model'
 import { uid } from '../model'
 import type { Op } from '../ops'
+import type { Kobling } from './Personer'
+import { KoblingListe, LeggTilFraOrg, SokFeil, finnKoblinger, usePersoner } from './Personer'
 
 type Fane = 'prosjekt' | 'deltakere' | 'lister'
 
@@ -95,6 +97,71 @@ function NoteringFelt({ verdi, onLagre, disabled }: { verdi: string; onLagre: (v
   return <textarea rows={4} value={v} disabled={disabled} onChange={(e) => setV(e.target.value)} onBlur={() => v !== verdi && onLagre(v)} />
 }
 
+// Legg til deltakere fra organisasjonen, og koble deltakere uten e-post til brukere med samme navn
+function Organisasjonen({ doc, endre }: { doc: Register; endre: Props['endre'] }) {
+  const personer = usePersoner()
+  const [koblinger, setKoblinger] = useState<Kobling[] | null>(null)
+  const [valgt, setValgt] = useState<Set<string>>(new Set())
+  const [jobber, setJobber] = useState(false)
+  const [feil, setFeil] = useState<unknown>(null)
+  if (!personer) return null
+  const ukoblet = doc.deltakere.filter((d) => d.navn.trim() && !d.epost)
+  const finn = () => {
+    setJobber(true)
+    setFeil(null)
+    finnKoblinger(personer.katalog, ukoblet)
+      .then((k) => {
+        setKoblinger(k)
+        setValgt(new Set(k.filter((x) => x.person).map((x) => x.deltaker.id)))
+      })
+      .catch(setFeil)
+      .finally(() => setJobber(false))
+  }
+  return (
+    <div className="organisasjonen">
+      <h4>Legg til fra organisasjonen</h4>
+      <LeggTilFraOrg deltakere={doc.deltakere} />
+      {ukoblet.length > 0 && !koblinger && (
+        <div className="knapperad">
+          <button
+            className="knapp"
+            disabled={jobber}
+            onClick={finn}
+          >
+            {jobber ? 'Leter…' : `Finn ${ukoblet.length} ${ukoblet.length === 1 ? 'deltaker' : 'deltakere'} uten e-post i organisasjonen`}
+          </button>
+        </div>
+      )}
+      {feil != null && <SokFeil feil={feil} katalog={personer.katalog} igjen={finn} />}
+      {koblinger && (
+        <>
+          <KoblingListe koblinger={koblinger} valgt={valgt} setValgt={setValgt} />
+          <div className="knapperad">
+            <button className="knapp" onClick={() => setKoblinger(null)}>
+              Avbryt
+            </button>
+            {koblinger.some((k) => k.person) && (
+              <button
+                className="knapp primær"
+                disabled={!valgt.size}
+                onClick={() => {
+                  const ops: Op[] = koblinger
+                    .filter((k) => k.person && valgt.has(k.deltaker.id))
+                    .map((k) => ({ t: 'upsertDeltaker', deltaker: { ...k.deltaker, epost: k.person!.epost } }))
+                  if (ops.length) endre(...ops)
+                  setKoblinger(null)
+                }}
+              >
+                Koble {valgt.size} {valgt.size === 1 ? 'deltaker' : 'deltakere'}
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 function Deltakere({ doc, endre, kanSkrive }: { doc: Register; endre: Props['endre']; kanSkrive: boolean }) {
   return (
     <>
@@ -105,6 +172,7 @@ function Deltakere({ doc, endre, kanSkrive }: { doc: Register; endre: Props['end
             <th>#</th>
             <th>Initialer</th>
             <th>Navn</th>
+            <th>E-post</th>
             <th>Rolle i prosjektet</th>
             <th>Rolle i riskgjennomgang</th>
             <th />
@@ -119,6 +187,9 @@ function Deltakere({ doc, endre, kanSkrive }: { doc: Register; endre: Props['end
               </td>
               <td>
                 <Inn verdi={d.navn} disabled={!kanSkrive} onLagre={(v) => endre({ t: 'upsertDeltaker', deltaker: { ...d, navn: v } })} />
+              </td>
+              <td>
+                <Inn verdi={d.epost ?? ''} disabled={!kanSkrive} onLagre={(v) => endre({ t: 'upsertDeltaker', deltaker: { ...d, epost: v.trim() || undefined } })} />
               </td>
               <td>
                 <select value={d.rolleProsjekt} disabled={!kanSkrive} onChange={(e) => endre({ t: 'upsertDeltaker', deltaker: { ...d, rolleProsjekt: e.target.value } })}>
@@ -152,7 +223,11 @@ function Deltakere({ doc, endre, kanSkrive }: { doc: Register; endre: Props['end
           + Legg til deltaker
         </button>
       )}
-      <p className="liten">Navnene her brukes i nedtrekkslistene for risikoeier og tiltakseier.</p>
+      <p className="liten">
+        Navnene her brukes i nedtrekkslistene for risikoeier og tiltakseier. E-posten kobler deltakeren til en bruker i organisasjonen. Deltakere uten e-post kan
+        også være folk utenfor organisasjonen.
+      </p>
+      {kanSkrive && <Organisasjonen doc={doc} endre={endre} />}
 
       <h3>Historikk riskgjennomgang</h3>
       <table className="enkel-tabell">

@@ -13,6 +13,7 @@ For å teste i en egen tenant uten IT, se [Testmiljo.md](Testmiljo.md).
 2. API permissions › Add › Microsoft Graph › **Delegated**:
    - `Sites.Manage.All` – lese og skrive listene på områder brukeren selv har tilgang til, og lage listene for et nytt register på områder brukeren eier
    - `User.Read` – navnet på brukeren
+   - `User.ReadBasic.All` – søk etter personer i organisasjonen (navn, e-post og stilling), så risikoeiere, tiltakseiere og deltakere kan kobles til ekte brukere. Appen ber om denne først når noen søker, så innloggingen virker også uten den. Uten den kan deltakere bare skrives inn for hånd.
 3. Grant admin consent (anbefalt, slik at brukerne ikke får samtykkedialog)
 4. Send **Application (client) ID** og **Directory (tenant) ID** til den som drifter appen. Ingen client secret trengs.
 
@@ -24,7 +25,7 @@ Trenger appen ikke å lage lister selv (fordi listene lages av IT eller med en o
 
 I stedet kan appen få delegert `Sites.Selected`. Da når appen bare de SharePoint-områdene IT eksplisitt gir den tilgang til, og fortsatt bare det den innloggede brukeren selv har tilgang til der.
 
-1. API permissions › Microsoft Graph › **Delegated** › `Sites.Selected` (og `User.Read`), og grant admin consent.
+1. API permissions › Microsoft Graph › **Delegated** › `Sites.Selected` (og `User.Read` og `User.ReadBasic.All`), og grant admin consent.
 2. Gi appen tilgang til hvert pilotområde, f.eks. med Graph: `POST /sites/{site-id}/permissions` med `{"roles": ["manage"], "grantedToIdentities": [{"application": {"id": "<client id>", "displayName": "Riskregister"}}]}`, eller PowerShell `Grant-PnPAzureADAppSitePermission -AppId <client id> -DisplayName Riskregister -Site <område-url> -Permissions Manage`. Rollen `write` holder når listene allerede finnes.
 3. I appen velges **Sites.Selected** under Tilkoblingsinnstillinger på startsiden (eller repo-variabelen `AZURE_TILLATELSE=sites` ved bygg).
 
@@ -42,11 +43,65 @@ Startsiden viser hvilken tenant appen er koblet til og hvor innstillingen kom fr
 
 ## Hosting
 
-Statiske filer (`dist/`). Alternativer:
+Appen er statiske filer (`dist/`) og kan ligge hvor som helst som serverer HTTPS:
 
-- Azure Static Web Apps (gratisnivå holder)
-- GitHub Pages fra dette repoet (brukes under utvikling)
-- Senere: SharePoint Framework-webdel, så appen ligger inne på prosjektsiden
+| Alternativ | Passer for | Merk |
+| --- | --- | --- |
+| GitHub Pages (`https://dooniem.github.io/riskregister-web/`) | Utvikling og testing | Bygges og publiseres automatisk fra `main`. Ligger utenfor organisasjonens kontroll. |
+| Azure Static Web Apps (gratisnivå holder) | Pilot og drift | Organisasjonen eier adressen og publiseringen. Kan få eget domene, f.eks. `https://riskregister.firma.no/`. |
+| SharePoint Framework-webdel | Senere | Appen ligger inne på prosjektsiden. Krever ombygging. |
+
+Adressen appen ligger på bestemmer tre ting, og alle tre må endres hvis appen flyttes:
+
+1. **Redirect URI** i appregistreringen (type SPA, nøyaktig adresse med `/` til slutt).
+2. **Lenkene** fra prosjektområdene (se under), som begynner med adressen.
+3. **Klient-ID og tenant-ID** bygges inn ved bygg (repo-variabler) eller legges i `config.json` ved siden av `index.html`.
+
+Med et eget domene (f.eks. `riskregister.firma.no`) kan appen senere flyttes mellom vertstjenester uten at lenkene på prosjektområdene må endres.
+
+Dataene ligger uansett i SharePoint-listene på hvert prosjektområde. Hvor appen ligger, påvirker ikke hvor dataene lagres, og appen har ingen egen server.
+
+## Lenke fra prosjektområdet
+
+Appen er en ekstra klient til listene på prosjektområdet. Brukerne åpner den fra en lenke på området. Lenken peker på appen og forteller hvilket område registeret ligger på:
+
+```
+<appens adresse>?site=<områdets adresse, URL-kodet>
+```
+
+Eksempel for området `https://firma.sharepoint.com/sites/Prosjekt1234` og appen på `https://riskregister.firma.no/`:
+
+```
+https://riskregister.firma.no/?site=https%3A%2F%2Ffirma.sharepoint.com%2Fsites%2FProsjekt1234
+```
+
+Appen viser lenken ferdig laget når et register settes opp, og under **Mer › Kopier lenke til registeret**.
+
+### Legge lenken i navigasjonen
+
+Hvis området allerede har en overskrift «Riskregister» i navigasjonen (med visninger av listene under), legges lenken til som et nytt valg under den:
+
+1. På områdets hjemmeside: **Rediger** nederst i navigasjonen til venstre (eller i toppmenyen på kommunikasjonsområder).
+2. Hold over overskriften «Riskregister», trykk **…** › **Legg til underkobling** (eller **+** og flytt den inn under overskriften).
+3. Velg **Kobling**, lim inn lenken, og gi den et navn, f.eks. «Åpne i Riskregister-appen». **Lagre**.
+
+For mange områder kan det skriptes med PnP PowerShell:
+
+```powershell
+Connect-PnPOnline -Url https://firma.sharepoint.com/sites/Prosjekt1234 -Interactive
+$site = "https://firma.sharepoint.com/sites/Prosjekt1234"
+$lenke = "https://riskregister.firma.no/?site=" + [uri]::EscapeDataString($site)
+$overskrift = Get-PnPNavigationNode -Location QuickLaunch | Where-Object Title -eq "Riskregister"
+Add-PnPNavigationNode -Location QuickLaunch -Title "Åpne i Riskregister-appen" -Url $lenke -Parent $overskrift.Id
+```
+
+Lenken kan også ligge i en områdemal, så nye prosjektområder får den automatisk.
+
+### Når IT lager listene
+
+Appen kan lage listene selv (Sett opp riskregister på startsiden), men IT kan også lage dem, f.eks. med en områdemal. Da må listene hete og ha kolonnene som i tabellen under. Appen åpner registeret når listene Risker, Tiltak og Innstillinger finnes. Tilstede, Snapshots og Snapshotdata lages av appen første gang registeret åpnes, hvis brukeren har lov til det.
+
+Bruker piloten andre lister eller kolonner, kan koblingen tilpasses i `src/store/lister/skjema.ts`. Det krever en oversikt over listene og kolonnene (internnavn og type).
 
 ## Listene på hvert område
 
@@ -56,7 +111,7 @@ Når et register settes opp, lager appen disse listene på området (vanlige ege
 | --- | --- |
 | Riskregister Risker | Én rad per risk: `RiskId` (indeksert), `Nr`, `RM`, `Aarsak`, `Hendelse`, `Konsekvenser`, `Eier`, `Status`, `Kategori`, `Egendef`, `Egendef2`, `FagId`, `Sannsynlighet`, `Konsekvens`, `BC`, `ML`, `WC`, `TilSkarisk`, `Kilde`, `EndretTid`, `EndretAv`, `OpprettetTid`, `OpprettetAv`, `LukketTid`, `LukketAv` |
 | Riskregister Tiltak | Én rad per tiltak: `RiskId` (indeksert, peker på risken), `TiltakId`, `Rekkefolge`, `Tekst`, `Eier`, `Frist`, `Beskrivelse`, `Status` |
-| Riskregister Innstillinger | Én rad per nøkkel (`Title`), verdien som JSON i `Verdi`: `prosjekt`, `deltakere`, `gjennomganger`, `lister` (nedtrekkslister og fag), `nesteNr`, `registerId`, `opprettet`, `excelNokkel` |
+| Riskregister Innstillinger | Én rad per nøkkel (`Title`), verdien som JSON i `Verdi`: `prosjekt`, `deltakere` (med e-post når deltakeren er koblet til en bruker), `gjennomganger`, `lister` (nedtrekkslister og fag), `nesteNr`, `registerId`, `opprettet`, `excelNokkel` |
 | Riskregister Tilstede | Hvem som har registeret åpent, og hvilken risk de redigerer. Én rad per åpen økt, slettes når brukeren lukker |
 | Riskregister Snapshots | Én rad per snapshot: `SnapshotId` (indeksert), `Tidspunkt`, `TattAv`, `AntallRisker`, `Kommentar`, `Register` (prosjektinfo og lister som JSON) |
 | Riskregister Snapshotdata | Riskene slik de var da snapshotet ble tatt: `SnapshotId` (indeksert) og de samme kolonnene som i Risker, pluss `Tiltak` (JSON) |

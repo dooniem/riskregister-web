@@ -322,6 +322,10 @@ function Oppsett({ config }: { config: AuthConfig | null }) {
           </span>
         </label>
         <p className="liten">Velg det samme som IT har lagt inn under API permissions i appregistreringen. Feil valg gir en feilmelding ved innlogging.</p>
+        <p className="liten">
+          Legg også til <b>User.ReadBasic.All</b> for å kunne søke etter personer i organisasjonen når du velger risikoeier, tiltakseier og deltakere. Appen ber om
+          den først når noen søker.
+        </p>
       </fieldset>
       <div className="knapperad">
         <button

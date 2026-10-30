@@ -131,3 +131,19 @@ export async function token(): Promise<string> {
     throw e
   }
 }
+
+export class TrengerSamtykke extends Error {}
+
+// Token for en tillatelse appen ber om først når den trengs (f.eks. User.ReadBasic.All for søk i organisasjonen).
+// Slik stopper ikke innloggingen hvis tillatelsen ikke er godkjent. Mangler samtykke, kastes TrengerSamtykke,
+// og brukeren kan gi det med et klikk (popupvindu, som må åpnes fra et klikk for ikke å bli blokkert).
+export async function tokenFor(ekstra: string[], interaktiv = false): Promise<string> {
+  if (!pca || !konto) throw new Error('Ikke logget inn')
+  if (interaktiv) return (await pca.acquireTokenPopup({ scopes: ekstra, account: konto })).accessToken
+  try {
+    return (await pca.acquireTokenSilent({ scopes: ekstra, account: konto })).accessToken
+  } catch (e) {
+    if (e instanceof InteractionRequiredAuthError) throw new TrengerSamtykke('Appen trenger samtykke for å søke i organisasjonen.')
+    throw e
+  }
+}

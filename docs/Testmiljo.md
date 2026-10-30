@@ -27,7 +27,7 @@ Logg alltid inn med den nye kontoen (`…@riskregtest.onmicrosoft.com`) når du 
    - Kontotyper som støttes: *Bare kontoer i denne organisasjonskatalogen*
    - Omdirigerings-URI: plattform **Enkeltsideapplikasjon (SPA)**, adresse `https://dooniem.github.io/riskregister-web/`
 2. Under **Godkjenning** › **Legg til URI**: legg også inn `http://localhost:5173/` for testing på egen maskin.
-3. Under **API-tillatelser** › **Legg til en tillatelse** › **Microsoft Graph** › **Delegerte tillatelser**: velg `Sites.Manage.All`. `User.Read` ligger der fra før.
+3. Under **API-tillatelser** › **Legg til en tillatelse** › **Microsoft Graph** › **Delegerte tillatelser**: velg `Sites.Manage.All` og `User.ReadBasic.All` (søk etter personer når du velger risikoeier, tiltakseier og deltakere). `User.Read` ligger der fra før.
 4. Trykk **Gi administratorsamtykke for …** (du er administrator i din egen tenant).
 5. Kopier **Program-ID (klient)** og **Katalog-ID (leier)** fra **Oversikt**.
 
@@ -56,7 +56,9 @@ For å teste samtidig redigering trenger du flere brukere:
 
 - **Gjester (gratis):** På området, **Del området** / **Medlemmer** › legg til en privat e-postadresse. Gjesten får en invitasjon og logger inn med sin egen Microsoft-konto. Gjester kan bruke appen så lenge de logger inn mot din tenant, som appen gjør automatisk.
 - **Ekstra brukere i tenanten:** admin.microsoft.com › Brukere › Legg til bruker. Hver bruker trenger en lisens for SharePoint (koster per bruker etter prøveperioden).
-- **Raskest:** samme bruker i to nettleserfaner. Appen viser det som to økter, men med samme navn.
+- **Raskest:** samme bruker i to nettleserfaner.
+
+Gjester og brukere i tenanten dukker opp når du søker etter risikoeier, tiltakseier eller deltakere (Prosjekt og deltakere › Deltakere › Legg til fra organisasjonen). Har du lagt inn `User.ReadBasic.All` etter at du logget inn første gang, ber appen om samtykke i et popupvindu første gang du søker. Appen viser det som to økter, men med samme navn.
 
 ## 7. Når organisasjonen skal ta over
 

@@ -2489,3 +2489,71 @@ td .valgpil.synlig {
   flex: 1 1 260px;
   min-width: 0;
 }
+
+/* Personer: søk i organisasjonen for eiere og deltakere */
+.valgliste li.valgliste-overskrift,
+.valgliste li.valgliste-info {
+  cursor: default;
+  font-size: 11px;
+  color: var(--dempet);
+  padding-top: 6px;
+}
+.valgliste li.valgliste-overskrift {
+  border-top: 1px solid var(--linje);
+  margin-top: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.valgliste li.valgliste-info.feil {
+  color: #b42318;
+  white-space: normal;
+}
+.valgliste .pluss {
+  color: var(--aksent);
+  font-weight: 700;
+}
+.personfelt {
+  position: relative;
+}
+.personfelt input {
+  width: 100%;
+}
+.personfelt .valgliste {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 30;
+  background: var(--flate);
+  border: 1px solid var(--linje);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+}
+.personfelt .valgliste li {
+  white-space: normal;
+}
+.organisasjonen {
+  margin: 12px 0 20px;
+  padding: 10px 12px;
+  border: 1px solid var(--linje);
+  border-radius: 8px;
+}
+.organisasjonen h4 {
+  margin: 0 0 8px;
+}
+.leggtil-org input {
+  width: 100%;
+  max-width: 420px;
+}
+.leggtil-org .liste li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.importkobling {
+  margin: 0 0 6px 26px;
+}
+.koblinger .liste {
+  margin: 4px 0;
+}

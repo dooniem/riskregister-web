@@ -5,6 +5,7 @@ import { KONSEKVENS, SANNSYNLIGHET, eksponering, eksponeringFarge, fagFarge, fv,
 import type { Op, RiskFelt, TiltakFelt } from '../ops'
 import type { Okt } from '../sync'
 import { Laas } from './Ikoner'
+import { PersonFelt } from './Personer'
 
 interface Props {
   okt: Okt
@@ -86,7 +87,10 @@ export function Detaljpanel({ okt, doc, riskId, endre, lukk, kanSkrive }: Props)
         <Tekst tittel="Hendelse som kanskje kan skje" verdi={r.hendelse} sperret={sperret} onFokus={fokus} onBlur={() => okt.slippLaas()} onEndre={(v) => settRisk('hendelse', v)} />
         <Tekst tittel="Konsekvenser hvis det skjer" verdi={r.konsekvenser} sperret={sperret} onFokus={fokus} onBlur={() => okt.slippLaas()} onEndre={(v) => settRisk('konsekvenser', v)} />
         <div className="rad3">
-          <Valg tittel="Risikoeier" verdi={r.eier} valg={KOL.eier.valg!(doc)} fri sperret={sperret} onFokus={fokus} onBlur={() => okt.slippLaas()} onEndre={(v) => settRisk('eier', v)} />
+          <label className="felt">
+            <span>Risikoeier</span>
+            <PersonFelt verdi={r.eier} deltakere={KOL.eier.valg!(doc)} sperret={sperret} onFokus={fokus} onBlur={() => okt.slippLaas()} onEndre={(v) => settRisk('eier', v)} />
+          </label>
           <Valg tittel="Kategori" verdi={r.kategori} valg={doc.lister.kategorier} sperret={sperret} onFokus={fokus} onBlur={() => okt.slippLaas()} onEndre={(v) => settRisk('kategori', v)} />
           <Valg tittel={doc.lister.egendefNavn} verdi={r.egendef} valg={doc.lister.egendef} fri sperret={sperret} onFokus={fokus} onBlur={() => okt.slippLaas()} onEndre={(v) => settRisk('egendef', v)} />
           {doc.lister.egendef2Aktiv && (
@@ -144,7 +148,10 @@ export function Detaljpanel({ okt, doc, riskId, endre, lukk, kanSkrive }: Props)
             </div>
             <Tekst tittel="Tiltak" verdi={t.tekst} sperret={sperret} onFokus={fokus} onBlur={() => okt.slippLaas()} onEndre={(v) => settTiltak(t, 'tekst', v)} />
             <div className="rad3">
-              <Valg tittel="Tiltakseier" verdi={t.eier} valg={KOL.eier.valg!(doc)} fri sperret={sperret} onFokus={fokus} onBlur={() => okt.slippLaas()} onEndre={(v) => settTiltak(t, 'eier', v)} />
+              <label className="felt">
+                <span>Tiltakseier</span>
+                <PersonFelt verdi={t.eier} deltakere={KOL.eier.valg!(doc)} sperret={sperret} onFokus={fokus} onBlur={() => okt.slippLaas()} onEndre={(v) => settTiltak(t, 'eier', v)} />
+              </label>
               <label className="felt">
                 <span>Frist</span>
                 <input type="date" value={t.frist} disabled={sperret} onFocus={fokus} onBlur={() => okt.slippLaas()} onChange={(ev) => settTiltak(t, 'frist', ev.target.value)} />

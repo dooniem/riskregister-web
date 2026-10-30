@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Fag, Register, Risk } from '../model'
 import type { PrefixValg } from '../model'
 import { FAG_FARGER, brukPrefixValg, harDelregisterMerke, uid, utenDelregisterMerke } from '../model'
 import type { Bruker, Op } from '../ops'
+import type { Kobling } from './Personer'
+import { KoblingListe, SokFeil, finnKoblinger, usePersoner } from './Personer'
 
 interface Props {
   doc: Register
@@ -32,6 +34,28 @@ export function ImportDialog({ doc, kilde, filnavn, bruker, endre, ferdig, lukk 
   const navnFinnes = new Set(doc.deltakere.map((d) => d.navn.toLowerCase().trim()))
   const nyeDeltakere = kilde.deltakere.filter((d) => !navnFinnes.has(d.navn.toLowerCase().trim()))
 
+  // Prøv å finne de nye deltakerne i organisasjonen ut fra navnet
+  const personer = usePersoner()
+  const [koblinger, setKoblinger] = useState<Kobling[] | null>(null)
+  const [koble, setKoble] = useState<Set<string>>(new Set())
+  const [koblingFeil, setKoblingFeil] = useState<unknown>(null)
+  const [runde, setRunde] = useState(0)
+  useEffect(() => {
+    if (!personer || !nyeDeltakere.length) return
+    let aktiv = true
+    setKoblingFeil(null)
+    finnKoblinger(personer.katalog, nyeDeltakere)
+      .then((k) => {
+        if (!aktiv) return
+        setKoblinger(k)
+        setKoble(new Set(k.filter((x) => x.person).map((x) => x.deltaker.id)))
+      })
+      .catch((e) => aktiv && setKoblingFeil(e))
+    return () => {
+      aktiv = false
+    }
+  }, [personer, kilde, runde])
+
   const importer = () => {
     const ops: Op[] = []
     const l = doc.lister
@@ -52,7 +76,12 @@ export function ImportDialog({ doc, kilde, filnavn, bruker, endre, ferdig, lukk 
     utvid('egendef', valgte.map((r) => r.egendef))
     utvid('kategorier', valgte.map((r) => r.kategori))
     if (l.egendef2Aktiv) utvid('egendef2', valgte.map((r) => r.egendef2))
-    if (deltakere) for (const d of nyeDeltakere) ops.push({ t: 'upsertDeltaker', deltaker: { ...d, id: uid() } })
+    if (deltakere)
+      for (const d of nyeDeltakere) {
+        const k = koblinger?.find((x) => x.deltaker.id === d.id)
+        const epost = k?.person && koble.has(d.id) ? k.person.epost : d.epost
+        ops.push({ t: 'upsertDeltaker', deltaker: { ...d, id: uid(), epost } })
+      }
     const naa = new Date().toISOString()
     for (const r of [...valgte].sort((a, b) => a.nr - b.nr))
       ops.push({
@@ -114,6 +143,20 @@ export function ImportDialog({ doc, kilde, filnavn, bruker, endre, ferdig, lukk 
                   <small> ({nyeDeltakere.map((d) => d.navn).join(', ')})</small>
                 </span>
               </label>
+            )}
+            {deltakere && nyeDeltakere.length > 0 && personer && (
+              <div className="importkobling">
+                {koblingFeil != null ? (
+                  <SokFeil feil={koblingFeil} katalog={personer.katalog} igjen={() => setRunde((r) => r + 1)} />
+                ) : !koblinger ? (
+                  <span className="liten">Leter etter deltakerne i organisasjonen…</span>
+                ) : (
+                  <>
+                    {koblinger.some((k) => k.person) && <span className="liten">Funnet i organisasjonen. Kryss av for å koble deltakeren til brukeren:</span>}
+                    <KoblingListe koblinger={koblinger} valgt={koble} setValgt={setKoble} />
+                  </>
+                )}
+              </div>
             )}
           </div>
           {valgte.length > 0 && (
