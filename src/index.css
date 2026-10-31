@@ -2707,6 +2707,31 @@ td .valgpil.synlig {
 .meny-valg.valgt .radio {
   border: 4px solid var(--aksent);
 }
+.meny-valg .boks {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1.5px solid var(--linje-sterk);
+  flex: none;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  line-height: 1;
+  color: #fff;
+}
+.meny-valg.avkrysning {
+  margin-top: 4px;
+  border-top: 1px solid var(--linje);
+  border-radius: 0 0 5px 5px;
+  padding-top: 9px;
+}
+.meny-valg.valgt .boks {
+  background: var(--aksent);
+  border-color: var(--aksent);
+}
+.meny-valg.valgt .boks::after {
+  content: '✓';
+}
 
 /* ---- Moderne utseende ----
    Samme oppbygning og funksjoner som det klassiske, men lysere topplinje, én lav oversikt,
