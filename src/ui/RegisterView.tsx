@@ -317,6 +317,22 @@ export function RegisterView({ okt, tilbake }: Props) {
                       {s === 'klassisk' ? 'Klassisk' : 'Moderne'}
                     </button>
                   ))}
+                  {!mobil && (
+                    <button
+                      aria-pressed={!!visning.kompakt}
+                      className={'meny-valg avkrysning' + (visning.kompakt ? ' valgt' : '')}
+                      title="Vis riskene som kort, som på mobil. Gjelder både klassisk og moderne."
+                      onClick={() => {
+                        // Lukk sidepanelet når visningen byttes. Feltet som redigeres mister fokus først, så teksten blir lagret.
+                        if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+                        setDetalj(null)
+                        setVisning((v) => ({ ...v, kompakt: !v.kompakt }))
+                      }}
+                    >
+                      <span className="boks" aria-hidden />
+                      Kompakt (kort i stedet for tabell)
+                    </button>
+                  )}
                 </div>
                 <hr />
                 <button onClick={() => setProsjekt('lister')}>Lister og valg…</button>
@@ -499,20 +515,6 @@ export function RegisterView({ okt, tilbake }: Props) {
                 </button>
                 {kolVelger && <Kolonnevelger doc={doc} visning={visning} setVisning={setVisning} lukk={() => setKolVelger(false)} />}
               </div>
-            )}
-            {!mobil && (
-              <button
-                className={'knapp' + (visning.kompakt ? ' aktivt-filter' : '')}
-                title={visning.kompakt ? 'Tilbake til tabellen' : 'Vis riskene som kort, som på mobil'}
-                onClick={() => {
-                  // Lukk sidepanelet når visningen byttes. Feltet som redigeres mister fokus først, så teksten blir lagret.
-                  if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
-                  setDetalj(null)
-                  setVisning((v) => ({ ...v, kompakt: !v.kompakt }))
-                }}
-              >
-                {visning.kompakt ? 'Tabell' : 'Kompakt'}
-              </button>
             )}
             </>
           )}
