@@ -1,8 +1,8 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Kolonne } from '../columns'
-import { GRUPPER, KOLONNER, editorTekst, formatEndring, formatTall, tolkInput, visTekst } from '../columns'
+import { GRUPPER, KOLONNER, editorTekst, formatDato, formatEndring, formatTall, tolkInput, visTekst } from '../columns'
 import type { Register, Risk, Tiltak } from '../model'
-import { eksponering, eksponeringFarge, fagFarge, fv, nyRisk, nyttTiltak } from '../model'
+import { KONSEKVENS, SANNSYNLIGHET, eksponering, eksponeringFarge, fagFarge, fv, nyRisk, nyttTiltak } from '../model'
 import type { Op, RiskFelt, TiltakFelt } from '../ops'
 import type { Tilstede } from '../store/backend'
 import type { Okt } from '../sync'
@@ -12,8 +12,10 @@ import type { Flytt } from './Editor'
 import { CelleEditor } from './Editor'
 import { FagMerke, FagVelger, fagForNyRisk } from './Fag'
 import { KostEditor } from './KostEditor'
+import { VurderingEditor } from './VurderingEditor'
 import { Laas } from './Ikoner'
 import { RiskInfo } from './RiskInfo'
+import { initialer, likNavn } from './Personer'
 
 interface Posisjon {
   riskId: string
@@ -41,7 +43,8 @@ interface Props {
   kanSkrive: boolean
   // Riskene i snapshotet det sammenlignes med, etter id. Endringer i tallene vises i cellene.
   mot?: Map<string, Risk>
-  // Moderne utseende: BC, ML og WC samles i FV-kolonnen og redigeres sammen
+  // Moderne utseende: BC, ML og WC samles i FV-kolonnen, og sannsynlighet og konsekvens i eksponeringskolonnen.
+  // De redigeres sammen i et lite vindu.
   moderne?: boolean
 }
 
@@ -52,26 +55,31 @@ const Kalenderikon = () => (
   </svg>
 )
 
-// Kolonnene som ikke vises i moderne utseende, fordi de redigeres fra FV-kolonnen
-const KOST_DELER = ['bc', 'ml', 'wc']
+// Kolonnene som ikke vises i moderne utseende, fordi de redigeres fra FV- og eksponeringskolonnen
+const SAMLET_I_MODERNE = ['bc', 'ml', 'wc', 'sannsynlighet', 'konsekvens']
+// Gruppene som bare har én kolonne igjen i moderne utseende. De kan ikke slås sammen.
+const ENKEL_GRUPPE = ['kost', 'vurdering']
 
 // Bredder i moderne utseende, der cellene viser mer enn tallet
-const MODERNE_BREDDE: Record<string, number> = { fv: 132, eksponering: 112, tilSkarisk: 76 }
+const MODERNE_BREDDE: Record<string, number> = { fv: 132, eksponering: 128, tilSkarisk: 76 }
+// Bredder i moderne utseende når gruppen er slått sammen og cellen viser også det som er skjult
+const SAMMEN_BREDDE: Record<string, number> = { tiltak: 400, eier: 190 }
+const SAMMEN_TITTEL: Record<string, string> = { tiltak: 'Tiltak, eier og frist', eier: 'Risikoeier og kategori' }
 
 export function synligeKolonner(v: Visning, egendef2Aktiv = false, moderne = false): Kolonne[] {
   return KOLONNER.filter((k) => {
     if (k.key === 'egendef2' && !egendef2Aktiv) return false
-    if (moderne && KOST_DELER.includes(k.key)) return false
+    if (moderne && SAMLET_I_MODERNE.includes(k.key)) return false
     if (v.skjulteKolonner.includes(k.key)) return false
-    // FV er den eneste kostkolonnen i moderne utseende, så den vises selv om gruppen er slått sammen
-    if (moderne && k.gruppe === 'kost') return true
+    // FV og eksponering er alene i gruppene sine i moderne utseende, så de vises selv om gruppen er slått sammen
+    if (moderne && ENKEL_GRUPPE.includes(k.gruppe)) return true
     if (v.skjulteGrupper.includes(k.gruppe)) return GRUPPER.find((g) => g.key === k.gruppe)?.hoved === k.key
     return true
   })
 }
 
 // Fulle navn på kostkolonnene, vist som hjelpetekst på overskriften
-const KOST_NAVN: Record<string, string> = { bc: 'Best case', ml: 'Most likely', wc: 'Worst case' }
+const KOST_NAVN: Record<string, string> = { bc: 'Best case', ml: 'Most likely', wc: 'Worst case', eksponering: 'Sannsynlighet × konsekvens' }
 
 export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapneDetalj, melding, kanSkrive, mot, moderne = false }: Props) {
   const [aktiv, setAktiv] = useState<Posisjon | null>(null)
@@ -81,11 +89,17 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   const [fagVelger, setFagVelger] = useState<{ riskId: string; x: number; y: number } | null>(null)
   const [lukketGrupper, setLukketGrupper] = useState<string[]>([])
   const [kostEditor, setKostEditor] = useState<{ riskId: string; anker: DOMRect } | null>(null)
+  const [vurdEditor, setVurdEditor] = useState<{ riskId: string; anker: DOMRect } | null>(null)
   const boks = useRef<HTMLDivElement>(null)
 
   const egendef2 = doc.lister.egendef2Aktiv
   const kolonner = useMemo(() => synligeKolonner(visning, egendef2, moderne), [visning, egendef2, moderne])
-  const bredde = useCallback((k: Kolonne) => visning.bredder[k.key] ?? (moderne ? MODERNE_BREDDE[k.key] : undefined) ?? k.bredde, [visning.bredder, moderne])
+  // Gruppene som er slått sammen. I moderne utseende viser da hovedkolonnen mer av det som er skjult.
+  const sammen = useMemo(() => (moderne ? visning.skjulteGrupper : []), [moderne, visning.skjulteGrupper])
+  const bredde = useCallback(
+    (k: Kolonne) => visning.bredder[k.key] ?? (sammen.includes(k.gruppe) ? SAMMEN_BREDDE[k.key] : undefined) ?? (moderne ? MODERNE_BREDDE[k.key] : undefined) ?? k.bredde,
+    [visning.bredder, moderne, sammen],
+  )
 
   const risker = useMemo(() => sorter(filtrer(doc, visning), visning.sortering), [doc, visning])
   // Felles skala for kostspennet i moderne utseende, så spennene kan sammenlignes mellom riskene
@@ -185,16 +199,21 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
     return { r, k, t }
   }
 
+  // Cellene i moderne utseende som åpner et eget lite redigeringsvindu
   const erKost = (k?: Kolonne) => moderne && k?.key === 'fv'
+  const erVurdering = (k?: Kolonne) => moderne && k?.key === 'eksponering'
+  const harVindu = (k?: Kolonne) => erKost(k) || erVurdering(k)
 
   const startRedigering = (p: Posisjon, start?: string) => {
     if (!kanSkrive) return melding('Du har bare lesetilgang til dette registeret.')
     const { r, k, t } = hentCelle(p)
-    if (r && erKost(k)) {
+    if (r && harVindu(k)) {
       const av = okt.laas(r.id)
       if (av) return melding(`Risk ${r.nr} redigeres av ${av} akkurat nå. Prøv igjen når de er ferdige.`)
-      const td = boks.current?.querySelector(`tbody[data-risk="${r.id}"] td.k-fv`)
-      if (td) setKostEditor({ riskId: r.id, anker: td.getBoundingClientRect() })
+      const td = boks.current?.querySelector(`tbody[data-risk="${r.id}"] td.k-${k!.key}`)
+      if (!td) return
+      const apne = erKost(k) ? setKostEditor : setVurdEditor
+      apne({ riskId: r.id, anker: td.getBoundingClientRect() })
       return
     }
     if (!r || !k || !k.felt) return
@@ -253,6 +272,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
 
   const lukkKost = () => {
     setKostEditor(null)
+    setVurdEditor(null)
     okt.slippLaas()
     boks.current?.focus()
   }
@@ -261,6 +281,17 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
     const r = doc.risker.find((x) => x.id === riskId)
     if (r) {
       const ops: Op[] = (['bc', 'ml', 'wc'] as const).filter((f) => r[f] !== verdier[f]).map((f) => ({ t: 'setRisk', riskId, felt: f, verdi: verdier[f], fra: r[f] }))
+      if (ops.length) endre(...ops)
+    }
+    lukkKost()
+  }
+
+  const lagreVurdering = (riskId: string, verdier: Record<'sannsynlighet' | 'konsekvens', number>) => {
+    const r = doc.risker.find((x) => x.id === riskId)
+    if (r) {
+      const ops: Op[] = (['sannsynlighet', 'konsekvens'] as const)
+        .filter((f) => r[f] !== verdier[f])
+        .map((f) => ({ t: 'setRisk', riskId, felt: f, verdi: verdier[f], fra: r[f] }))
       if (ops.length) endre(...ops)
     }
     lukkKost()
@@ -414,7 +445,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
       case 'F2':
         e.preventDefault()
         if (mod && e.key === 'Enter') return nyttTiltakUnder(aktiv)
-        if (k?.type === 'avkrysning' || (!k?.felt && !erKost(k))) return flytt('ned')
+        if (k?.type === 'avkrysning' || (!k?.felt && !harVindu(k))) return flytt('ned')
         startRedigering(aktiv)
         return
       case 'Delete':
@@ -437,7 +468,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
     // Et tegn starter redigering. Tegn skrevet med AltGr (Windows: Ctrl+Alt) eller Option (Mac), f.eks. @ og |,
     // teller også, men ikke snarveier med Ctrl eller Cmd alene.
     const tegn = e.key.length === 1 && !e.metaKey && (!e.ctrlKey || e.altKey)
-    if (tegn && erKost(k) && /[\d,.-]/.test(e.key)) {
+    if (tegn && ((erKost(k) && /[\d,.-]/.test(e.key)) || (erVurdering(k) && /[1-5]/.test(e.key)))) {
       e.preventDefault()
       startRedigering(aktiv)
       return
@@ -454,7 +485,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
       const { k, r } = hentCelle(p)
       if (k?.type === 'avkrysning' && r) {
         if (!okt.laastAv(r.id)) lagreVerdi(p, !r.tilSkarisk)
-      } else if (k?.felt || erKost(k)) startRedigering(p)
+      } else if (k?.felt || harVindu(k)) startRedigering(p)
       else if (k?.key === 'nr') aapneDetalj(p.riskId)
       return
     }
@@ -463,7 +494,9 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
     // Som nedtrekkslistene i Excel-arket: ett klikk på en valgcelle eller en dato åpner lista eller kalenderen.
     // Venter til en eventuell åpen editor har lagret seg selv (den lukkes når den mister fokus).
     const { k } = hentCelle(p)
-    if (kanSkrive && k?.felt && (k.type === 'valg' || k.type === 'dato') && !e.shiftKey && !e.ctrlKey && !e.metaKey) setTimeout(() => startRedigering(p), 0)
+    // Kost- og vurderingsvinduet i moderne utseende åpnes på samme måte, med ett klikk.
+    const somListe = (k?.felt && (k.type === 'valg' || k.type === 'dato')) || harVindu(k)
+    if (kanSkrive && somListe && !e.shiftKey && !e.ctrlKey && !e.metaKey) setTimeout(() => startRedigering(p), 0)
   }
 
   // ---- Kolonneoverskrifter ----
@@ -524,8 +557,8 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
               const stil = g.key === 'fast' ? { left: 0, zIndex: 6 } : undefined
               return (
                 <th key={g.key} colSpan={n} className={'gruppe-th ' + (g.key === 'fast' ? 'frosset' : '')} style={stil} title={g.tittel}>
-                  {g.tittel && moderne && g.key === 'kost' && <span className="gruppe-tekst">{g.tittel}</span>}
-                  {g.tittel && !(moderne && g.key === 'kost') && (
+                  {g.tittel && moderne && ENKEL_GRUPPE.includes(g.key) && <span className="gruppe-tekst">{g.tittel}</span>}
+                  {g.tittel && !(moderne && ENKEL_GRUPPE.includes(g.key)) && (
                     <button
                       className="gruppe-knapp"
                       title={sammen ? 'Vis alle kolonnene i gruppen' : 'Slå sammen gruppen'}
@@ -549,7 +582,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                 onClick={(e) => klikkOverskrift(k, e)}
                 title={(KOST_NAVN[k.key] ? KOST_NAVN[k.key] + '. ' : '') + 'Klikk for å sortere. Shift+klikk for å sortere på flere kolonner.'}
               >
-                <span className="kol-tittel">{k.tittel(doc)}</span>
+                <span className="kol-tittel">{(sammen.includes(k.gruppe) && SAMMEN_TITTEL[k.key]) || k.tittel(doc)}</span>
                 {sortIkon(k.key)}
                 <button
                   className={'filterknapp ' + (harFilter(k.key) ? 'aktiv' : '')}
@@ -610,6 +643,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   kanSkrive={kanSkrive}
                   mot={mot}
                   moderne={moderne}
+                  sammen={sammen}
                   kostMaks={kostMaks}
                   byttSkarisk={byttSkarisk}
                 />
@@ -650,6 +684,11 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
         (() => {
           const r = doc.risker.find((x) => x.id === kostEditor.riskId)
           return r ? <KostEditor risk={r} anker={kostEditor.anker} onLagre={(v) => lagreKost(r.id, v)} onAvbryt={lukkKost} /> : null
+        })()}
+      {vurdEditor &&
+        (() => {
+          const r = doc.risker.find((x) => x.id === vurdEditor.riskId)
+          return r ? <VurderingEditor risk={r} anker={vurdEditor.anker} onLagre={(v) => lagreVurdering(r.id, v)} onAvbryt={lukkKost} /> : null
         })()}
       {fagVelger && (
         <FagVelger
@@ -733,6 +772,7 @@ interface RaderProps {
   fagVelger: (riskId: string, e: React.MouseEvent) => void
   mot?: Map<string, Risk>
   moderne: boolean
+  sammen: string[]
   kostMaks: number
   byttSkarisk: (riskId: string) => void
 }
@@ -790,6 +830,7 @@ function RiskRader(p: RaderProps) {
       erAktiv ? 'aktiv' : '',
       !k.felt ? 'lesecelle' : '',
       k.nivaa === 'tiltak' && rad > 0 ? 'tiltak-fortsatt' : '',
+      p.sammen.includes(k.gruppe) && GRUPPER.find((g) => g.key === k.gruppe)?.hoved === k.key ? 'samlet' : '',
     ].join(' ')
     const span = k.nivaa === 'risk' ? n : 1
     let innhold: React.ReactNode = visTekst(k, r, t)
@@ -845,15 +886,11 @@ function RiskRader(p: RaderProps) {
       ) : (
         <span className="kryss">✗</span>
       )
-    if (k.key === 'eksponering' && p.moderne)
-      innhold = e ? (
-        <span className="eksp-merke" style={{ background: farge?.bg, color: farge?.fg }}>
-          {e}
-        </span>
-      ) : (
-        '-'
-      )
+    if (k.key === 'eksponering' && p.moderne) innhold = <VurderingCelle r={r} kanSkrive={p.kanSkrive} />
     if (k.nivaa === 'tiltak' && !t && k.key === 'tiltak' && p.kanSkrive) innhold = <span className="plassholder">+ legg til tiltak</span>
+    const samletTiltak = k.key === 'tiltak' && t && p.sammen.includes('tiltak')
+    if (samletTiltak) innhold = <TiltakSamlet t={t} doc={p.doc} />
+    if (k.key === 'eier' && p.sammen.includes('eierskap')) innhold = <EierSamlet r={r} doc={p.doc} />
     if (k.key === 'fv') innhold = p.moderne ? <KostCelle r={r} maks={p.kostMaks} /> : formatTall(fv(r))
     // Tomme celler får et usynlig tegn, så en ny tiltakslinje er like høy som en med én linje tekst
     if (innhold === '' || innhold == null) innhold = '\u200b'
@@ -867,7 +904,7 @@ function RiskRader(p: RaderProps) {
         onMouseDown={(ev) => ev.button === 0 && p.klikk(pos, ev)}
         onContextMenu={(ev) => p.kontekst(pos, ev)}
       >
-        {k.type === 'langtekst' ? <div className="tekstklipp">{innhold}</div> : innhold}
+        {k.type === 'langtekst' && !samletTiltak ? <div className="tekstklipp">{innhold}</div> : innhold}
         {endring(k)}
         {andreHer.map((x) => (
           <span key={x.brukerId} className="navnelapp" style={{ background: x.farge }}>
@@ -879,7 +916,7 @@ function RiskRader(p: RaderProps) {
             <Laas /> {p.laastAv} skriver
           </span>
         )}
-        {(k.type === 'valg' || k.type === 'dato') && k.felt && p.kanSkrive && !redigeres && (
+        {(((k.type === 'valg' || k.type === 'dato') && k.felt) || (p.moderne && (k.key === 'eksponering' || k.key === 'fv'))) && p.kanSkrive && !redigeres && (
           <span className={'valgpil' + (erAktiv ? ' synlig' : '')} aria-hidden>
             {k.type === 'dato' ? <Kalenderikon /> : '▾'}
           </span>
@@ -918,6 +955,89 @@ function RiskRader(p: RaderProps) {
         )
       })}
     </tbody>
+  )
+}
+
+const forfalt = (t: Tiltak) => !!t.frist && t.status !== 'Utført' && t.status !== 'Utføres ikke' && t.frist < new Date().toISOString().slice(0, 10)
+const MND = ['jan.', 'feb.', 'mars', 'apr.', 'mai', 'juni', 'juli', 'aug.', 'sep.', 'okt.', 'nov.', 'des.']
+// Kort dato som «30. nov.», med år bare når det ikke er i år
+function kortDato(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  if (!y || !m || !d) return iso
+  return `${d}. ${MND[m - 1]}` + (y !== new Date().getFullYear() ? ` ${y}` : '')
+}
+
+// Initialene til en person i en liten runding. Initialene i deltakerlisten gjelder først, så de kan justeres der
+// (f.eks. når to personer får like initialer). Ellers lages de av navnet: Ole Petter Jensen blir OPJ.
+function Initialer({ navn, doc }: { navn: string; doc: Register }) {
+  const d = doc.deltakere.find((x) => likNavn(x.navn, navn))
+  const tekst = d?.initialer.trim() || initialer(navn)
+  return (
+    <span className="initialer" title={navn}>
+      {tekst}
+    </span>
+  )
+}
+
+// Moderne utseende med tiltaksgruppen slått sammen: status som prikk, teksten, eier og frist i samme celle
+function TiltakSamlet({ t, doc }: { t: Tiltak; doc: Register }) {
+  const status = t.status || 'Ikke startet'
+  const ferdig = status === 'Utført' || status === 'Utføres ikke'
+  return (
+    <div className={'tiltak-samlet' + (ferdig ? ' ferdig' : '')}>
+      <span className={'status-prikk ts-' + status.replace(/\s/g, '-').toLowerCase()} title={`Status: ${status}`} aria-label={`Status: ${status}`} role="img" />
+      <span className="tiltak-samlet-tekst">{t.tekst || <span className="plassholder">Uten tekst</span>}</span>
+      {t.eier ? <Initialer navn={t.eier} doc={doc} /> : <span />}
+      <span className={'tiltak-samlet-frist' + (forfalt(t) ? ' forfalt' : '')} title={t.frist ? 'Frist ' + formatDato(t.frist) + (forfalt(t) ? ', forfalt' : '') : 'Ingen frist'}>
+        {t.frist ? kortDato(t.frist) : ''}
+      </span>
+    </div>
+  )
+}
+
+// Moderne utseende med eierskapsgruppen slått sammen: initialer og navn, med kategorien under
+function EierSamlet({ r, doc }: { r: Risk; doc: Register }) {
+  if (!r.eier && !r.kategori) return null
+  return (
+    <div className="eier-samlet">
+      {r.eier && (
+        <span className="eier-samlet-navn">
+          <Initialer navn={r.eier} doc={doc} />
+          {r.eier}
+        </span>
+      )}
+      {r.kategori && <span className="eier-samlet-kategori">{r.kategori}</span>}
+    </div>
+  )
+}
+
+// Moderne utseende: eksponeringen som et farget merke, med sannsynlighet og konsekvens ved siden av
+function VurderingCelle({ r, kanSkrive }: { r: Risk; kanSkrive: boolean }) {
+  const e = eksponering(r)
+  const farge = eksponeringFarge(r.rm, e)
+  const s = r.sannsynlighet ? SANNSYNLIGHET[r.sannsynlighet - 1] : 'ikke satt'
+  const k = r.konsekvens ? KONSEKVENS[r.konsekvens - 1] : 'ikke satt'
+  const tittel = `Sannsynlighet: ${s}\nKonsekvens: ${k}` + (kanSkrive ? '\nKlikk for å endre' : '')
+  if (!r.sannsynlighet && !r.konsekvens)
+    return (
+      <span className="vurd-celle tom" title={tittel}>
+        {kanSkrive ? 'Vurder' : '-'}
+      </span>
+    )
+  return (
+    <span className="vurd-celle" title={tittel}>
+      <span className={'eksp-merke' + (e ? '' : ' tom')} style={farge ? { background: farge.bg, color: farge.fg } : undefined}>
+        {e || '–'}
+      </span>
+      <span className="vurd-sk">
+        <span>
+          S<b>{r.sannsynlighet || '–'}</b>
+        </span>
+        <span>
+          K<b>{r.konsekvens || '–'}</b>
+        </span>
+      </span>
+    </span>
   )
 }
 
