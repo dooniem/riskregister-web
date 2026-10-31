@@ -23,7 +23,7 @@ export const initialer = (navn: string) =>
     .join('')
     .slice(0, 3)
 
-const likNavn = (a: string, b: string) => a.trim().toLowerCase().replace(/\s+/g, ' ') === b.trim().toLowerCase().replace(/\s+/g, ' ')
+export const likNavn = (a: string, b: string) => a.trim().toLowerCase().replace(/\s+/g, ' ') === b.trim().toLowerCase().replace(/\s+/g, ' ')
 
 // Operasjonen som legger personen til som deltaker, eller kobler en deltaker med samme navn. null når den allerede er koblet.
 export function deltakerOp(deltakere: Deltaker[], p: Person): Op | null {

@@ -15,7 +15,7 @@ import { KostEditor } from './KostEditor'
 import { VurderingEditor } from './VurderingEditor'
 import { Laas } from './Ikoner'
 import { RiskInfo } from './RiskInfo'
-import { initialer } from './Personer'
+import { initialer, likNavn } from './Personer'
 
 interface Posisjon {
   riskId: string
@@ -967,10 +967,11 @@ function kortDato(iso: string): string {
   return `${d}. ${MND[m - 1]}` + (y !== new Date().getFullYear() ? ` ${y}` : '')
 }
 
-// Initialene til en deltaker i en liten runding. Bruker initialene fra deltakerlisten når de finnes.
+// Initialene til en person i en liten runding. Initialene i deltakerlisten gjelder først, så de kan justeres der
+// (f.eks. når to personer får like initialer). Ellers lages de av navnet: Ole Petter Jensen blir OPJ.
 function Initialer({ navn, doc }: { navn: string; doc: Register }) {
-  const d = doc.deltakere.find((x) => x.navn === navn)
-  const tekst = d?.initialer || initialer(navn)
+  const d = doc.deltakere.find((x) => likNavn(x.navn, navn))
+  const tekst = d?.initialer.trim() || initialer(navn)
   return (
     <span className="initialer" title={navn}>
       {tekst}
