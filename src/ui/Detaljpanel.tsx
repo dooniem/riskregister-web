@@ -49,7 +49,7 @@ export function Detaljpanel({ okt, doc, riskId, endre, lukk, kanSkrive }: Props)
           <div className="liten">Risk {r.nr}</div>
           <h2>{r.hendelse || 'Uten beskrivelse'}</h2>
         </div>
-        <button className="ikonknapp" onClick={lukk} title="Lukk (Esc)">
+        <button className="ikonknapp" onClick={lukk} title="Lukk (Esc)" aria-label="Lukk">
           ✕
         </button>
       </header>

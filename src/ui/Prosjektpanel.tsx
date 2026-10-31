@@ -4,6 +4,7 @@ import { uid } from '../model'
 import type { Op } from '../ops'
 import type { Kobling } from './Personer'
 import { KoblingListe, LeggTilFraOrg, SokFeil, finnKoblinger, usePersoner } from './Personer'
+import { Modal, ModalTittel } from './Modal'
 
 type Fane = 'prosjekt' | 'deltakere' | 'gjennomganger' | 'lister'
 
@@ -20,36 +21,34 @@ interface Props {
 export function Prosjektpanel({ doc, endre, lukk, kanSkrive, start = 'prosjekt', hentOppsett }: Props) {
   const [fane, setFane] = useState<Fane>(start)
   return (
-    <div className="modal-bakgrunn" onMouseDown={(e) => e.target === e.currentTarget && lukk()}>
-      <div className="modal bred">
-        <header>
-          <h2>Prosjekt</h2>
-          <button className="ikonknapp" onClick={lukk}>
-            ✕
+    <Modal className="bred" lukk={lukk}>
+      <header>
+        <ModalTittel>Prosjekt</ModalTittel>
+        <button className="ikonknapp" onClick={lukk} aria-label="Lukk" title="Lukk">
+          ✕
+        </button>
+      </header>
+      <nav className="faner">
+        {(
+          [
+            ['prosjekt', 'Prosjektinfo'],
+            ['deltakere', `Deltakere (${doc.deltakere.length})`],
+            ['gjennomganger', `Gjennomganger (${doc.gjennomganger.length})`],
+            ['lister', 'Lister og valg'],
+          ] as const
+        ).map(([k, t]) => (
+          <button key={k} className={fane === k ? 'valgt' : ''} onClick={() => setFane(k)}>
+            {t}
           </button>
-        </header>
-        <nav className="faner">
-          {(
-            [
-              ['prosjekt', 'Prosjektinfo'],
-              ['deltakere', `Deltakere (${doc.deltakere.length})`],
-              ['gjennomganger', `Gjennomganger (${doc.gjennomganger.length})`],
-              ['lister', 'Lister og valg'],
-            ] as const
-          ).map(([k, t]) => (
-            <button key={k} className={fane === k ? 'valgt' : ''} onClick={() => setFane(k)}>
-              {t}
-            </button>
-          ))}
-        </nav>
-        <div className="modal-innhold">
-          {fane === 'prosjekt' && <ProsjektInfo doc={doc} endre={endre} kanSkrive={kanSkrive} />}
-          {fane === 'deltakere' && <Deltakere doc={doc} endre={endre} kanSkrive={kanSkrive} />}
-          {fane === 'gjennomganger' && <Gjennomganger doc={doc} endre={endre} kanSkrive={kanSkrive} />}
-          {fane === 'lister' && <ListerRed doc={doc} endre={endre} kanSkrive={kanSkrive} hentOppsett={hentOppsett} />}
-        </div>
+        ))}
+      </nav>
+      <div className="modal-innhold">
+        {fane === 'prosjekt' && <ProsjektInfo doc={doc} endre={endre} kanSkrive={kanSkrive} />}
+        {fane === 'deltakere' && <Deltakere doc={doc} endre={endre} kanSkrive={kanSkrive} />}
+        {fane === 'gjennomganger' && <Gjennomganger doc={doc} endre={endre} kanSkrive={kanSkrive} />}
+        {fane === 'lister' && <ListerRed doc={doc} endre={endre} kanSkrive={kanSkrive} hentOppsett={hentOppsett} />}
       </div>
-    </div>
+    </Modal>
   )
 }
 

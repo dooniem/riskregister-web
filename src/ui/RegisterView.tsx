@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { GRUPPER, KOLONNER } from '../columns'
 import { excelFil, lastNed, lesExcel } from '../excel'
 import { SkariskVisning } from './Skarisk'
@@ -290,7 +290,7 @@ export function RegisterView({ okt, tilbake }: Props) {
                 <div className="meny-gruppe" role="group" aria-label="Utseende">
                   <span className="meny-gruppe-tittel">Utseende</span>
                   {(['klassisk', 'moderne'] as const).map((s) => (
-                    <button key={s} role="menuitemradio" aria-checked={stil === s} className={'meny-valg' + (stil === s ? ' valgt' : '')} onClick={() => setStil(s)}>
+                    <button key={s} aria-pressed={stil === s} className={'meny-valg' + (stil === s ? ' valgt' : '')} onClick={() => setStil(s)}>
                       <span className="radio" aria-hidden />
                       {s === 'klassisk' ? 'Klassisk' : 'Moderne'}
                     </button>
@@ -608,7 +608,7 @@ export function RegisterView({ okt, tilbake }: Props) {
           />
         )}
 
-        <div className="meldinger">
+        <Meldinger antall={meldinger.length}>
           {meldinger.map((m) => (
             <div key={m.id} className="melding">
               {m.tekst}
@@ -625,9 +625,34 @@ export function RegisterView({ okt, tilbake }: Props) {
               )}
             </div>
           ))}
-        </div>
+        </Meldinger>
       </div>
     </PersonKontekst.Provider>
+  )
+}
+
+// Meldingene nederst. Ligger i et popover-lag når nettleseren støtter det, så de også vises over en åpen dialog
+// (dialogene ligger i nettleserens øverste lag, over alt med z-index). Løftes øverst igjen ved hver ny melding.
+// role="status" gjør at skjermlesere leser opp meldingene.
+const harPopover = typeof HTMLElement !== 'undefined' && 'popover' in HTMLElement.prototype
+function Meldinger({ antall, children }: { antall: number; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const forrige = useRef(0)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el || !harPopover) return
+    try {
+      if (antall > forrige.current && el.matches(':popover-open')) el.hidePopover()
+      if (!el.matches(':popover-open')) el.showPopover()
+    } catch {
+      // Ikke støttet likevel: meldingene vises som før, med z-index
+    }
+    forrige.current = antall
+  }, [antall])
+  return (
+    <div className="meldinger" ref={ref} role="status" popover={harPopover ? 'manual' : undefined}>
+      {children}
+    </div>
   )
 }
 

@@ -129,7 +129,10 @@ export function PersonFelt({
           } else if (e.key === 'Enter' && aapen && alle[markert]) {
             e.preventDefault()
             velg(alle[markert])
-          } else if (e.key === 'Escape') {
+          } else if (e.key === 'Escape' && aapen) {
+            // Lukker bare lista, ikke dialogen eller panelet feltet står i
+            e.preventDefault()
+            e.stopPropagation()
             setAapen(false)
           }
         }}

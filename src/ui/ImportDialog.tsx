@@ -5,6 +5,7 @@ import { FAG_FARGER, brukPrefixValg, harDelregisterMerke, uid, utenDelregisterMe
 import type { Bruker, Op } from '../ops'
 import type { Kobling } from './Personer'
 import { KoblingListe, SokFeil, finnKoblinger, usePersoner } from './Personer'
+import { Modal, ModalTittel } from './Modal'
 
 interface Props {
   doc: Register
@@ -105,80 +106,78 @@ export function ImportDialog({ doc, kilde, filnavn, bruker, endre, ferdig, lukk 
   }
 
   return (
-    <div className="modal-bakgrunn" onMouseDown={(e) => e.target === e.currentTarget && lukk()}>
-      <div className="modal">
-        <header>
-          <h2>Legg til risker fra Excel</h2>
-          <button className="ikonknapp" onClick={lukk}>
-            ✕
-          </button>
-        </header>
-        <div className="modal-innhold skjema">
-          <p>
-            «{filnavn}» har <strong>{alle.length}</strong> {alle.length === 1 ? 'risk' : 'risker'}
-            {antLukket > 0 && ` (${antLukket} lukket)`}. De legges til etter de som finnes i registeret og får nye numre.
-          </p>
-          <div className="felt">
-            {like.length > 0 && (
-              <label className="avkrysning">
-                <input type="checkbox" checked={hoppOver} onChange={(e) => setHoppOver(e.target.checked)} />
-                <span>
-                  Hopp over {like.length} {like.length === 1 ? 'risk' : 'risker'} som finnes fra før
-                  <small> (samme årsak og hendelse, f.eks. fordi delregisteret ble laget fra dette registeret)</small>
-                </span>
-              </label>
-            )}
-            {antLukket > 0 && (
-              <label className="avkrysning">
-                <input type="checkbox" checked={lukkede} onChange={(e) => setLukkede(e.target.checked)} />
-                <span>Importer lukkede risker (de legges til i fanen «Lukkede»)</span>
-              </label>
-            )}
-            <DelregisterValg risker={kilde.risker} filnavn={filnavn} valg={prefix} setValg={setPrefix} />
-            {nyeDeltakere.length > 0 && (
-              <label className="avkrysning">
-                <input type="checkbox" checked={deltakere} onChange={(e) => setDeltakere(e.target.checked)} />
-                <span>
-                  Legg til {nyeDeltakere.length} {nyeDeltakere.length === 1 ? 'ny deltaker' : 'nye deltakere'}
-                  <small> ({nyeDeltakere.map((d) => d.navn).join(', ')})</small>
-                </span>
-              </label>
-            )}
-            {deltakere && nyeDeltakere.length > 0 && personer && (
-              <div className="importkobling">
-                {koblingFeil != null ? (
-                  <SokFeil feil={koblingFeil} katalog={personer.katalog} igjen={() => setRunde((r) => r + 1)} />
-                ) : !koblinger ? (
-                  <span className="liten">Leter etter deltakerne i organisasjonen…</span>
-                ) : (
-                  <>
-                    {koblinger.some((k) => k.person) && <span className="liten">Funnet i organisasjonen. Kryss av for å koble deltakeren til brukeren:</span>}
-                    <KoblingListe koblinger={koblinger} valgt={koble} setValgt={setKoble} />
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-          {valgte.length > 0 && (
-            <ul className="importliste">
-              {valgte.map((r) => (
-                <li key={r.id}>
-                  <span className="liten">{r.status === 'Lukket' ? 'Lukket' : r.rm === 'M' ? 'Mulighet' : 'Risk'}</span> {r.hendelse || r.aarsak || '(uten tekst)'}
-                </li>
-              ))}
-            </ul>
+    <Modal lukk={lukk}>
+      <header>
+        <ModalTittel>Legg til risker fra Excel</ModalTittel>
+        <button className="ikonknapp" onClick={lukk} aria-label="Lukk" title="Lukk">
+          ✕
+        </button>
+      </header>
+      <div className="modal-innhold skjema">
+        <p>
+          «{filnavn}» har <strong>{alle.length}</strong> {alle.length === 1 ? 'risk' : 'risker'}
+          {antLukket > 0 && ` (${antLukket} lukket)`}. De legges til etter de som finnes i registeret og får nye numre.
+        </p>
+        <div className="felt">
+          {like.length > 0 && (
+            <label className="avkrysning">
+              <input type="checkbox" checked={hoppOver} onChange={(e) => setHoppOver(e.target.checked)} />
+              <span>
+                Hopp over {like.length} {like.length === 1 ? 'risk' : 'risker'} som finnes fra før
+                <small> (samme årsak og hendelse, f.eks. fordi delregisteret ble laget fra dette registeret)</small>
+              </span>
+            </label>
           )}
-          <div className="knapperad">
-            <button className="knapp" onClick={lukk}>
-              Avbryt
-            </button>
-            <button className="knapp primær" disabled={!valgte.length} onClick={importer}>
-              Legg til {valgte.length} {valgte.length === 1 ? 'risk' : 'risker'}
-            </button>
-          </div>
+          {antLukket > 0 && (
+            <label className="avkrysning">
+              <input type="checkbox" checked={lukkede} onChange={(e) => setLukkede(e.target.checked)} />
+              <span>Importer lukkede risker (de legges til i fanen «Lukkede»)</span>
+            </label>
+          )}
+          <DelregisterValg risker={kilde.risker} filnavn={filnavn} valg={prefix} setValg={setPrefix} />
+          {nyeDeltakere.length > 0 && (
+            <label className="avkrysning">
+              <input type="checkbox" checked={deltakere} onChange={(e) => setDeltakere(e.target.checked)} />
+              <span>
+                Legg til {nyeDeltakere.length} {nyeDeltakere.length === 1 ? 'ny deltaker' : 'nye deltakere'}
+                <small> ({nyeDeltakere.map((d) => d.navn).join(', ')})</small>
+              </span>
+            </label>
+          )}
+          {deltakere && nyeDeltakere.length > 0 && personer && (
+            <div className="importkobling">
+              {koblingFeil != null ? (
+                <SokFeil feil={koblingFeil} katalog={personer.katalog} igjen={() => setRunde((r) => r + 1)} />
+              ) : !koblinger ? (
+                <span className="liten">Leter etter deltakerne i organisasjonen…</span>
+              ) : (
+                <>
+                  {koblinger.some((k) => k.person) && <span className="liten">Funnet i organisasjonen. Kryss av for å koble deltakeren til brukeren:</span>}
+                  <KoblingListe koblinger={koblinger} valgt={koble} setValgt={setKoble} />
+                </>
+              )}
+            </div>
+          )}
+        </div>
+        {valgte.length > 0 && (
+          <ul className="importliste">
+            {valgte.map((r) => (
+              <li key={r.id}>
+                <span className="liten">{r.status === 'Lukket' ? 'Lukket' : r.rm === 'M' ? 'Mulighet' : 'Risk'}</span> {r.hendelse || r.aarsak || '(uten tekst)'}
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="knapperad">
+          <button className="knapp" onClick={lukk}>
+            Avbryt
+          </button>
+          <button className="knapp primær" disabled={!valgte.length} onClick={importer}>
+            Legg til {valgte.length} {valgte.length === 1 ? 'risk' : 'risker'}
+          </button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
 

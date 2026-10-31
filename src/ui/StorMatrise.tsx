@@ -4,6 +4,7 @@ import type { Register, Risk } from '../model'
 import { KONSEKVENS, SANNSYNLIGHET, eksponering, eksponeringFarge, fagFarge } from '../model'
 import type { Op } from '../ops'
 import type { Okt } from '../sync'
+import { Modal, ModalTittel } from './Modal'
 
 interface Props {
   doc: Register
@@ -116,6 +117,16 @@ export function StorMatrise(p: Props) {
           setSide(side?.hel ? { riskId: r.id, hel: true } : side?.riskId === r.id ? null : { riskId: r.id, hel: false })
         }}
         onDoubleClick={() => setSide({ riskId: r.id, hel: true })}
+        // Med tastatur: Tab til risken, Mellomrom viser infokortet og Enter åpner hele risken
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            setValgt(null)
+            setSide(e.key === 'Enter' ? { riskId: r.id, hel: true } : side?.riskId === r.id ? null : { riskId: r.id, hel: false })
+          }
+        }}
         title={tittel + '\nKlikk for mer, dobbeltklikk for å åpne hele risken.'}
       >
         {r.nr}
@@ -132,114 +143,121 @@ export function StorMatrise(p: Props) {
   }
 
   return (
-    <div className="modal-bakgrunn" onMouseDown={(e) => e.target === e.currentTarget && p.lukk()}>
-      <div className={'modal stormatrise' + (sideRisk ? ' med-side' : '')}>
-        <header>
-          <h2>{rm === 'R' ? 'Risikomatrise' : 'Mulighetsmatrise'}</h2>
-          <nav className="faner">
-            <button className={rm === 'R' ? 'valgt' : ''} onClick={() => setRm('R')}>
-              Risiko
-            </button>
-            <button className={rm === 'M' ? 'valgt' : ''} onClick={() => setRm('M')}>
-              Mulighet
-            </button>
-          </nav>
-          <button className="ikonknapp" onClick={p.lukk}>
-            ✕
+    <Modal className={'stormatrise' + (sideRisk ? ' med-side' : '')} lukk={p.lukk}>
+      <header>
+        <ModalTittel>{rm === 'R' ? 'Risikomatrise' : 'Mulighetsmatrise'}</ModalTittel>
+        <nav className="faner">
+          <button className={rm === 'R' ? 'valgt' : ''} onClick={() => setRm('R')}>
+            Risiko
           </button>
-        </header>
-        <div className="stormatrise-innhold">
-        <div className="modal-innhold">
-          <p className="liten">
-            {p.kanSkrive ? 'Dra en risk til en annen rute for å endre sannsynlighet og konsekvens. ' : ''}
-            Klikk på en risk for å se mer om den, dobbeltklikk for å åpne og redigere hele risken.
-            {p.mot && (
-              <>
-                {' '}
-                Pilene viser hvordan riskene har flyttet seg siden snapshotet «{p.mot.navn}»:{' '}
-                <span className="mpil-forklaring bedre">grønn</span> er bedre, <span className="mpil-forklaring verre">rød</span> er verre,{' '}
-                <span className="mpil-forklaring lik">gul</span> er lik eksponering. Risker uten pil har ikke flyttet seg.
-              </>
-            )}
-          </p>
-          {valgt && (
-            <div className="banner info">
-              Trykk på ruten risk {p.doc.risker.find((r) => r.id === valgt)?.nr} skal flyttes til.
-              <button className="lenkeknapp" onClick={() => setValgt(null)}>
-                Avbryt
-              </button>
-            </div>
+          <button className={rm === 'M' ? 'valgt' : ''} onClick={() => setRm('M')}>
+            Mulighet
+          </button>
+        </nav>
+        <button className="ikonknapp" onClick={p.lukk} aria-label="Lukk" title="Lukk">
+          ✕
+        </button>
+      </header>
+      <div
+        className="stormatrise-innhold"
+        onKeyDown={(e) => {
+          // Esc i sidefeltet lukker sidefeltet, ikke hele matrisen
+          if (e.key === 'Escape' && side && (e.target as Element).closest('.stormatrise-side')) {
+            e.preventDefault()
+            setSide(null)
+          }
+        }}
+      >
+      <div className="modal-innhold">
+        <p className="liten">
+          {p.kanSkrive ? 'Dra en risk til en annen rute for å endre sannsynlighet og konsekvens. ' : ''}
+          Klikk på en risk for å se mer om den, dobbeltklikk for å åpne og redigere hele risken.
+          {p.mot && (
+            <>
+              {' '}
+              Pilene viser hvordan riskene har flyttet seg siden snapshotet «{p.mot.navn}»:{' '}
+              <span className="mpil-forklaring bedre">grønn</span> er bedre, <span className="mpil-forklaring verre">rød</span> er verre,{' '}
+              <span className="mpil-forklaring lik">gul</span> er lik eksponering. Risker uten pil har ikke flyttet seg.
+            </>
           )}
-          <div className="smatrise">
-            <div className="saksey">Sannsynlighet</div>
-            <div className="srutenett">
-              {S.map((s) => (
-                <div key={s} className="srad">
-                  <div className="slabel">{SANNSYNLIGHET[s - 1]}</div>
-                  {K.map((k) => {
-                    const f = eksponeringFarge(rm, s * k)
-                    const id = `${s}-${k}`
-                    return (
-                      <div key={k} className={'srute' + (over === id ? ' over' : '') + (valgt ? ' kan-slippe' : '')} style={{ background: f?.bg }} {...slippMaal(id, s, k)}>
-                        <span className="sverdi" style={{ color: f?.fg }}>
-                          {s * k}
-                        </span>
-                        {risker.filter((r) => r.sannsynlighet === s && r.konsekvens === k).map(boble)}
-                      </div>
-                    )
-                  })}
+        </p>
+        {valgt && (
+          <div className="banner info">
+            Trykk på ruten risk {p.doc.risker.find((r) => r.id === valgt)?.nr} skal flyttes til.
+            <button className="lenkeknapp" onClick={() => setValgt(null)}>
+              Avbryt
+            </button>
+          </div>
+        )}
+        <div className="smatrise">
+          <div className="saksey">Sannsynlighet</div>
+          <div className="srutenett">
+            {S.map((s) => (
+              <div key={s} className="srad">
+                <div className="slabel">{SANNSYNLIGHET[s - 1]}</div>
+                {K.map((k) => {
+                  const f = eksponeringFarge(rm, s * k)
+                  const id = `${s}-${k}`
+                  return (
+                    <div key={k} className={'srute' + (over === id ? ' over' : '') + (valgt ? ' kan-slippe' : '')} style={{ background: f?.bg }} {...slippMaal(id, s, k)}>
+                      <span className="sverdi" style={{ color: f?.fg }}>
+                        {s * k}
+                      </span>
+                      {risker.filter((r) => r.sannsynlighet === s && r.konsekvens === k).map(boble)}
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
+            <div className="srad">
+              <div className="slabel" />
+              {K.map((k) => (
+                <div key={k} className="slabel x">
+                  {KONSEKVENS[k - 1]}
                 </div>
               ))}
-              <div className="srad">
-                <div className="slabel" />
-                {K.map((k) => (
-                  <div key={k} className="slabel x">
-                    {KONSEKVENS[k - 1]}
-                  </div>
-                ))}
-              </div>
-              <div className="saksex">Konsekvens</div>
             </div>
+            <div className="saksex">Konsekvens</div>
           </div>
-          <div className={'ikke-vurdert' + (over === 'iv' ? ' over' : '')} {...slippMaal('iv', 0, 0)}>
-            <span className="liten">Ikke vurdert ({ikkeVurdert.length}):</span>
-            {ikkeVurdert.map(boble)}
+        </div>
+        <div className={'ikke-vurdert' + (over === 'iv' ? ' over' : '')} {...slippMaal('iv', 0, 0)}>
+          <span className="liten">Ikke vurdert ({ikkeVurdert.length}):</span>
+          {ikkeVurdert.map(boble)}
+        </div>
+        {borte.length > 0 && (
+          <div className="ikke-vurdert borte">
+            <span className="liten">I snapshotet, men ikke i matrisen nå ({borte.length}):</span>
+            {borte.map((g) => (
+              <span key={g.id} className="mboble borte" title={`Risk ${g.nr}: ${g.hendelse || g.aarsak}\nVar i rute ${g.sannsynlighet} × ${g.konsekvens}`}>
+                {g.nr}
+              </span>
+            ))}
           </div>
-          {borte.length > 0 && (
-            <div className="ikke-vurdert borte">
-              <span className="liten">I snapshotet, men ikke i matrisen nå ({borte.length}):</span>
-              {borte.map((g) => (
-                <span key={g.id} className="mboble borte" title={`Risk ${g.nr}: ${g.hendelse || g.aarsak}\nVar i rute ${g.sannsynlighet} × ${g.konsekvens}`}>
-                  {g.nr}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-        {sideRisk &&
-          (side.hel ? (
-            <div className="stormatrise-side hel">
-              <div className="side-verktoy">
-                <button className="lenkeknapp" onClick={() => setSide({ riskId: sideRisk.id, hel: false })} title="Vis bare årsak, hendelse, konsekvenser og risikoeier">
-                  ◂ Kortvisning
-                </button>
-              </div>
-              {p.detalj(sideRisk.id, () => setSide(null))}
-            </div>
-          ) : (
-            <Infokort
-              r={sideRisk}
-              doc={p.doc}
-              gammel={p.mot?.risker.get(sideRisk.id)}
-              kanFlytte={p.kanSkrive && !p.okt.laastAv(sideRisk.id)}
-              flytt={() => (setValgt(sideRisk.id), setSide(null))}
-              aapne={() => setSide({ riskId: sideRisk.id, hel: true })}
-              lukk={() => setSide(null)}
-            />
-          ))}
-        </div>
+        )}
       </div>
-    </div>
+      {sideRisk &&
+        (side.hel ? (
+          <div className="stormatrise-side hel">
+            <div className="side-verktoy">
+              <button className="lenkeknapp" onClick={() => setSide({ riskId: sideRisk.id, hel: false })} title="Vis bare årsak, hendelse, konsekvenser og risikoeier">
+                ◂ Kortvisning
+              </button>
+            </div>
+            {p.detalj(sideRisk.id, () => setSide(null))}
+          </div>
+        ) : (
+          <Infokort
+            r={sideRisk}
+            doc={p.doc}
+            gammel={p.mot?.risker.get(sideRisk.id)}
+            kanFlytte={p.kanSkrive && !p.okt.laastAv(sideRisk.id)}
+            flytt={() => (setValgt(sideRisk.id), setSide(null))}
+            aapne={() => setSide({ riskId: sideRisk.id, hel: true })}
+            lukk={() => setSide(null)}
+          />
+        ))}
+      </div>
+    </Modal>
   )
 }
 
@@ -260,7 +278,7 @@ function Infokort({ r, doc, gammel, kanFlytte, flytt, aapne, lukk }: { r: Risk; 
         <h3>
           Risk {r.nr} <span className={'rm-' + r.rm}>{r.rm}</span>
         </h3>
-        <button className="ikonknapp" onClick={lukk} title="Lukk">
+        <button className="ikonknapp" onClick={lukk} title="Lukk" aria-label="Lukk">
           ✕
         </button>
       </header>
