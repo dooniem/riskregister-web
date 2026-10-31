@@ -43,7 +43,9 @@ export function KostEditor({ risk: r, anker, start = 'bc', onLagre, onAvbryt }: 
 
   // Klikk utenfor avbryter, som Esc. Endringer lagres bare med Enter eller knappen.
   const avbryt = useRef(onAvbryt)
-  avbryt.current = onAvbryt
+  useEffect(() => {
+    avbryt.current = onAvbryt
+  })
   useEffect(() => {
     const h = (e: MouseEvent) => !boks.current?.contains(e.target as Node) && avbryt.current()
     const t = setTimeout(() => window.addEventListener('mousedown', h))
