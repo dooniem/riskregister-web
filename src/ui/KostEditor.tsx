@@ -82,8 +82,11 @@ export function KostEditor({ risk: r, anker, start = 'bc', onLagre, onAvbryt }: 
       <div className="kost-editor-tittel">Mulig kost for risk {r.nr}, i 1000 kr</div>
       <div className="kost-editor-felt">
         {FELT.map((f) => (
-          <label key={f.key}>
-            <span>{f.navn}</span>
+          <label key={f.key} className={'felt-' + f.key}>
+            <span>
+              <i aria-hidden />
+              {f.navn}
+            </span>
             <input
               ref={f.key === start ? forste : undefined}
               inputMode="decimal"
