@@ -485,8 +485,8 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
     // Som nedtrekkslistene i Excel-arket: ett klikk på en valgcelle eller en dato åpner lista eller kalenderen.
     // Venter til en eventuell åpen editor har lagret seg selv (den lukkes når den mister fokus).
     const { k } = hentCelle(p)
-    // Vurderingen i moderne utseende erstatter to slike lister, så den åpnes også med ett klikk.
-    const somListe = (k?.felt && (k.type === 'valg' || k.type === 'dato')) || erVurdering(k)
+    // Kost- og vurderingsvinduet i moderne utseende åpnes på samme måte, med ett klikk.
+    const somListe = (k?.felt && (k.type === 'valg' || k.type === 'dato')) || harVindu(k)
     if (kanSkrive && somListe && !e.shiftKey && !e.ctrlKey && !e.metaKey) setTimeout(() => startRedigering(p), 0)
   }
 
@@ -901,7 +901,7 @@ function RiskRader(p: RaderProps) {
             <Laas /> {p.laastAv} skriver
           </span>
         )}
-        {(((k.type === 'valg' || k.type === 'dato') && k.felt) || (k.key === 'eksponering' && p.moderne)) && p.kanSkrive && !redigeres && (
+        {(((k.type === 'valg' || k.type === 'dato') && k.felt) || (p.moderne && (k.key === 'eksponering' || k.key === 'fv'))) && p.kanSkrive && !redigeres && (
           <span className={'valgpil' + (erAktiv ? ' synlig' : '')} aria-hidden>
             {k.type === 'dato' ? <Kalenderikon /> : '▾'}
           </span>

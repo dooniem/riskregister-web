@@ -105,8 +105,8 @@ export function VurderingEditor({ risk: r, anker, onLagre, onAvbryt }: Props) {
 
       <div className="kost-editor-knapper">
         <span className="liten">
-          <kbd>↑</kbd>
-          <kbd>↓</kbd> velg · <kbd>Enter</kbd> lagre
+          <kbd>Tab</kbd> neste liste, <kbd>↑</kbd>
+          <kbd>↓</kbd> velg, <kbd>Enter</kbd> lagre
         </span>
         {(!!v.sannsynlighet || !!v.konsekvens) && (
           <button className="lenkeknapp" onClick={() => setV({ sannsynlighet: 0, konsekvens: 0 })}>

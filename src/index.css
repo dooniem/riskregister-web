@@ -3253,7 +3253,7 @@ td.k-eksponering:hover .vurd-celle.tom {
 .vurd-editor {
   position: fixed;
   z-index: 60;
-  width: 480px;
+  width: 556px;
   max-width: calc(100vw - 16px);
   background: var(--flate);
   color: var(--tekst);
@@ -3506,4 +3506,7 @@ td.k-eksponering:hover .vurd-celle.tom {
 }
 .stil-moderne .grid th.kol-eksponering {
   text-align: left;
+}
+.vurd-editor .kost-editor-knapper .liten {
+  white-space: nowrap;
 }
