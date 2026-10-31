@@ -24,10 +24,10 @@ interface Props {
 // Moderne visning: BC, ML og WC redigeres sammen i ett lite vindu, med forventet verdi regnet ut mens man skriver
 export function KostEditor({ risk: r, anker, start = 'bc', onLagre, onAvbryt }: Props) {
   const [tekst, setTekst] = useState<Record<Felt, string>>({ bc: r.bc ? String(r.bc) : '', ml: r.ml ? String(r.ml) : '', wc: r.wc ? String(r.wc) : '' })
-  const { boks, pos } = usePopup<HTMLDivElement>(anker, onAvbryt)
   const forste = useRef<HTMLInputElement>(null)
 
   const tall = { bc: parseTall(tekst.bc), ml: parseTall(tekst.ml), wc: parseTall(tekst.wc) }
+  const { boks, pos } = usePopup<HTMLDivElement>(anker, () => onLagre(tall))
   const ny = fv({ ...r, ...tall })
   const rekkefolge = tall.bc <= tall.ml && tall.ml <= tall.wc
 

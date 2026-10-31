@@ -59,7 +59,7 @@ export const KOLONNER: Kolonne[] = [
   { key: 'fv', tittel: () => 'FV', nivaa: 'risk', type: 'beregnet', bredde: 78, gruppe: 'kost', verdi: (r) => Math.round(fv(r)), hoyre: true },
   { key: 'tiltak', tittel: () => 'Tiltak', nivaa: 'tiltak', type: 'langtekst', bredde: 250, gruppe: 'tiltak', felt: 'tekst', verdi: (_r, t) => t?.tekst ?? '' },
   { key: 'tiltakseier', tittel: () => 'Tiltakseier', nivaa: 'tiltak', type: 'valg', bredde: 136, gruppe: 'tiltak', felt: 'eier', valg: deltakerNavn, fri: true, verdi: (_r, t) => t?.eier ?? '' },
-  { key: 'frist', tittel: () => 'Frist tiltak', nivaa: 'tiltak', type: 'dato', bredde: 112, gruppe: 'tiltak', felt: 'frist', verdi: (_r, t) => t?.frist ?? '' },
+  { key: 'frist', tittel: () => 'Frist tiltak', nivaa: 'tiltak', type: 'dato', bredde: 92, gruppe: 'tiltak', felt: 'frist', verdi: (_r, t) => t?.frist ?? '' },
   { key: 'beskrivelse', tittel: () => 'Status tiltak (beskrivelse)', nivaa: 'tiltak', type: 'langtekst', bredde: 200, gruppe: 'tiltak', felt: 'beskrivelse', verdi: (_r, t) => t?.beskrivelse ?? '' },
   { key: 'tiltakstatus', tittel: () => 'Status tiltak', nivaa: 'tiltak', type: 'valg', bredde: 116, gruppe: 'tiltak', felt: 'status', valg: (d) => d.lister.statusTiltak, verdi: (_r, t) => t?.status ?? '' },
   { key: 'tilSkarisk', tittel: () => 'Til Skarisk', nivaa: 'risk', type: 'avkrysning', bredde: 76, gruppe: 'skarisk', felt: 'tilSkarisk', verdi: (r) => r.tilSkarisk },
@@ -74,7 +74,7 @@ export function visTekst(k: Kolonne, r: Risk, t?: Tiltak): string {
   if (k.key === 'konsekvens') return r.konsekvens ? KONSEKVENS[r.konsekvens - 1] : '-'
   if (k.key === 'eksponering') return (v as number) ? String(v) : '-'
   if (k.type === 'tall' || k.key === 'fv') return formatTall(v as number)
-  if (k.type === 'dato') return formatDato(v as string)
+  if (k.type === 'dato') return formatDato(v as string, true)
   if (k.type === 'avkrysning') return v ? 'Ja' : ''
   return String(v ?? '')
 }
@@ -84,10 +84,11 @@ export function formatTall(n: number): string {
   return Math.round(n).toLocaleString('nb-NO')
 }
 
-export function formatDato(iso: string): string {
+// 31.12.2026, eller 31.12.26 med kort, som brukes i tabellen for å spare plass
+export function formatDato(iso: string, kort = false): string {
   if (!iso) return ''
   const [y, m, d] = iso.split('-')
-  return d && m && y ? `${d}.${m}.${y}` : iso
+  return d && m && y ? `${d}.${m}.${kort ? y.slice(-2) : y}` : iso
 }
 
 const iso = (y: number, m: number, d: number) => {

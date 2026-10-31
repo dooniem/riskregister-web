@@ -24,7 +24,7 @@ const tekst = (felt: Felt, n: number) => NAVN[felt][n - 1].replace(/^\d\s*/, '')
 // (sannsynlighet × konsekvens) med fargen den får i registeret, og den oppdateres med en gang man velger.
 export function VurderingEditor({ risk: r, anker, onLagre, onAvbryt }: Props) {
   const [v, setV] = useState<Verdier>({ sannsynlighet: r.sannsynlighet, konsekvens: r.konsekvens })
-  const { boks, pos } = usePopup<HTMLDivElement>(anker, onAvbryt)
+  const { boks, pos } = usePopup<HTMLDivElement>(anker, () => onLagre(v))
   const forste = useRef<HTMLDivElement>(null)
 
   // Starter i sannsynlighet, eller i konsekvens hvis sannsynlighet er satt og konsekvens mangler

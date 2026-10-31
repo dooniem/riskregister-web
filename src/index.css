@@ -682,8 +682,13 @@ table.grid {
 .grid td.aktiv {
   outline: 2px solid var(--aksent);
   outline-offset: -2px;
-  z-index: 4 !important;
+  /* Over cellene rundt (for rammen og nedtrekkslistene), men under de låste overskriftene og frosne kolonnene,
+     så den valgte cellen ikke legger seg oppå dem når tabellen skrolles */
+  z-index: 1 !important;
   overflow: visible;
+}
+.grid td.frosset.aktiv {
+  z-index: 2 !important;
 }
 .grid td.langtekst .tekstklipp {
   white-space: pre-wrap;
