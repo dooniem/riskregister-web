@@ -1,8 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 // Felles for de små redigeringsvinduene i moderne visning (kost og vurdering): vinduet legger seg under cellen det
-// åpnes fra, eller over hvis det ikke er plass. Et nytt klikk i den cellen lagrer, et klikk andre steder avbryter som Esc.
-export function usePopup<T extends HTMLElement>(anker: DOMRect, celle: Element | undefined, onLagre: () => void, onAvbryt: () => void) {
+// åpnes fra, eller over hvis det ikke er plass. Et klikk utenfor vinduet lagrer, som Enter.
+export function usePopup<T extends HTMLElement>(anker: DOMRect, onLagre: () => void) {
   const boks = useRef<T>(null)
   const [pos, setPos] = useState({ left: anker.left, top: anker.bottom + 6 })
 
@@ -14,17 +14,17 @@ export function usePopup<T extends HTMLElement>(anker: DOMRect, celle: Element |
     setPos({ left, top })
   }, [anker])
 
-  const siste = useRef({ onLagre, onAvbryt, celle })
+  const siste = useRef({ onLagre })
   useEffect(() => {
-    siste.current = { onLagre, onAvbryt, celle }
+    siste.current = { onLagre }
   })
   useEffect(() => {
     const h = (e: MouseEvent) => {
       const mal = e.target as Node
       if (boks.current?.contains(mal)) return
-      const { celle, onLagre, onAvbryt } = siste.current
-      if (celle?.contains(mal)) onLagre()
-      else onAvbryt()
+      // Både et nytt klikk i cellen og et klikk andre steder lagrer, som i Excel. Bare Esc og Avbryt forkaster.
+      // En lagring man ikke ville ha, kan angres med Ctrl+Z, mens en endring som forkastes uten beskjed er borte.
+      siste.current.onLagre()
     }
     const t = setTimeout(() => window.addEventListener('mousedown', h))
     return () => {
