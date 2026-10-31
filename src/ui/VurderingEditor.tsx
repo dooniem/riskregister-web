@@ -10,6 +10,8 @@ interface Props {
   risk: Risk
   // Cellen editoren åpnes fra. Editoren legger seg under den, eller over hvis det ikke er plass.
   anker: DOMRect
+  // Cellen selv. Et nytt klikk i den lagrer.
+  celle?: Element
   onLagre: (verdier: Verdier) => void
   onAvbryt: () => void
 }
@@ -22,9 +24,9 @@ const tekst = (felt: Felt, n: number) => NAVN[felt][n - 1].replace(/^\d\s*/, '')
 
 // Moderne visning: sannsynlighet og konsekvens velges sammen i ett lite vindu. Øverst vises eksponeringen
 // (sannsynlighet × konsekvens) med fargen den får i registeret, og den oppdateres med en gang man velger.
-export function VurderingEditor({ risk: r, anker, onLagre, onAvbryt }: Props) {
+export function VurderingEditor({ risk: r, anker, celle, onLagre, onAvbryt }: Props) {
   const [v, setV] = useState<Verdier>({ sannsynlighet: r.sannsynlighet, konsekvens: r.konsekvens })
-  const { boks, pos } = usePopup<HTMLDivElement>(anker, onAvbryt)
+  const { boks, pos } = usePopup<HTMLDivElement>(anker, celle, () => onLagre(v), onAvbryt)
   const forste = useRef<HTMLDivElement>(null)
 
   // Starter i sannsynlighet, eller i konsekvens hvis sannsynlighet er satt og konsekvens mangler

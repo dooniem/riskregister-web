@@ -88,8 +88,8 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   const [kontekst, setKontekst] = useState<{ x: number; y: number; pos: Posisjon } | null>(null)
   const [fagVelger, setFagVelger] = useState<{ riskId: string; x: number; y: number } | null>(null)
   const [lukketGrupper, setLukketGrupper] = useState<string[]>([])
-  const [kostEditor, setKostEditor] = useState<{ riskId: string; anker: DOMRect } | null>(null)
-  const [vurdEditor, setVurdEditor] = useState<{ riskId: string; anker: DOMRect } | null>(null)
+  const [kostEditor, setKostEditor] = useState<{ riskId: string; anker: DOMRect; celle: Element } | null>(null)
+  const [vurdEditor, setVurdEditor] = useState<{ riskId: string; anker: DOMRect; celle: Element } | null>(null)
   const boks = useRef<HTMLDivElement>(null)
 
   const egendef2 = doc.lister.egendef2Aktiv
@@ -213,7 +213,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
       const td = boks.current?.querySelector(`tbody[data-risk="${r.id}"] td.k-${k!.key}`)
       if (!td) return
       const apne = erKost(k) ? setKostEditor : setVurdEditor
-      apne({ riskId: r.id, anker: td.getBoundingClientRect() })
+      apne({ riskId: r.id, anker: td.getBoundingClientRect(), celle: td })
       return
     }
     if (!r || !k || !k.felt) return
@@ -481,12 +481,10 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
 
   const klikkCelle = (p: Posisjon, e: React.MouseEvent) => {
     setKontekst(null)
-    // Et nytt klikk i cellen som kost- eller vurderingsvinduet ble åpnet fra, lukker vinduet i stedet for å åpne det igjen
+    // Et nytt klikk i cellen som kost- eller vurderingsvinduet ble åpnet fra, lagrer og lukker vinduet (det gjør vinduet selv)
+    // i stedet for å åpne det igjen
     const aapent = (kostEditor && { riskId: kostEditor.riskId, kol: 'fv' }) || (vurdEditor && { riskId: vurdEditor.riskId, kol: 'eksponering' })
-    if (aapent && aapent.riskId === p.riskId && aapent.kol === p.kol) {
-      lukkKost()
-      return
-    }
+    if (aapent && aapent.riskId === p.riskId && aapent.kol === p.kol) return
     if (e.detail === 2) {
       const { k, r } = hentCelle(p)
       if (k?.type === 'avkrysning' && r) {
@@ -689,12 +687,12 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
       {kostEditor &&
         (() => {
           const r = doc.risker.find((x) => x.id === kostEditor.riskId)
-          return r ? <KostEditor risk={r} anker={kostEditor.anker} onLagre={(v) => lagreKost(r.id, v)} onAvbryt={lukkKost} /> : null
+          return r ? <KostEditor risk={r} anker={kostEditor.anker} celle={kostEditor.celle} onLagre={(v) => lagreKost(r.id, v)} onAvbryt={lukkKost} /> : null
         })()}
       {vurdEditor &&
         (() => {
           const r = doc.risker.find((x) => x.id === vurdEditor.riskId)
-          return r ? <VurderingEditor risk={r} anker={vurdEditor.anker} onLagre={(v) => lagreVurdering(r.id, v)} onAvbryt={lukkKost} /> : null
+          return r ? <VurderingEditor risk={r} anker={vurdEditor.anker} celle={vurdEditor.celle} onLagre={(v) => lagreVurdering(r.id, v)} onAvbryt={lukkKost} /> : null
         })()}
       {fagVelger && (
         <FagVelger

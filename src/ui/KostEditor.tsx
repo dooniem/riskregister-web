@@ -16,15 +16,17 @@ interface Props {
   risk: Risk
   // Cellen editoren åpnes fra. Editoren legger seg under den, eller over hvis det ikke er plass.
   anker: DOMRect
+  // Cellen selv. Et nytt klikk i den lagrer.
+  celle?: Element
   start?: Felt
   onLagre: (verdier: Record<Felt, number>) => void
   onAvbryt: () => void
 }
 
 // Moderne visning: BC, ML og WC redigeres sammen i ett lite vindu, med forventet verdi regnet ut mens man skriver
-export function KostEditor({ risk: r, anker, start = 'bc', onLagre, onAvbryt }: Props) {
+export function KostEditor({ risk: r, anker, celle, start = 'bc', onLagre, onAvbryt }: Props) {
   const [tekst, setTekst] = useState<Record<Felt, string>>({ bc: r.bc ? String(r.bc) : '', ml: r.ml ? String(r.ml) : '', wc: r.wc ? String(r.wc) : '' })
-  const { boks, pos } = usePopup<HTMLDivElement>(anker, onAvbryt)
+  const { boks, pos } = usePopup<HTMLDivElement>(anker, celle, () => onLagre(tall), onAvbryt)
   const forste = useRef<HTMLInputElement>(null)
 
   const tall = { bc: parseTall(tekst.bc), ml: parseTall(tekst.ml), wc: parseTall(tekst.wc) }
