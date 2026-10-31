@@ -263,11 +263,12 @@ export function eksponeringFarge(rm: RM, e: number): { bg: string; fg: string } 
   if (!e || rm === '-') return null
   const trinn = e < 5 ? 0 : e < 9 ? 1 : e < 15 ? 2 : e < 20 ? 3 : 4
   if (rm === 'R') {
-    const bg = ['rgb(0,176,80)', 'rgb(146,208,80)', 'rgb(255,255,0)', 'rgb(255,192,0)', 'rgb(255,0,0)'][trinn]
-    return { bg, fg: trinn === 4 ? '#fff' : '#000' }
+    // Samme trinn som i Excel, men dusere farger så de ikke skriker i tabellen og matrisene
+    const bg = ['#6cbf8a', '#b5d98a', '#f3dc6b', '#f2b45c', '#e06a5f'][trinn]
+    return { bg, fg: trinn === 4 ? '#fff' : '#1d2830' }
   }
-  const bg = ['rgb(204,229,255)', 'rgb(153,204,255)', 'rgb(102,178,255)', 'rgb(0,102,204)', 'rgb(0,76,153)'][trinn]
-  return { bg, fg: trinn >= 3 ? '#fff' : '#000' }
+  const bg = ['#dbe9f8', '#b9d4f1', '#8ab6e6', '#4f86c6', '#2f5f99'][trinn]
+  return { bg, fg: trinn >= 3 ? '#fff' : '#1d2830' }
 }
 
 export function eksponeringNivaa(e: number): string {
