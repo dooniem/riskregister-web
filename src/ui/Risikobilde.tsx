@@ -6,7 +6,9 @@ import { eksponering, eksponeringFarge } from '../model'
 import type { Op } from '../ops'
 import type { SnapshotInfo, Snapshots } from '../store/backend'
 import type { Okt } from '../sync'
-import { summer } from '../view'
+import type { Visning } from '../view'
+import { iFag, summer } from '../view'
+import { FagMeny } from './Fag'
 import { StorMatrise } from './StorMatrise'
 
 type Mot = { info: SnapshotInfo; doc: Register }
@@ -28,6 +30,9 @@ interface Props {
   autoValgt: { current: boolean }
   // Øker når snapshotvinduet lukkes, så et snapshot som nettopp er tatt kommer med i listen
   oppdatert: number
+  // Fagvalget er det samme som i registeret
+  visning: Visning
+  setVisning: (f: (v: Visning) => Visning) => void
 }
 
 const dato = (iso: string) => new Date(iso).toLocaleDateString('nb-NO', { day: 'numeric', month: 'long' })
@@ -41,7 +46,7 @@ interface Endring {
 }
 
 // Risker som har fått ny eksponering, er nye eller er lukket siden snapshotet. Størst endring først.
-function endringer(naa: Risk[], mot: Register): Endring[] {
+function endringer(naa: Risk[], mot: Register, med: (r: Risk) => boolean): Endring[] {
   const gamle = new Map(mot.risker.map((r) => [r.id, r]))
   const ut: Endring[] = []
   const her = new Set<string>()
@@ -52,7 +57,7 @@ function endringer(naa: Risk[], mot: Register): Endring[] {
     else if (eksponering(g) !== eksponering(r) || g.sannsynlighet !== r.sannsynlighet || g.konsekvens !== r.konsekvens)
       ut.push({ r, fra: eksponering(g), til: eksponering(r), type: 'flyttet' })
   }
-  for (const g of mot.risker) if (aapen(g) && !her.has(g.id)) ut.push({ r: g, fra: eksponering(g), til: 0, type: 'lukket' })
+  for (const g of mot.risker) if (aapen(g) && med(g) && !her.has(g.id)) ut.push({ r: g, fra: eksponering(g), til: 0, type: 'lukket' })
   const vekt = (e: Endring) => (e.type === 'flyttet' ? Math.abs(e.til - e.fra) + 100 : e.type === 'ny' ? 50 + e.til : e.fra)
   return ut.sort((a, b) => vekt(b) - vekt(a) || a.r.nr - b.r.nr)
 }
@@ -117,12 +122,15 @@ export function Risikobilde(p: Props) {
     // Listen hentes på nytt når et nytt snapshot er valgt, så et snapshot som nettopp er tatt kommer med
   }, [p.snapshots, motId, p.oppdatert])
 
-  const naa = useMemo(() => p.doc.risker.filter(aapen), [p.doc])
+  const fag = p.visning.fag
+  const med = useMemo(() => (r: Risk) => aapen(r) && iFag(r, p.doc, fag), [p.doc, fag])
+  const naa = useMemo(() => p.doc.risker.filter(med), [p.doc, med])
   const sumNaa = { R: summer(naa, 'R'), M: summer(naa, 'M') }
-  const gamle = p.mot ? p.mot.doc.risker.filter(aapen) : null
+  const gamle = p.mot ? p.mot.doc.risker.filter(med) : null
   const sumFor = gamle && { R: summer(gamle, 'R'), M: summer(gamle, 'M') }
-  const endr = useMemo(() => (p.mot ? endringer(naa, p.mot.doc) : []), [naa, p.mot])
-  const motRisker = useMemo(() => (p.mot ? new Map(p.mot.doc.risker.map((r) => [r.id, r])) : undefined), [p.mot])
+  const endr = useMemo(() => (p.mot ? endringer(naa, p.mot.doc, med) : []), [naa, p.mot, med])
+  // Bare riskene i valgte fag, så risker i andre fag ikke vises som borte siden snapshotet
+  const motRisker = useMemo(() => (p.mot ? new Map(p.mot.doc.risker.filter((r) => iFag(r, p.doc, fag)).map((r) => [r.id, r])) : undefined), [p.mot, p.doc, fag])
 
   const delta = (naa: number, foer: number | undefined, merBra: boolean) => {
     if (foer === undefined) return null
@@ -149,8 +157,9 @@ export function Risikobilde(p: Props) {
               : 'Slik står prosjektet nå. Velg et snapshot for å se hva som har endret seg.'}
           </p>
         </div>
-        {p.snapshots && (
-          <div className="rb-velg">
+        <div className="rb-velg">
+          <FagMeny doc={p.doc} visning={{ ...p.visning, fane: 'aapne' }} setVisning={p.setVisning} endre={p.endre} kanSkrive={p.kanSkrive} />
+          {p.snapshots && (
             <label className="velg">
               Sammenlign med
               <select value={p.mot?.info.id ?? ''} disabled={henter || !liste} onChange={(e) => void velg(e.target.value)}>
@@ -162,13 +171,13 @@ export function Risikobilde(p: Props) {
                 ))}
               </select>
             </label>
-            {p.kanSkrive && (
-              <button className="knapp" onClick={p.taSnapshot}>
-                Snapshots…
-              </button>
-            )}
-          </div>
-        )}
+          )}
+          {p.snapshots && p.kanSkrive && (
+            <button className="knapp" onClick={p.taSnapshot}>
+              Snapshots…
+            </button>
+          )}
+        </div>
       </div>
       {feil && <div className="banner feil">{feil}</div>}
 
@@ -191,13 +200,13 @@ export function Risikobilde(p: Props) {
         <div className="rb-kolonne">
           <section className="kort rb-kost">
             <h3>Forventet kost</h3>
-            <p className="rb-under">Forventet verdi i 1000 kr, alle åpne poster{sumFor ? `. Endring siden ${dato(p.mot!.info.tidspunkt)}.` : '.'}</p>
+            <p className="rb-under">Forventet verdi i 1000 kr, {fag?.length ? 'åpne poster i valgte fag' : 'alle åpne poster'}{sumFor ? `. Endring siden ${dato(p.mot!.info.tidspunkt)}.` : '.'}</p>
             <dl>
               <div>
                 <dt>
                   Risiko
                   <small>
-                    {sumNaa.R.antall} poster, verst tenkelig {formatTall(sumNaa.R.wc)}
+                    {sumNaa.R.antall} {sumNaa.R.antall === 1 ? 'post' : 'poster'}, verst tenkelig {formatTall(sumNaa.R.wc)}
                   </small>
                 </dt>
                 <dd>{formatTall(sumNaa.R.fv)}</dd>
@@ -207,7 +216,7 @@ export function Risikobilde(p: Props) {
                 <dt>
                   Mulighet
                   <small>
-                    {sumNaa.M.antall} poster, best tenkelig {formatTall(sumNaa.M.wc)}
+                    {sumNaa.M.antall} {sumNaa.M.antall === 1 ? 'post' : 'poster'}, best tenkelig {formatTall(sumNaa.M.wc)}
                   </small>
                 </dt>
                 <dd>{formatTall(sumNaa.M.fv)}</dd>

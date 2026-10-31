@@ -456,6 +456,8 @@ export function RegisterView({ okt, tilbake }: Props) {
             taSnapshot={() => setSnapshots('liste')}
             autoValgt={autoSnapshot}
             oppdatert={snapshotsLukket}
+            visning={visning}
+            setVisning={setVisning}
           />
         ) : (
         <>

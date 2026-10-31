@@ -111,11 +111,16 @@ export function iFane(r: Risk, fane: Fane) {
   return fane === 'lukkede' ? r.status === 'Lukket' : r.status !== 'Lukket'
 }
 
+// Om risken hører til et av de valgte fagene (ingen valgt = alle). Risker med et fag som ikke finnes lenger regnes som uten fag.
+export function iFag(r: Risk, doc: Register, fag?: string[]): boolean {
+  return !fag?.length || fag.includes(doc.lister.fag.some((f) => f.id === r.fag) ? r.fag! : UTEN_FAG)
+}
+
 export function filtrer(doc: Register, v: Visning, ignorer?: string): Risk[] {
   const sok = v.sok.trim().toLowerCase()
   return doc.risker.filter((r) => {
     if (!iFane(r, v.fane)) return false
-    if (v.fag?.length && !v.fag.includes(doc.lister.fag.some((f) => f.id === r.fag) ? r.fag! : UTEN_FAG)) return false
+    if (!iFag(r, doc, v.fag)) return false
     if (sok) {
       const hay = [r.nr, r.aarsak, r.hendelse, r.konsekvenser, r.eier, r.kategori, r.egendef, r.egendef2, ...r.tiltak.flatMap((t) => [t.tekst, t.eier, t.beskrivelse])]
         .join(' ')
