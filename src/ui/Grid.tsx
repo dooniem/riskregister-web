@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Kolonne } from '../columns'
-import { GRUPPER, KOLONNER, editorTekst, formatEndring, formatTall, tolkInput, visTekst } from '../columns'
+import { GRUPPER, KOLONNER, editorTekst, formatDato, formatEndring, formatTall, tolkInput, visTekst } from '../columns'
 import type { Register, Risk, Tiltak } from '../model'
 import { KONSEKVENS, SANNSYNLIGHET, eksponering, eksponeringFarge, fagFarge, fv, nyRisk, nyttTiltak } from '../model'
 import type { Op, RiskFelt, TiltakFelt } from '../ops'
@@ -15,6 +15,7 @@ import { KostEditor } from './KostEditor'
 import { VurderingEditor } from './VurderingEditor'
 import { Laas } from './Ikoner'
 import { RiskInfo } from './RiskInfo'
+import { initialer } from './Personer'
 
 interface Posisjon {
   riskId: string
@@ -61,6 +62,9 @@ const ENKEL_GRUPPE = ['kost', 'vurdering']
 
 // Bredder i moderne utseende, der cellene viser mer enn tallet
 const MODERNE_BREDDE: Record<string, number> = { fv: 132, eksponering: 128, tilSkarisk: 76 }
+// Bredder i moderne utseende når gruppen er slått sammen og cellen viser også det som er skjult
+const SAMMEN_BREDDE: Record<string, number> = { tiltak: 400, eier: 190 }
+const SAMMEN_TITTEL: Record<string, string> = { tiltak: 'Tiltak, eier og frist', eier: 'Risikoeier og kategori' }
 
 export function synligeKolonner(v: Visning, egendef2Aktiv = false, moderne = false): Kolonne[] {
   return KOLONNER.filter((k) => {
@@ -90,7 +94,12 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
 
   const egendef2 = doc.lister.egendef2Aktiv
   const kolonner = useMemo(() => synligeKolonner(visning, egendef2, moderne), [visning, egendef2, moderne])
-  const bredde = useCallback((k: Kolonne) => visning.bredder[k.key] ?? (moderne ? MODERNE_BREDDE[k.key] : undefined) ?? k.bredde, [visning.bredder, moderne])
+  // Gruppene som er slått sammen. I moderne utseende viser da hovedkolonnen mer av det som er skjult.
+  const sammen = useMemo(() => (moderne ? visning.skjulteGrupper : []), [moderne, visning.skjulteGrupper])
+  const bredde = useCallback(
+    (k: Kolonne) => visning.bredder[k.key] ?? (sammen.includes(k.gruppe) ? SAMMEN_BREDDE[k.key] : undefined) ?? (moderne ? MODERNE_BREDDE[k.key] : undefined) ?? k.bredde,
+    [visning.bredder, moderne, sammen],
+  )
 
   const risker = useMemo(() => sorter(filtrer(doc, visning), visning.sortering), [doc, visning])
   // Felles skala for kostspennet i moderne utseende, så spennene kan sammenlignes mellom riskene
@@ -573,7 +582,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                 onClick={(e) => klikkOverskrift(k, e)}
                 title={(KOST_NAVN[k.key] ? KOST_NAVN[k.key] + '. ' : '') + 'Klikk for å sortere. Shift+klikk for å sortere på flere kolonner.'}
               >
-                <span className="kol-tittel">{k.tittel(doc)}</span>
+                <span className="kol-tittel">{(sammen.includes(k.gruppe) && SAMMEN_TITTEL[k.key]) || k.tittel(doc)}</span>
                 {sortIkon(k.key)}
                 <button
                   className={'filterknapp ' + (harFilter(k.key) ? 'aktiv' : '')}
@@ -634,6 +643,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   kanSkrive={kanSkrive}
                   mot={mot}
                   moderne={moderne}
+                  sammen={sammen}
                   kostMaks={kostMaks}
                   byttSkarisk={byttSkarisk}
                 />
@@ -762,6 +772,7 @@ interface RaderProps {
   fagVelger: (riskId: string, e: React.MouseEvent) => void
   mot?: Map<string, Risk>
   moderne: boolean
+  sammen: string[]
   kostMaks: number
   byttSkarisk: (riskId: string) => void
 }
@@ -819,6 +830,7 @@ function RiskRader(p: RaderProps) {
       erAktiv ? 'aktiv' : '',
       !k.felt ? 'lesecelle' : '',
       k.nivaa === 'tiltak' && rad > 0 ? 'tiltak-fortsatt' : '',
+      p.sammen.includes(k.gruppe) && GRUPPER.find((g) => g.key === k.gruppe)?.hoved === k.key ? 'samlet' : '',
     ].join(' ')
     const span = k.nivaa === 'risk' ? n : 1
     let innhold: React.ReactNode = visTekst(k, r, t)
@@ -876,6 +888,9 @@ function RiskRader(p: RaderProps) {
       )
     if (k.key === 'eksponering' && p.moderne) innhold = <VurderingCelle r={r} kanSkrive={p.kanSkrive} />
     if (k.nivaa === 'tiltak' && !t && k.key === 'tiltak' && p.kanSkrive) innhold = <span className="plassholder">+ legg til tiltak</span>
+    const samletTiltak = k.key === 'tiltak' && t && p.sammen.includes('tiltak')
+    if (samletTiltak) innhold = <TiltakSamlet t={t} doc={p.doc} />
+    if (k.key === 'eier' && p.sammen.includes('eierskap')) innhold = <EierSamlet r={r} doc={p.doc} />
     if (k.key === 'fv') innhold = p.moderne ? <KostCelle r={r} maks={p.kostMaks} /> : formatTall(fv(r))
     // Tomme celler får et usynlig tegn, så en ny tiltakslinje er like høy som en med én linje tekst
     if (innhold === '' || innhold == null) innhold = '\u200b'
@@ -889,7 +904,7 @@ function RiskRader(p: RaderProps) {
         onMouseDown={(ev) => ev.button === 0 && p.klikk(pos, ev)}
         onContextMenu={(ev) => p.kontekst(pos, ev)}
       >
-        {k.type === 'langtekst' ? <div className="tekstklipp">{innhold}</div> : innhold}
+        {k.type === 'langtekst' && !samletTiltak ? <div className="tekstklipp">{innhold}</div> : innhold}
         {endring(k)}
         {andreHer.map((x) => (
           <span key={x.brukerId} className="navnelapp" style={{ background: x.farge }}>
@@ -943,6 +958,58 @@ function RiskRader(p: RaderProps) {
   )
 }
 
+const forfalt = (t: Tiltak) => !!t.frist && t.status !== 'Utført' && t.status !== 'Utføres ikke' && t.frist < new Date().toISOString().slice(0, 10)
+const MND = ['jan.', 'feb.', 'mars', 'apr.', 'mai', 'juni', 'juli', 'aug.', 'sep.', 'okt.', 'nov.', 'des.']
+// Kort dato som «30. nov.», med år bare når det ikke er i år
+function kortDato(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  if (!y || !m || !d) return iso
+  return `${d}. ${MND[m - 1]}` + (y !== new Date().getFullYear() ? ` ${y}` : '')
+}
+
+// Initialene til en deltaker i en liten runding. Bruker initialene fra deltakerlisten når de finnes.
+function Initialer({ navn, doc }: { navn: string; doc: Register }) {
+  const d = doc.deltakere.find((x) => x.navn === navn)
+  const tekst = d?.initialer || initialer(navn)
+  return (
+    <span className="initialer" title={navn}>
+      {tekst}
+    </span>
+  )
+}
+
+// Moderne utseende med tiltaksgruppen slått sammen: status som prikk, teksten, eier og frist i samme celle
+function TiltakSamlet({ t, doc }: { t: Tiltak; doc: Register }) {
+  const status = t.status || 'Ikke startet'
+  const ferdig = status === 'Utført' || status === 'Utføres ikke'
+  return (
+    <div className={'tiltak-samlet' + (ferdig ? ' ferdig' : '')}>
+      <span className={'status-prikk ts-' + status.replace(/\s/g, '-').toLowerCase()} title={`Status: ${status}`} aria-label={`Status: ${status}`} role="img" />
+      <span className="tiltak-samlet-tekst">{t.tekst || <span className="plassholder">Uten tekst</span>}</span>
+      {t.eier ? <Initialer navn={t.eier} doc={doc} /> : <span />}
+      <span className={'tiltak-samlet-frist' + (forfalt(t) ? ' forfalt' : '')} title={t.frist ? 'Frist ' + formatDato(t.frist) + (forfalt(t) ? ', forfalt' : '') : 'Ingen frist'}>
+        {t.frist ? kortDato(t.frist) : ''}
+      </span>
+    </div>
+  )
+}
+
+// Moderne utseende med eierskapsgruppen slått sammen: initialer og navn, med kategorien under
+function EierSamlet({ r, doc }: { r: Risk; doc: Register }) {
+  if (!r.eier && !r.kategori) return null
+  return (
+    <div className="eier-samlet">
+      {r.eier && (
+        <span className="eier-samlet-navn">
+          <Initialer navn={r.eier} doc={doc} />
+          {r.eier}
+        </span>
+      )}
+      {r.kategori && <span className="eier-samlet-kategori">{r.kategori}</span>}
+    </div>
+  )
+}
+
 // Moderne utseende: eksponeringen som et farget merke, med sannsynlighet og konsekvens ved siden av
 function VurderingCelle({ r, kanSkrive }: { r: Risk; kanSkrive: boolean }) {
   const e = eksponering(r)
@@ -962,8 +1029,12 @@ function VurderingCelle({ r, kanSkrive }: { r: Risk; kanSkrive: boolean }) {
         {e || '–'}
       </span>
       <span className="vurd-sk">
-        <span>S{r.sannsynlighet || '–'}</span>
-        <span>K{r.konsekvens || '–'}</span>
+        <span>
+          S<b>{r.sannsynlighet || '–'}</b>
+        </span>
+        <span>
+          K<b>{r.konsekvens || '–'}</b>
+        </span>
       </span>
     </span>
   )
