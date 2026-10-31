@@ -48,4 +48,5 @@ Tilkobling til Entra ID settes på én av disse måtene (første som finnes bruk
 | `src/sammenlign.ts` | Sammenligning av registeret med et snapshot |
 | `src/ui/Grid.tsx` | Excel-lik tabell |
 | `src/ui/KostEditor.tsx` | Redigering av BC, ML og WC samlet, i moderne utseende |
+| `src/ui/Risikobilde.tsx` | Siden Risikobilde i moderne utseende: stor matrise, forventet kost og største endringer siden et snapshot |
 | `src/excel.ts` | Import fra XLSM og eksport til Excel |

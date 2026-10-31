@@ -27,6 +27,7 @@ import { Prosjektpanel } from './Prosjektpanel'
 import { RaadataDialog } from './Raadata'
 import { SnapshotDialog } from './Snapshots'
 import { StorMatrise } from './StorMatrise'
+import { Risikobilde } from './Risikobilde'
 import { PersonKontekst, deltakerOp, type Personer } from './Personer'
 import { DemoKatalog, GraphKatalog } from '../store/katalog'
 import type { SnapshotInfo } from '../store/backend'
@@ -122,6 +123,13 @@ export function RegisterView({ okt, tilbake }: Props) {
   const [stil, setStilRaw] = useState<Stil>(lesStil)
   const setStil = (s: Stil) => (setStilRaw(s), lagreStil(s))
   const moderne = stil === 'moderne'
+  // Moderne visning har to sider: registeret og risikobildet
+  const [side, setSide] = useState<{ navn: 'register' | 'risikobilde'; rm: 'R' | 'M' }>({ navn: 'register', rm: 'R' })
+  const paaRisikobilde = moderne && side.navn === 'risikobilde'
+  const autoSnapshot = useRef(false)
+  const [snapshotsLukket, setSnapshotsLukket] = useState(0)
+  // I moderne visning åpner matrisen seg som siden Risikobilde, i klassisk som et vindu over registeret
+  const aapneMatrise = (rm: 'R' | 'M') => (moderne ? setSide({ navn: 'risikobilde', rm }) : setStorMatrise(rm))
 
   const setVisning = useCallback((f: (v: Visning) => Visning) => setVisningRaw((v) => f(v)), [])
   useEffect(() => {
@@ -241,6 +249,20 @@ export function RegisterView({ okt, tilbake }: Props) {
               {b.snapshot ? ` · snapshot «${b.snapshot.navn}»` : !b.kanSkrive && ' · bare lesetilgang'}
             </div>
           </div>
+          {moderne && (
+            <nav className="sidevalg" aria-label="Sider">
+              {(
+                [
+                  ['risikobilde', 'Risikobilde'],
+                  ['register', 'Register'],
+                ] as const
+              ).map(([n, t]) => (
+                <button key={n} className={side.navn === n ? 'valgt' : ''} aria-current={side.navn === n ? 'page' : undefined} onClick={() => setSide((s) => ({ ...s, navn: n }))}>
+                  {t}
+                </button>
+              ))}
+            </nav>
+          )}
           <div className={'lagrestatus ' + visStatus} title={snap.feil}>
             <span className="prikk" /> {statusTekst}
           </div>
@@ -307,7 +329,7 @@ export function RegisterView({ okt, tilbake }: Props) {
                     </button>
                   </>
                 )}
-                <button onClick={() => setStorMatrise('R')}>Stor risikomatrise…</button>
+                {!moderne && <button onClick={() => setStorMatrise('R')}>Stor risikomatrise…</button>}
                 {b.lager && <button onClick={() => setRaadata(true)}>Vis rådata (listene)…</button>}
                 {b.lager instanceof GraphLister && (
                   <button
@@ -400,14 +422,16 @@ export function RegisterView({ okt, tilbake }: Props) {
           </div>
         )}
 
-        {mot && (
+        {mot && !paaRisikobilde && (
           <div className="banner info sammenligner">
             <span title="Endringer i BC, ML, WC, FV og summene vises i tabellen og oversikten, og som piler i risikomatrisen.">
               Sammenligner med snapshot <b>«{mot.info.navn}»</b> ({new Date(mot.info.tidspunkt).toLocaleString('nb-NO', { dateStyle: 'short', timeStyle: 'short' })})
             </span>
-            <button className="knapp liten" onClick={() => setStorMatrise('R')}>
-              Risikomatrise
-            </button>
+            {!paaRisikobilde && (
+              <button className="knapp liten" onClick={() => aapneMatrise('R')}>
+                {moderne ? 'Risikobilde' : 'Risikomatrise'}
+              </button>
+            )}
             <button className="knapp liten" onClick={() => setSnapshots('endringer')}>
               Endringsliste
             </button>
@@ -417,7 +441,25 @@ export function RegisterView({ okt, tilbake }: Props) {
           </div>
         )}
 
-        {visning.visOversikt && <Oversikt doc={doc} visning={visning} setVisning={setVisning} mot={mot?.doc} aapneMatrise={setStorMatrise} moderne={moderne} />}
+        {paaRisikobilde ? (
+          <Risikobilde
+            doc={doc}
+            rm={side.rm}
+            mot={mot}
+            setMot={setMot}
+            snapshots={b.snapshot ? undefined : b.snapshots}
+            okt={okt}
+            endre={endre}
+            kanSkrive={b.kanSkrive}
+            detalj={(id, lukk) => <Detaljpanel okt={okt} doc={doc} riskId={id} endre={endre} lukk={lukk} kanSkrive={b.kanSkrive} />}
+            melding={melding}
+            taSnapshot={() => setSnapshots('liste')}
+            autoValgt={autoSnapshot}
+            oppdatert={snapshotsLukket}
+          />
+        ) : (
+        <>
+        {visning.visOversikt && <Oversikt doc={doc} visning={visning} setVisning={setVisning} mot={mot?.doc} aapneMatrise={aapneMatrise} moderne={moderne} />}
 
         <div className="verktoylinje">
           <nav className="faner">
@@ -523,15 +565,17 @@ export function RegisterView({ okt, tilbake }: Props) {
           )}
           {detalj && <Detaljpanel okt={okt} doc={doc} riskId={detalj} endre={endre} lukk={() => setDetalj(null)} kanSkrive={b.kanSkrive} />}
         </div>
+        </>
+        )}
 
         {snapshots && b.snapshots && (
           <SnapshotDialog
             snapshots={b.snapshots}
             doc={doc}
             kanSkrive={b.kanSkrive}
-            lukk={() => setSnapshots(false)}
+            lukk={() => (setSnapshots(false), setSnapshotsLukket((n) => n + 1))}
             melding={melding}
-            aapneRisk={setDetalj}
+            aapneRisk={(id) => (setSide((x) => ({ ...x, navn: 'register' })), setDetalj(id))}
             aktiver={setMot}
             start={snapshots === 'endringer' && mot ? mot : undefined}
           />

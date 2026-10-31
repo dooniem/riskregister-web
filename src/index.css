@@ -3623,3 +3623,268 @@ td.aktiv .tiltak-samlet-tekst {
   font-weight: 600;
   margin-left: 1px;
 }
+
+/* Tomme ruter i matrisene er lysere, så rutene med risker trer fram */
+.srute.tom {
+  opacity: 0.5;
+}
+
+/* Moderne visning: sidevalg i toppfeltet (Risikobilde og Register) */
+.sidevalg {
+  display: flex;
+  align-self: stretch;
+  gap: 4px;
+  margin: -10px 0 -10px 24px;
+}
+.sidevalg button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  padding: 0 14px;
+  font: inherit;
+  font-weight: 500;
+  color: var(--dempet);
+  cursor: pointer;
+}
+.sidevalg button:hover {
+  color: var(--tekst);
+}
+.sidevalg button.valgt {
+  color: var(--tekst);
+  border-bottom-color: var(--aksent);
+}
+.stil-moderne .toppfelt .tittel {
+  flex: 0 1 auto;
+}
+.stil-moderne .toppfelt .lagrestatus {
+  margin-left: auto;
+}
+
+/* Siden Risikobilde */
+.risikobilde {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  overflow: auto;
+  flex: 1;
+}
+.rb-hode {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.rb-hode h2 {
+  font-family: var(--kondensert);
+  font-size: 24px;
+  margin: 0;
+}
+.rb-hode p {
+  margin: 2px 0 0;
+  color: var(--dempet);
+}
+.rb-velg {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.rb-velg select {
+  min-height: 34px;
+  background: var(--flate);
+}
+.rb-rutenett {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.rb-kolonne {
+  display: grid;
+  gap: 16px;
+}
+.risikobilde .kort {
+  padding: 18px 22px;
+  margin: 0;
+  border-radius: 10px;
+}
+.risikobilde h3 {
+  font-family: var(--kondensert);
+  font-size: 18px;
+  margin: 0;
+}
+.rb-under {
+  margin: 2px 0 14px;
+  color: var(--dempet);
+  font-size: 14px;
+}
+
+/* Matrisen som en del av siden */
+.stormatrise.inline {
+  display: flex;
+  flex-direction: column;
+}
+.stormatrise.inline > header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.stormatrise.inline > header h2 {
+  font-family: var(--kondensert);
+  font-size: 18px;
+  margin: 0;
+}
+.stormatrise.inline > header .faner {
+  margin-left: auto;
+}
+.stormatrise.inline .faner .teller {
+  margin-left: 6px;
+}
+.stormatrise.inline .modal-innhold {
+  padding: 0;
+  overflow: visible;
+}
+.stormatrise.inline {
+  position: relative;
+}
+/* Infokortet legger seg over høyre del av matrisen, så matrisen beholder størrelsen */
+.stormatrise.inline .stormatrise-side {
+  position: absolute;
+  top: 64px;
+  right: 12px;
+  bottom: 12px;
+  width: 360px;
+  background: var(--flate);
+  border: 1px solid var(--linje-sterk);
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(29, 40, 48, 0.12);
+  z-index: 5;
+}
+@media (max-width: 760px) {
+  .stormatrise.inline .stormatrise-side {
+    position: static;
+    width: auto;
+    margin-top: 12px;
+  }
+}
+.stormatrise.inline .srute {
+  min-height: 78px;
+  border-color: transparent;
+  border-radius: 4px;
+}
+
+/* Forventet kost */
+.rb-kost dl {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+.rb-kost dl > div {
+  display: grid;
+  grid-template-columns: 1fr auto 80px;
+  gap: 16px;
+  align-items: baseline;
+}
+.rb-kost dl > div.netto {
+  border-top: 1px solid var(--linje);
+  padding-top: 12px;
+}
+.rb-kost dt small {
+  display: block;
+  font-size: 12px;
+  color: var(--dempet);
+}
+.rb-kost dd {
+  margin: 0;
+  font-family: var(--kondensert);
+  font-weight: 600;
+  font-size: 28px;
+  line-height: 1.1;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.rb-delta {
+  font-size: 13px;
+  font-weight: 500;
+  text-align: right;
+  color: var(--dempet);
+}
+.rb-delta.verre {
+  color: #b42318;
+}
+.rb-delta.bedre {
+  color: #2b7a4b;
+}
+
+/* Største endringer */
+.rb-endringer ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 520px;
+  overflow: auto;
+}
+.rb-endringer li + li {
+  border-top: 1px solid var(--linje);
+}
+.rb-endring {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 4px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  color: var(--tekst);
+  cursor: pointer;
+  border-radius: 6px;
+}
+.rb-endring:hover:not(:disabled) {
+  background: var(--flate-2);
+}
+.rb-endring:disabled {
+  cursor: default;
+  color: var(--dempet);
+}
+.rb-nr {
+  font-family: var(--kondensert);
+  font-weight: 600;
+  color: var(--dempet);
+}
+.rb-fra-til {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.rb-fra-til .eksp-merke {
+  min-width: 26px;
+  height: 22px;
+  font-size: 12px;
+}
+.rb-pil {
+  font-size: 12px;
+  color: var(--dempet);
+}
+.rb-ny {
+  font-size: 12px;
+  color: var(--dempet);
+}
+.rb-tom p {
+  color: var(--dempet);
+  margin: 6px 0 14px;
+}
+
+@media (max-width: 1000px) {
+  .rb-rutenett {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sidevalg {
+    margin-left: 8px;
+  }
+}

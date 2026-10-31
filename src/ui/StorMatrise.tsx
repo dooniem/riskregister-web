@@ -18,6 +18,10 @@ interface Props {
   detalj: (riskId: string, lukk: () => void) => ReactNode
   melding: (tekst: string) => void
   lukk: () => void
+  // Som en del av siden Risikobilde (moderne visning) i stedet for et vindu over registeret
+  inline?: boolean
+  // Risken som skal vises i sidefeltet, f.eks. når den velges i endringslisten ved siden av
+  fokus?: { riskId: string; n: number }
 }
 
 const S = [5, 4, 3, 2, 1]
@@ -43,10 +47,21 @@ function bevegelse(r: Risk, g: Risk | undefined, rm: 'R' | 'M') {
 // for å endre sannsynlighet og konsekvens. Med et aktivt snapshot viser piler hvordan riskene har flyttet seg siden.
 export function StorMatrise(p: Props) {
   const [rm, setRm] = useState(p.rm)
+  // Når siden rundt ber om en annen matrise eller en annen risk, følger matrisen etter
+  const [fra, setFra] = useState({ rm: p.rm, fokus: p.fokus })
+  if (fra.rm !== p.rm || fra.fokus !== p.fokus) {
+    setFra({ rm: p.rm, fokus: p.fokus })
+    if (fra.rm !== p.rm) setRm(p.rm)
+  }
   const [valgt, setValgt] = useState<string | null>(null)
   const [over, setOver] = useState<string | null>(null)
   // Risken som vises i sidefeltet: som infokort, eller med hele risken (samme panel som i registeret)
   const [side, setSide] = useState<{ riskId: string; hel: boolean } | null>(null)
+  if (p.fokus && fra.fokus !== p.fokus) {
+    const r = p.doc.risker.find((x) => x.id === p.fokus!.riskId)
+    if (r && (r.rm === 'R' || r.rm === 'M')) setRm(r.rm)
+    setSide({ riskId: p.fokus.riskId, hel: false })
+  }
   const sideRisk = side && p.doc.risker.find((r) => r.id === side.riskId)
   const risker = p.risker.filter((r) => r.rm === rm)
   const ikkeVurdert = risker.filter((r) => !vurdert(r))
@@ -142,22 +157,19 @@ export function StorMatrise(p: Props) {
     )
   }
 
-  return (
-    <Modal className={'stormatrise' + (sideRisk ? ' med-side' : '')} lukk={p.lukk}>
-      <header>
-        <ModalTittel>{rm === 'R' ? 'Risikomatrise' : 'Mulighetsmatrise'}</ModalTittel>
-        <nav className="faner">
-          <button className={rm === 'R' ? 'valgt' : ''} onClick={() => setRm('R')}>
-            Risiko
-          </button>
-          <button className={rm === 'M' ? 'valgt' : ''} onClick={() => setRm('M')}>
-            Mulighet
-          </button>
-        </nav>
-        <button className="ikonknapp" onClick={p.lukk} aria-label="Lukk" title="Lukk">
-          ✕
-        </button>
-      </header>
+  const antallRm = (x: 'R' | 'M') => p.risker.filter((r) => r.rm === x).length
+  const faner = (
+    <nav className="faner">
+      <button className={rm === 'R' ? 'valgt' : ''} onClick={() => setRm('R')}>
+        Risiko{p.inline && <span className="teller">{antallRm('R')}</span>}
+      </button>
+      <button className={rm === 'M' ? 'valgt' : ''} onClick={() => setRm('M')}>
+        Mulighet{p.inline && <span className="teller">{antallRm('M')}</span>}
+      </button>
+    </nav>
+  )
+  const innhold = (
+    <>
       <div
         className="stormatrise-innhold"
         onKeyDown={(e) => {
@@ -175,9 +187,9 @@ export function StorMatrise(p: Props) {
           {p.mot && (
             <>
               {' '}
-              Pilene viser hvordan riskene har flyttet seg siden snapshotet «{p.mot.navn}»:{' '}
+              Den lille pilen på en risk viser hvilken vei den har flyttet seg siden snapshotet «{p.mot.navn}»:{' '}
               <span className="mpil-forklaring bedre">grønn</span> er bedre, <span className="mpil-forklaring verre">rød</span> er verre,{' '}
-              <span className="mpil-forklaring lik">gul</span> er lik eksponering. Risker uten pil har ikke flyttet seg.
+              <span className="mpil-forklaring lik">gul</span> er lik eksponering. Risker uten pil har ikke flyttet seg, og «ny» er lagt til etter snapshotet.
             </>
           )}
         </p>
@@ -198,12 +210,13 @@ export function StorMatrise(p: Props) {
                 {K.map((k) => {
                   const f = eksponeringFarge(rm, s * k)
                   const id = `${s}-${k}`
+                  const her = risker.filter((r) => r.sannsynlighet === s && r.konsekvens === k)
                   return (
-                    <div key={k} className={'srute' + (over === id ? ' over' : '') + (valgt ? ' kan-slippe' : '')} style={{ background: f?.bg }} {...slippMaal(id, s, k)}>
+                    <div key={k} className={'srute' + (her.length ? '' : ' tom') + (over === id ? ' over' : '') + (valgt ? ' kan-slippe' : '')} style={{ background: f?.bg }} {...slippMaal(id, s, k)}>
                       <span className="sverdi" style={{ color: f?.fg }}>
                         {s * k}
                       </span>
-                      {risker.filter((r) => r.sannsynlighet === s && r.konsekvens === k).map(boble)}
+                      {her.map(boble)}
                     </div>
                   )
                 })}
@@ -257,6 +270,28 @@ export function StorMatrise(p: Props) {
           />
         ))}
       </div>
+    </>
+  )
+  if (p.inline)
+    return (
+      <section className={'stormatrise inline kort' + (sideRisk ? ' med-side' : '')}>
+        <header>
+          <h2>{rm === 'R' ? 'Risikomatrise' : 'Mulighetsmatrise'}</h2>
+          {faner}
+        </header>
+        {innhold}
+      </section>
+    )
+  return (
+    <Modal className={'stormatrise' + (sideRisk ? ' med-side' : '')} lukk={p.lukk}>
+      <header>
+        <ModalTittel>{rm === 'R' ? 'Risikomatrise' : 'Mulighetsmatrise'}</ModalTittel>
+        {faner}
+        <button className="ikonknapp" onClick={p.lukk} aria-label="Lukk" title="Lukk">
+          ✕
+        </button>
+      </header>
+      {innhold}
     </Modal>
   )
 }
