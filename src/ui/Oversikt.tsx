@@ -65,9 +65,9 @@ export function Oversikt({ doc, visning, setVisning, mot, aapneMatrise, moderne 
           <tr>
             <th />
             <th>Antall</th>
-            <th title="Best case">{moderne ? 'Best' : 'BC'}</th>
-            <th title="Most likely">{moderne ? 'Mest sannsynlig' : 'ML'}</th>
-            <th title="Worst case">{moderne ? 'Verst' : 'WC'}</th>
+            <th title="Best case" className="k-bc">{moderne ? 'Best' : 'BC'}</th>
+            <th title="Most likely" className="k-ml">{moderne ? 'Mest sannsynlig' : 'ML'}</th>
+            <th title="Worst case" className="k-wc">{moderne ? 'Verst' : 'WC'}</th>
             <th title="Forventet verdi">{moderne ? 'Forventet' : 'FV'}</th>
           </tr>
         </thead>
