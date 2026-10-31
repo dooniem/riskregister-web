@@ -481,6 +481,12 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
 
   const klikkCelle = (p: Posisjon, e: React.MouseEvent) => {
     setKontekst(null)
+    // Et nytt klikk i cellen som kost- eller vurderingsvinduet ble åpnet fra, lukker vinduet i stedet for å åpne det igjen
+    const aapent = (kostEditor && { riskId: kostEditor.riskId, kol: 'fv' }) || (vurdEditor && { riskId: vurdEditor.riskId, kol: 'eksponering' })
+    if (aapent && aapent.riskId === p.riskId && aapent.kol === p.kol) {
+      lukkKost()
+      return
+    }
     if (e.detail === 2) {
       const { k, r } = hentCelle(p)
       if (k?.type === 'avkrysning' && r) {
