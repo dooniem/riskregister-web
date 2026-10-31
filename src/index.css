@@ -2653,3 +2653,512 @@ td .valgpil.synlig {
 .grid td.rm-- {
   vertical-align: middle;
 }
+
+/* ---- Utseende-valget i Mer-menyen ---- */
+.meny-gruppe {
+  display: flex;
+  flex-direction: column;
+}
+.meny-gruppe-tittel {
+  font-size: 12px;
+  color: var(--dempet);
+  padding: 4px 10px 2px;
+}
+.meny-valg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 7px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.meny-valg:hover {
+  background: var(--aksent-lys);
+}
+.meny-valg .radio {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid var(--linje-sterk);
+  flex: none;
+}
+.meny-valg.valgt .radio {
+  border: 4px solid var(--aksent);
+}
+
+/* ---- Moderne utseende ----
+   Samme oppbygning og funksjoner som det klassiske, men lysere topplinje, én lav oversikt,
+   tynnere linjer i tabellen og merker i stedet for fylte celler. Slås på under Mer > Utseende. */
+.stil-moderne {
+  --bg: #eceee9;
+  --flate: #ffffff;
+  --flate-2: #f6f7f4;
+  --tekst: #1d2830;
+  --dempet: #56636c;
+  --linje: rgba(29, 40, 48, 0.11);
+  --linje-sterk: rgba(29, 40, 48, 0.2);
+  --hode: #f6f7f4;
+  --hode-gruppe: #ffffff;
+  --aksent: #1c4e80;
+  --aksent-lys: #e3ecf5;
+  --skygge: 0 1px 3px rgba(29, 40, 48, 0.06);
+  --kondensert: 'Barlow Semi Condensed', 'Barlow', 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Barlow', 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  background: var(--bg);
+  color: var(--tekst);
+}
+.stil-moderne .knapp {
+  border-radius: 6px;
+  font-weight: 500;
+  min-height: 34px;
+}
+.stil-moderne .knapp.primær:hover {
+  background: #163f68;
+}
+
+/* Topplinje: hvit i stedet for mørk blå */
+.stil-moderne .toppfelt {
+  background: var(--flate);
+  color: var(--tekst);
+  border-bottom: 1px solid var(--linje);
+  padding: 10px 20px;
+}
+.stil-moderne .toppfelt h1 {
+  font-family: var(--kondensert);
+  font-size: 20px;
+}
+.stil-moderne .toppfelt .knapp,
+.stil-moderne .toppfelt .knapp.mer-knapp {
+  background: var(--flate);
+  border-color: var(--linje-sterk);
+  color: var(--tekst);
+  font-weight: 500;
+}
+.stil-moderne .toppfelt .knapp:hover,
+.stil-moderne .toppfelt .knapp.mer-knapp:hover,
+.stil-moderne .toppfelt .knapp.mer-knapp.aapen {
+  background: var(--aksent-lys);
+  border-color: var(--aksent);
+}
+.stil-moderne .toppfelt .ikonknapp {
+  color: var(--tekst);
+}
+.stil-moderne .toppfelt .ikonknapp:hover {
+  background: var(--flate-2);
+}
+.stil-moderne .undertittel {
+  color: var(--dempet);
+  opacity: 1;
+}
+.stil-moderne .undertittel a:hover {
+  color: var(--tekst);
+}
+
+/* Oversikt: kost og begge matrisene i ett lavt kort */
+.stil-moderne .oversikt {
+  padding: 16px 20px 0;
+}
+.stil-moderne .kort {
+  border-color: var(--linje);
+  box-shadow: var(--skygge);
+}
+.stil-moderne .oversikt-stripe {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 0;
+  width: 100%;
+}
+.stil-moderne .oversikt-stripe > div {
+  padding: 12px 20px;
+}
+.stil-moderne .oversikt-kost {
+  flex: 1;
+  min-width: 0;
+}
+.stil-moderne .oversikt-matrise {
+  border-left: 1px solid var(--linje);
+}
+.stil-moderne .oversikt .kort-tittel {
+  font-family: var(--kondensert);
+  font-size: 15px;
+  justify-content: flex-start;
+}
+.stil-moderne .oversikt .kort-tittel label {
+  font-family: 'Barlow', 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+  margin-left: 12px;
+}
+.stil-moderne table.summer thead th {
+  font-size: 12px;
+  font-weight: 500;
+  border-bottom: 0;
+}
+.stil-moderne table.summer th,
+.stil-moderne table.summer td {
+  padding: 2px 14px;
+}
+.stil-moderne table.summer tbody th {
+  padding-left: 0;
+}
+.stil-moderne table.summer td.fv {
+  font-family: var(--kondensert);
+  font-size: 18px;
+  font-weight: 600;
+}
+.stil-moderne table.summer .rm-merke {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 1px 8px;
+  border-radius: 10px;
+}
+.stil-moderne .rm-merke.rm-R {
+  background: #fdecea;
+  color: #b42318 !important;
+}
+.stil-moderne .rm-merke.rm-M {
+  background: #e3ecf5;
+  color: #1c4e80 !important;
+}
+.stil-moderne .rute {
+  width: 22px;
+  height: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  border-color: transparent;
+  border-radius: 2px;
+}
+.stil-moderne .mlabel {
+  font-size: 12px;
+}
+.stil-moderne .mlabel.x {
+  width: 22px;
+}
+
+/* Verktøylinje */
+.stil-moderne .verktoylinje {
+  padding: 14px 20px 10px;
+}
+.stil-moderne .faner {
+  background: #e1e4de;
+}
+.stil-moderne .faner button {
+  font-weight: 500;
+  color: var(--dempet);
+}
+.stil-moderne .faner button.valgt {
+  color: var(--tekst);
+  box-shadow: var(--skygge);
+}
+.stil-moderne .teller {
+  font-size: 12px;
+}
+.stil-moderne .sok,
+.stil-moderne .velg select {
+  min-height: 34px;
+  background: var(--flate);
+}
+.stil-moderne .hovedflate {
+  margin: 0 20px 20px;
+}
+
+/* Tabellen */
+.stil-moderne .grid-boks {
+  border-color: var(--linje);
+  border-radius: 10px;
+  box-shadow: var(--skygge);
+}
+.stil-moderne .grid th,
+.stil-moderne .grid td {
+  border-right-color: rgba(29, 40, 48, 0.06);
+  border-bottom-color: var(--linje);
+  padding: 8px 10px;
+}
+.stil-moderne .grid .gruppe-rad th {
+  font-size: 12px;
+  color: var(--dempet);
+  height: 28px;
+}
+.stil-moderne .gruppe-knapp,
+.stil-moderne .gruppe-tekst {
+  font-weight: 600;
+  color: var(--dempet);
+  font-size: 12px;
+}
+.stil-moderne .gruppe-tekst {
+  padding: 2px 4px;
+}
+.stil-moderne .grid .kol-rad th {
+  top: 28px;
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--dempet);
+  border-bottom: 1px solid var(--linje-sterk);
+}
+.stil-moderne .grid .kol-rad th:hover {
+  background: #eef0eb;
+  color: var(--tekst);
+}
+.stil-moderne .grid tbody.risk tr:last-child td,
+.stil-moderne .grid tbody.risk td[rowspan] {
+  border-bottom-color: var(--linje-sterk);
+}
+.stil-moderne .grid td.tiltak-fortsatt {
+  border-top-color: rgba(29, 40, 48, 0.06);
+}
+.stil-moderne .grid tbody.risk:hover td {
+  background: #fafbf8;
+}
+.stil-moderne .grid td.k-hendelse {
+  font-weight: 500;
+}
+.stil-moderne .grid td.k-aarsak,
+.stil-moderne .grid td.k-konsekvenser {
+  color: var(--dempet);
+}
+.stil-moderne .grid tbody.lukket td {
+  color: #7d8992;
+}
+/* Fag som en farget kant til venstre på raden */
+.stil-moderne .grid td.k-nr::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--fag, transparent);
+}
+.stil-moderne .nr-celle {
+  font-family: var(--kondensert);
+  font-size: 15px;
+}
+/* Eksponering som et farget merke i stedet for en fylt celle */
+.eksp-merke {
+  display: inline-grid;
+  place-items: center;
+  min-width: 30px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 5px;
+  font-weight: 600;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+/* Status på tiltak som en prikk foran teksten */
+.stil-moderne .grid td.ts-pågår,
+.stil-moderne .grid td.ts-utført,
+.stil-moderne .grid td.ts-utføres-ikke {
+  background: var(--flate);
+}
+.stil-moderne .grid td.k-tiltakstatus::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 7px;
+  vertical-align: 1px;
+  background: transparent;
+}
+.stil-moderne .grid td.ts-ikke-startet::before {
+  box-shadow: inset 0 0 0 1.5px #7d8992;
+}
+.stil-moderne .grid td.ts-pågår::before {
+  background: #e0a400;
+}
+.stil-moderne .grid td.ts-utført::before {
+  background: #2b7a4b;
+}
+.stil-moderne .grid td.ts-utføres-ikke::before {
+  background: #c4ccd4;
+}
+.stil-moderne .grid td.forfalt {
+  color: #b42318;
+}
+
+/* Kost: forventet verdi med spennet fra best til verst */
+.kost-celle {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+}
+.kost-fv {
+  font-weight: 600;
+}
+.kost-spenn {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: #eef0eb;
+}
+.kost-spenn i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+  background: #f0b8b1;
+}
+.kost-spenn.m i {
+  background: #b3d3f5;
+}
+.kost-spenn b {
+  position: absolute;
+  top: -2px;
+  width: 2px;
+  height: 8px;
+  margin-left: -1px;
+  background: #1d2830;
+}
+.kost-spenn.stor {
+  height: 8px;
+  border-radius: 4px;
+  margin: 16px 0 8px;
+}
+.kost-spenn.stor i {
+  border-radius: 4px;
+}
+.kost-spenn.stor b {
+  top: -5px;
+  height: 18px;
+  width: 3px;
+}
+.kost-spenn.stor b.ml {
+  width: 2px;
+  top: -3px;
+  height: 14px;
+  background: #7d8992;
+}
+.kost-fra-til {
+  font-size: 12px;
+  color: var(--dempet);
+}
+
+.kost-editor {
+  position: fixed;
+  z-index: 60;
+  width: 440px;
+  max-width: calc(100vw - 16px);
+  background: var(--flate);
+  color: var(--tekst);
+  border: 1px solid var(--linje-sterk);
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(29, 40, 48, 0.07), 0 1px 3px rgba(29, 40, 48, 0.06);
+  padding: 16px 18px;
+  text-align: left;
+}
+.kost-editor-tittel {
+  font-family: var(--kondensert, inherit);
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+.kost-editor-felt {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.kost-editor-felt label span {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--dempet);
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+.kost-editor-felt input {
+  width: 100%;
+  height: 38px;
+  border: 1px solid var(--linje-sterk);
+  border-radius: 6px;
+  padding: 0 10px;
+  text-align: right;
+  font-size: 16px;
+  background: var(--flate);
+}
+.kost-editor-felt input:focus {
+  outline: none;
+  border-color: var(--aksent);
+  box-shadow: 0 0 0 3px var(--aksent-lys);
+}
+.kost-editor-fv {
+  text-align: center;
+  font-size: 14px;
+}
+.kost-editor-hint {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #9a6700;
+}
+.kost-editor-knapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--linje);
+}
+.kost-editor-knapper .liten {
+  margin-right: auto;
+}
+.kost-editor kbd {
+  font: inherit;
+  font-size: 12px;
+  border: 1px solid var(--linje-sterk);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+/* Skarisk som en av/på-bryter */
+.bryter {
+  width: 38px;
+  height: 22px;
+  border-radius: 11px;
+  border: 1px solid var(--linje-sterk);
+  background: #eef0eb;
+  position: relative;
+  padding: 0;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.bryter i {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(29, 40, 48, 0.25);
+  transition: left 0.12s ease-out;
+}
+.bryter.paa {
+  background: var(--aksent);
+  border-color: var(--aksent);
+}
+.bryter.paa i {
+  left: 18px;
+}
+.bryter:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.bryter:focus-visible {
+  outline: 2px solid var(--aksent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bryter i {
+    transition: none;
+  }
+}
+.stil-moderne table.summer td {
+  color: var(--tekst);
+}

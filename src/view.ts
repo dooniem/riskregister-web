@@ -50,6 +50,26 @@ export const STANDARD_VISNING: Visning = {
 
 export const UTEN_FAG = '_uten'
 
+// Utseende på registeret. Gjelder for brukeren i alle registre, så det lagres utenfor visningen til hvert register.
+export type Stil = 'klassisk' | 'moderne'
+const STIL_KEY = 'rr-stil'
+
+export function lesStil(): Stil {
+  try {
+    return localStorage.getItem(STIL_KEY) === 'moderne' ? 'moderne' : 'klassisk'
+  } catch {
+    return 'klassisk'
+  }
+}
+
+export function lagreStil(stil: Stil) {
+  try {
+    localStorage.setItem(STIL_KEY, stil)
+  } catch {
+    /* ignorer */
+  }
+}
+
 export function fagNavn(r: Risk, doc: Register): string {
   return doc.lister.fag.find((f) => f.id === r.fag)?.navn ?? ''
 }

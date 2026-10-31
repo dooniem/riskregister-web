@@ -8,8 +8,8 @@ import { nyRisk } from '../model'
 import type { Konflikt, Op } from '../ops'
 import { SimulertKollega } from '../sim'
 import type { Okt } from '../sync'
-import type { Visning } from '../view'
-import { GRUPPERINGER, STANDARD_VISNING, filtrer } from '../view'
+import type { Stil, Visning } from '../view'
+import { GRUPPERINGER, STANDARD_VISNING, filtrer, lagreStil, lesStil } from '../view'
 import { DemoFiler, type FilKilde } from '../store/filer'
 import { GraphFiler } from '../store/graphFiler'
 import { GraphLister, omraadeLenke } from '../store/lister/graphLister'
@@ -119,6 +119,9 @@ export function RegisterView({ okt, tilbake }: Props) {
   const angreStabel = useRef<Op[][]>([])
   const mobil = useMobil()
   const kompakt = mobil || !!visning.kompakt
+  const [stil, setStilRaw] = useState<Stil>(lesStil)
+  const setStil = (s: Stil) => (setStilRaw(s), lagreStil(s))
+  const moderne = stil === 'moderne'
 
   const setVisning = useCallback((f: (v: Visning) => Visning) => setVisningRaw((v) => f(v)), [])
   useEffect(() => {
@@ -217,7 +220,7 @@ export function RegisterView({ okt, tilbake }: Props) {
 
   return (
     <PersonKontekst.Provider value={personer}>
-      <div className={'app' + (visning.skjulFag ? ' skjul-fag' : '')}>
+      <div className={'app' + (visning.skjulFag ? ' skjul-fag' : '') + (moderne ? ' stil-moderne' : '')}>
         <header className="toppfelt">
           <button className="ikonknapp hjem" onClick={tilbake} title="Til startsiden">
             ◂
@@ -283,6 +286,16 @@ export function RegisterView({ okt, tilbake }: Props) {
                 </button>
                 <button onClick={() => setVisning((v) => ({ ...v, fane: 'skarisk' }))}>Poster til Skarisk</button>
                 <button onClick={() => window.print()}>Skriv ut / lagre som PDF</button>
+                <hr />
+                <div className="meny-gruppe" role="group" aria-label="Utseende">
+                  <span className="meny-gruppe-tittel">Utseende</span>
+                  {(['klassisk', 'moderne'] as const).map((s) => (
+                    <button key={s} role="menuitemradio" aria-checked={stil === s} className={'meny-valg' + (stil === s ? ' valgt' : '')} onClick={() => setStil(s)}>
+                      <span className="radio" aria-hidden />
+                      {s === 'klassisk' ? 'Klassisk' : 'Moderne'}
+                    </button>
+                  ))}
+                </div>
                 <hr />
                 <button onClick={() => setProsjekt('lister')}>Lister og valg…</button>
                 {b.kanSkrive && <button onClick={() => setHentOppsett(true)}>Hent oppsett fra et annet register…</button>}
@@ -404,7 +417,7 @@ export function RegisterView({ okt, tilbake }: Props) {
           </div>
         )}
 
-        {visning.visOversikt && <Oversikt doc={doc} visning={visning} setVisning={setVisning} mot={mot?.doc} aapneMatrise={setStorMatrise} />}
+        {visning.visOversikt && <Oversikt doc={doc} visning={visning} setVisning={setVisning} mot={mot?.doc} aapneMatrise={setStorMatrise} moderne={moderne} />}
 
         <div className="verktoylinje">
           <nav className="faner">
@@ -505,6 +518,7 @@ export function RegisterView({ okt, tilbake }: Props) {
             melding={melding}
             kanSkrive={b.kanSkrive}
             mot={motRisker}
+            moderne={moderne}
           />
           )}
           {detalj && <Detaljpanel okt={okt} doc={doc} riskId={detalj} endre={endre} lukk={() => setDetalj(null)} kanSkrive={b.kanSkrive} />}

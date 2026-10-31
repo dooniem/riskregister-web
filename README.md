@@ -47,4 +47,5 @@ Tilkobling til Entra ID settes på én av disse måtene (første som finnes bruk
 | `src/store/graphFiler.ts` | Dokumentbiblioteket på området, for import og eksport av Excel |
 | `src/sammenlign.ts` | Sammenligning av registeret med et snapshot |
 | `src/ui/Grid.tsx` | Excel-lik tabell |
+| `src/ui/KostEditor.tsx` | Redigering av BC, ML og WC samlet, i moderne utseende |
 | `src/excel.ts` | Import fra XLSM og eksport til Excel |
