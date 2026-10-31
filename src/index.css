@@ -3103,6 +3103,7 @@ td .valgpil.synlig {
 }
 .kost-editor-felt label span {
   display: block;
+  text-align: center;
   font-size: 13px;
   font-weight: 500;
   color: var(--dempet);
