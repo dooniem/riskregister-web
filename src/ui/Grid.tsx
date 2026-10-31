@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import type { Kolonne } from '../columns'
 import { GRUPPER, KOLONNER, editorTekst, formatEndring, formatTall, tolkInput, visTekst } from '../columns'
 import type { Register, Risk, Tiltak } from '../model'
-import { eksponering, eksponeringFarge, fv, nyRisk, nyttTiltak } from '../model'
+import { eksponering, eksponeringFarge, fagFarge, fv, nyRisk, nyttTiltak } from '../model'
 import type { Op, RiskFelt, TiltakFelt } from '../ops'
 import type { Tilstede } from '../store/backend'
 import type { Okt } from '../sync'
@@ -11,6 +11,7 @@ import { filtrer, filterVerdier, grupper, sorter, summer } from '../view'
 import type { Flytt } from './Editor'
 import { CelleEditor } from './Editor'
 import { FagMerke, FagVelger, fagForNyRisk } from './Fag'
+import { KostEditor } from './KostEditor'
 import { Laas } from './Ikoner'
 import { RiskInfo } from './RiskInfo'
 
@@ -40,6 +41,8 @@ interface Props {
   kanSkrive: boolean
   // Riskene i snapshotet det sammenlignes med, etter id. Endringer i tallene vises i cellene.
   mot?: Map<string, Risk>
+  // Moderne utseende: BC, ML og WC samles i FV-kolonnen og redigeres sammen
+  moderne?: boolean
 }
 
 const Kalenderikon = () => (
@@ -49,10 +52,19 @@ const Kalenderikon = () => (
   </svg>
 )
 
-export function synligeKolonner(v: Visning, egendef2Aktiv = false): Kolonne[] {
+// Kolonnene som ikke vises i moderne utseende, fordi de redigeres fra FV-kolonnen
+const KOST_DELER = ['bc', 'ml', 'wc']
+
+// Bredder i moderne utseende, der cellene viser mer enn tallet
+const MODERNE_BREDDE: Record<string, number> = { fv: 132, eksponering: 112, tilSkarisk: 76 }
+
+export function synligeKolonner(v: Visning, egendef2Aktiv = false, moderne = false): Kolonne[] {
   return KOLONNER.filter((k) => {
     if (k.key === 'egendef2' && !egendef2Aktiv) return false
+    if (moderne && KOST_DELER.includes(k.key)) return false
     if (v.skjulteKolonner.includes(k.key)) return false
+    // FV er den eneste kostkolonnen i moderne utseende, så den vises selv om gruppen er slått sammen
+    if (moderne && k.gruppe === 'kost') return true
     if (v.skjulteGrupper.includes(k.gruppe)) return GRUPPER.find((g) => g.key === k.gruppe)?.hoved === k.key
     return true
   })
@@ -61,20 +73,23 @@ export function synligeKolonner(v: Visning, egendef2Aktiv = false): Kolonne[] {
 // Fulle navn på kostkolonnene, vist som hjelpetekst på overskriften
 const KOST_NAVN: Record<string, string> = { bc: 'Best case', ml: 'Most likely', wc: 'Worst case' }
 
-export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapneDetalj, melding, kanSkrive, mot }: Props) {
+export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapneDetalj, melding, kanSkrive, mot, moderne = false }: Props) {
   const [aktiv, setAktiv] = useState<Posisjon | null>(null)
   const [redigerer, setRedigerer] = useState<(Posisjon & { start: string; erstatt: boolean }) | null>(null)
   const [meny, setMeny] = useState<{ kol: string; x: number; y: number } | null>(null)
   const [kontekst, setKontekst] = useState<{ x: number; y: number; pos: Posisjon } | null>(null)
   const [fagVelger, setFagVelger] = useState<{ riskId: string; x: number; y: number } | null>(null)
   const [lukketGrupper, setLukketGrupper] = useState<string[]>([])
+  const [kostEditor, setKostEditor] = useState<{ riskId: string; anker: DOMRect } | null>(null)
   const boks = useRef<HTMLDivElement>(null)
 
   const egendef2 = doc.lister.egendef2Aktiv
-  const kolonner = useMemo(() => synligeKolonner(visning, egendef2), [visning, egendef2])
-  const bredde = useCallback((k: Kolonne) => visning.bredder[k.key] ?? k.bredde, [visning.bredder])
+  const kolonner = useMemo(() => synligeKolonner(visning, egendef2, moderne), [visning, egendef2, moderne])
+  const bredde = useCallback((k: Kolonne) => visning.bredder[k.key] ?? (moderne ? MODERNE_BREDDE[k.key] : undefined) ?? k.bredde, [visning.bredder, moderne])
 
   const risker = useMemo(() => sorter(filtrer(doc, visning), visning.sortering), [doc, visning])
+  // Felles skala for kostspennet i moderne utseende, så spennene kan sammenlignes mellom riskene
+  const kostMaks = useMemo(() => Math.max(1, ...doc.risker.map((r) => Math.max(r.bc, r.ml, r.wc))), [doc.risker])
   const grupperte: Gruppe[] = useMemo(() => grupper(doc, risker, visning.gruppering), [doc, risker, visning.gruppering])
 
   // Alle synlige linjer i rekkefølge. En risk tar like mange linjer som den har tiltak (minst én).
@@ -170,9 +185,18 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
     return { r, k, t }
   }
 
+  const erKost = (k?: Kolonne) => moderne && k?.key === 'fv'
+
   const startRedigering = (p: Posisjon, start?: string) => {
     if (!kanSkrive) return melding('Du har bare lesetilgang til dette registeret.')
     const { r, k, t } = hentCelle(p)
+    if (r && erKost(k)) {
+      const av = okt.laas(r.id)
+      if (av) return melding(`Risk ${r.nr} redigeres av ${av} akkurat nå. Prøv igjen når de er ferdige.`)
+      const td = boks.current?.querySelector(`tbody[data-risk="${r.id}"] td.k-fv`)
+      if (td) setKostEditor({ riskId: r.id, anker: td.getBoundingClientRect() })
+      return
+    }
     if (!r || !k || !k.felt) return
     const av = okt.laas(r.id)
     if (av) return melding(`Risk ${r.nr} redigeres av ${av} akkurat nå. Prøv igjen når de er ferdige.`)
@@ -225,6 +249,28 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
     }
     boks.current?.focus()
     if (retning !== 'ingen') flytt(retning)
+  }
+
+  const lukkKost = () => {
+    setKostEditor(null)
+    okt.slippLaas()
+    boks.current?.focus()
+  }
+
+  const lagreKost = (riskId: string, verdier: Record<'bc' | 'ml' | 'wc', number>) => {
+    const r = doc.risker.find((x) => x.id === riskId)
+    if (r) {
+      const ops: Op[] = (['bc', 'ml', 'wc'] as const).filter((f) => r[f] !== verdier[f]).map((f) => ({ t: 'setRisk', riskId, felt: f, verdi: verdier[f], fra: r[f] }))
+      if (ops.length) endre(...ops)
+    }
+    lukkKost()
+  }
+
+  const byttSkarisk = (riskId: string) => {
+    const r = doc.risker.find((x) => x.id === riskId)
+    if (!r || !kanSkrive) return
+    if (okt.laastAv(r.id)) return melding(`Risk ${r.nr} redigeres av en annen akkurat nå.`)
+    lagreVerdi({ riskId, kol: 'tilSkarisk' }, !r.tilSkarisk)
   }
 
   const avbrytRedigering = () => {
@@ -339,7 +385,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
       case 'F2':
         e.preventDefault()
         if (mod && e.key === 'Enter') return nyttTiltakUnder(aktiv)
-        if (k?.type === 'avkrysning' || !k?.felt) return flytt('ned')
+        if (k?.type === 'avkrysning' || (!k?.felt && !erKost(k))) return flytt('ned')
         startRedigering(aktiv)
         return
       case 'Delete':
@@ -359,6 +405,11 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
         setAktiv(null)
         return
     }
+    if (e.key.length === 1 && !mod && !e.altKey && erKost(k) && /[\d,.-]/.test(e.key)) {
+      e.preventDefault()
+      startRedigering(aktiv)
+      return
+    }
     if (e.key.length === 1 && !mod && !e.altKey && k?.felt && k.type !== 'avkrysning') {
       e.preventDefault()
       startRedigering(aktiv, e.key)
@@ -371,7 +422,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
       const { k, r } = hentCelle(p)
       if (k?.type === 'avkrysning' && r) {
         if (!okt.laastAv(r.id)) lagreVerdi(p, !r.tilSkarisk)
-      } else if (k?.felt) startRedigering(p)
+      } else if (k?.felt || erKost(k)) startRedigering(p)
       else if (k?.key === 'nr') aapneDetalj(p.riskId)
       return
     }
@@ -441,7 +492,8 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
               const stil = g.key === 'fast' ? { left: 0, zIndex: 6 } : undefined
               return (
                 <th key={g.key} colSpan={n} className={'gruppe-th ' + (g.key === 'fast' ? 'frosset' : '')} style={stil} title={g.tittel}>
-                  {g.tittel && (
+                  {g.tittel && moderne && g.key === 'kost' && <span className="gruppe-tekst">{g.tittel}</span>}
+                  {g.tittel && !(moderne && g.key === 'kost') && (
                     <button
                       className="gruppe-knapp"
                       title={sammen ? 'Vis alle kolonnene i gruppen' : 'Slå sammen gruppen'}
@@ -525,6 +577,9 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   }}
                   kanSkrive={kanSkrive}
                   mot={mot}
+                  moderne={moderne}
+                  kostMaks={kostMaks}
+                  byttSkarisk={byttSkarisk}
                 />
               ))}
           </Fragment>
@@ -559,6 +614,11 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
           lukk={() => setMeny(null)}
         />
       )}
+      {kostEditor &&
+        (() => {
+          const r = doc.risker.find((x) => x.id === kostEditor.riskId)
+          return r ? <KostEditor risk={r} anker={kostEditor.anker} onLagre={(v) => lagreKost(r.id, v)} onAvbryt={lukkKost} /> : null
+        })()}
       {fagVelger && (
         <FagVelger
           doc={doc}
@@ -640,6 +700,9 @@ interface RaderProps {
   kanSkrive: boolean
   fagVelger: (riskId: string, e: React.MouseEvent) => void
   mot?: Map<string, Risk>
+  moderne: boolean
+  kostMaks: number
+  byttSkarisk: (riskId: string) => void
 }
 
 // Tallkolonnene som viser endring når et snapshot er aktivt
@@ -677,12 +740,14 @@ function RiskRader(p: RaderProps) {
     const andreHer = p.tilstede.filter((x) => x.kolonne === k.key && (k.nivaa === 'risk' || x.tiltakId === t?.id))
     const stil: React.CSSProperties = {}
     if (k.frosset) stil.left = p.frossenVenstre[k.key]
-    if (k.key === 'eksponering' && farge) {
+    if (k.key === 'eksponering' && farge && !p.moderne) {
       stil.background = farge.bg
       stil.color = farge.fg
     }
     if (andreHer.length) stil.boxShadow = `inset 0 0 0 2px ${andreHer[0].farge}`
+    if (k.key === 'nr' && fag && p.moderne) (stil as Record<string, string>)['--fag'] = fagFarge(fag).bg
     const kl = [
+      'k-' + k.key,
       k.frosset ? 'frosset' : '',
       k.key === 'nr' ? 'nr-td' : '',
       k.hoyre ? 'hoyre' : '',
@@ -727,9 +792,37 @@ function RiskRader(p: RaderProps) {
           )}
         </div>
       )
-    if (k.key === 'tilSkarisk') innhold = r.tilSkarisk ? <span className="hake">✓</span> : <span className="kryss">✗</span>
+    if (k.key === 'tilSkarisk')
+      innhold = p.moderne ? (
+        <button
+          className={'bryter' + (r.tilSkarisk ? ' paa' : '')}
+          role="switch"
+          aria-checked={r.tilSkarisk}
+          aria-label={`Ta med risk ${r.nr} i Skarisk`}
+          title={r.tilSkarisk ? 'Tas med i Skarisk. Klikk for å fjerne.' : 'Klikk for å ta med i Skarisk'}
+          disabled={!p.kanSkrive}
+          onMouseDown={(ev) => {
+            ev.stopPropagation()
+            if (ev.button === 0) p.byttSkarisk(r.id)
+          }}
+        >
+          <i />
+        </button>
+      ) : r.tilSkarisk ? (
+        <span className="hake">✓</span>
+      ) : (
+        <span className="kryss">✗</span>
+      )
+    if (k.key === 'eksponering' && p.moderne)
+      innhold = e ? (
+        <span className="eksp-merke" style={{ background: farge?.bg, color: farge?.fg }}>
+          {e}
+        </span>
+      ) : (
+        '-'
+      )
     if (k.nivaa === 'tiltak' && !t && k.key === 'tiltak' && p.kanSkrive) innhold = <span className="plassholder">+ legg til tiltak</span>
-    if (k.key === 'fv') innhold = formatTall(fv(r))
+    if (k.key === 'fv') innhold = p.moderne ? <KostCelle r={r} maks={p.kostMaks} /> : formatTall(fv(r))
     // Tomme celler får et usynlig tegn, så en ny tiltakslinje er like høy som en med én linje tekst
     if (innhold === '' || innhold == null) innhold = '\u200b'
 
@@ -780,7 +873,7 @@ function RiskRader(p: RaderProps) {
   }
 
   return (
-    <tbody className={klasser} style={stripe ? ({ '--stripe': stripe } as React.CSSProperties) : undefined}>
+    <tbody className={klasser} data-risk={r.id} style={stripe ? ({ '--stripe': stripe } as React.CSSProperties) : undefined}>
       {Array.from({ length: n }, (_, i) => {
         const t = r.tiltak[i]
         return (
@@ -793,6 +886,28 @@ function RiskRader(p: RaderProps) {
         )
       })}
     </tbody>
+  )
+}
+
+// Moderne utseende: forventet verdi med spennet fra best til verst under
+function KostCelle({ r, maks }: { r: Risk; maks: number }) {
+  const p = (v: number) => `${Math.min(100, Math.max(0, (v / maks) * 100))}%`
+  const tom = !r.bc && !r.ml && !r.wc
+  return (
+    <div className="kost-celle" title={`Best ${formatTall(r.bc)}, mest sannsynlig ${formatTall(r.ml)}, verst ${formatTall(r.wc)} (i 1000 kr)`}>
+      <span className="kost-fv">{tom ? '-' : formatTall(fv(r))}</span>
+      {!tom && (
+        <>
+          <span className={'kost-spenn' + (r.rm === 'M' ? ' m' : '')} aria-hidden>
+            <i style={{ left: p(r.bc), width: `calc(${p(r.wc)} - ${p(r.bc)})` }} />
+            <b style={{ left: p(fv(r)) }} />
+          </span>
+          <span className="kost-fra-til">
+            {formatTall(r.bc)}–{formatTall(r.wc)}
+          </span>
+        </>
+      )}
+    </div>
   )
 }
 

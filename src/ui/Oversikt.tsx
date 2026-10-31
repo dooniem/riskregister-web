@@ -10,10 +10,11 @@ interface Props {
   setVisning: (f: (v: Visning) => Visning) => void
   mot?: Register // snapshot det sammenlignes med
   aapneMatrise?: (rm: 'R' | 'M') => void
+  moderne?: boolean // alt i ett lavt kort, så tabellen får mer plass
 }
 
 // Summer for risiko og mulighet (som M:/R:-radene øverst i Excel) og en klikkbar risikomatrise
-export function Oversikt({ doc, visning, setVisning, mot, aapneMatrise }: Props) {
+export function Oversikt({ doc, visning, setVisning, mot, aapneMatrise, moderne }: Props) {
   const grunnlagFor = (d: Register): Risk[] => (visning.kunFiltrerteSummer ? filtrer(d, visning) : d.risker.filter((r) => iFane(r, visning.fane)))
   const grunnlag = grunnlagFor(doc)
   const r = summer(grunnlag, 'R')
@@ -36,7 +37,7 @@ export function Oversikt({ doc, visning, setVisning, mot, aapneMatrise }: Props)
     }
     return (
       <tr className={'rm-' + rm}>
-        <th>{navn}</th>
+        <th>{moderne ? <span className={'rm-merke rm-' + rm}>{navn}</span> : navn}</th>
         {celle('antall')}
         {celle('bc')}
         {celle('ml')}
@@ -46,39 +47,63 @@ export function Oversikt({ doc, visning, setVisning, mot, aapneMatrise }: Props)
     )
   }
 
+  const kost = (
+    <div className={moderne ? 'oversikt-kost' : 'kort'}>
+      <div className="kort-tittel">
+        Mulig kost (i 1000)
+        <label className="liten">
+          <input
+            type="checkbox"
+            checked={visning.kunFiltrerteSummer}
+            onChange={(e) => setVisning((v) => ({ ...v, kunFiltrerteSummer: e.target.checked }))}
+          />{' '}
+          summer bare det som vises
+        </label>
+      </div>
+      <table className="summer">
+        <thead>
+          <tr>
+            <th />
+            <th>Antall</th>
+            <th title="Best case">{moderne ? 'Best' : 'BC'}</th>
+            <th title="Most likely">{moderne ? 'Mest sannsynlig' : 'ML'}</th>
+            <th title="Worst case">{moderne ? 'Verst' : 'WC'}</th>
+            <th title="Forventet verdi">{moderne ? 'Forventet' : 'FV'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rad(moderne ? 'Risiko' : 'Risiko (R)', r, 'R')}
+          {rad(moderne ? 'Mulighet' : 'Mulighet (M)', m, 'M')}
+        </tbody>
+      </table>
+    </div>
+  )
+  const matriser = (['R', 'M'] as const).map((rm) => (
+    <Matrise
+      key={rm}
+      risker={matriseRisker}
+      valgt={visning.filter.matrise}
+      setVisning={setVisning}
+      rm={rm}
+      tittel={rm === 'R' ? (moderne ? 'Risiko' : 'Risikomatrise') : moderne ? 'Mulighet' : 'Mulighetsmatrise'}
+      forstorr={aapneMatrise}
+      moderne={moderne}
+    />
+  ))
+
+  if (moderne)
+    return (
+      <div className="oversikt">
+        <div className="kort oversikt-stripe">
+          {kost}
+          {matriser}
+        </div>
+      </div>
+    )
   return (
     <div className="oversikt">
-      <div className="kort">
-        <div className="kort-tittel">
-          Mulig kost (i 1000)
-          <label className="liten">
-            <input
-              type="checkbox"
-              checked={visning.kunFiltrerteSummer}
-              onChange={(e) => setVisning((v) => ({ ...v, kunFiltrerteSummer: e.target.checked }))}
-            />{' '}
-            summer bare det som vises
-          </label>
-        </div>
-        <table className="summer">
-          <thead>
-            <tr>
-              <th />
-              <th>Antall</th>
-              <th>BC</th>
-              <th>ML</th>
-              <th>WC</th>
-              <th>FV</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rad('Risiko (R)', r, 'R')}
-            {rad('Mulighet (M)', m, 'M')}
-          </tbody>
-        </table>
-      </div>
-      <Matrise risker={matriseRisker} valgt={visning.filter.matrise} setVisning={setVisning} rm="R" tittel="Risikomatrise" forstorr={aapneMatrise} />
-      <Matrise risker={matriseRisker} valgt={visning.filter.matrise} setVisning={setVisning} rm="M" tittel="Mulighetsmatrise" forstorr={aapneMatrise} />
+      {kost}
+      {matriser}
     </div>
   )
 }
@@ -90,6 +115,7 @@ function Matrise({
   rm,
   tittel,
   forstorr,
+  moderne,
 }: {
   risker: Risk[]
   valgt?: { s: number; k: number }
@@ -97,10 +123,11 @@ function Matrise({
   rm: 'R' | 'M'
   tittel: string
   forstorr?: (rm: 'R' | 'M') => void
+  moderne?: boolean
 }) {
   const antall = (s: number, k: number) => risker.filter((r) => r.rm === rm && r.sannsynlighet === s && r.konsekvens === k).length
   return (
-    <div className="kort">
+    <div className={moderne ? 'oversikt-matrise' : 'kort'}>
       <div className="kort-tittel">
         {forstorr ? (
           <button className="lenkeknapp matrise-tittel" onClick={() => forstorr(rm)} title="Åpne stor matrise der riskene kan flyttes">
