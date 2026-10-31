@@ -146,7 +146,7 @@ function FagListe({ doc, visning, setVisning, endre, kanSkrive, lukk }: MenyProp
                 <button key={c.navn} className={f.farge === i ? 'valgt' : ''} style={{ background: c.bg }} title={c.navn} aria-label={c.navn} onClick={() => oppdater(f.id, { farge: i })} />
               ))}
             </div>
-            <button className="ikonknapp" title={`Slett ${f.navn}`} onClick={() => slett(f.id)}>
+            <button className="ikonknapp" title={`Slett ${f.navn}`} aria-label={`Slett ${f.navn}`} onClick={() => slett(f.id)}>
               ✕
             </button>
           </div>

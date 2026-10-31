@@ -3,6 +3,7 @@ import type { Register } from '../model'
 import type { RiskEndring } from '../sammenlign'
 import { sammenlign } from '../sammenlign'
 import type { SnapshotInfo, Snapshots } from '../store/backend'
+import { Modal, ModalTittel } from './Modal'
 
 interface Props {
   snapshots: Snapshots
@@ -53,125 +54,123 @@ export function SnapshotDialog({ snapshots, doc, kanSkrive, lukk, melding, aapne
   }, [snapshots])
 
   return (
-    <div className="modal-bakgrunn" onMouseDown={(e) => e.target === e.currentTarget && lukk()}>
-      <div className="modal bred">
-        <header>
-          <h2>{valgt ? `Endringer siden «${valgt.info.navn}»` : 'Snapshots'}</h2>
-          <button className="ikonknapp" onClick={lukk}>
-            ✕
-          </button>
-        </header>
-        <div className="modal-innhold">
-          {valgt ? (
-            <>
-              <button className="lenkeknapp" onClick={() => setValgt(null)}>
-                ◂ Tilbake til snapshots
-              </button>
-              <SammenligningVisning fra={valgt.doc} til={doc} info={valgt.info} aapneRisk={(id) => (aapneRisk(id), lukk())} />
-            </>
-          ) : (
-            <>
-              <p className="liten">
-                Et snapshot tar vare på registeret slik det er nå, slik at du senere kan se hva som er endret siden, f.eks. siden forrige gjennomgang. Velg «Sammenlign» for å
-                se endringer i BC, ML, WC og FV i tabellen og oversikten, og piler i risikomatrisen. Snapshotene ligger i listene «Riskregister Snapshots» og «Riskregister
-                Snapshotdata».
-              </p>
-              {kanSkrive && (
-                <form
-                  className="snapshot-ny"
-                  onSubmit={(e) => {
-                    e.preventDefault()
-                    void jobb('Tar snapshot…', async () => {
-                      const s = await snapshots.ta(navn.trim() || dagensNavn(), kommentar.trim(), doc)
-                      melding(`Snapshot «${s.navn}» er lagret med ${s.antallRisker} risker.`)
-                      setNavn(dagensNavn())
-                      setKommentar('')
-                      setListe(await snapshots.liste())
-                    })
-                  }}
-                >
-                  <label className="felt">
-                    <span>Navn</span>
-                    <input value={navn} onChange={(e) => setNavn(e.target.value)} placeholder="F.eks. Gjennomgang 12.11" />
-                  </label>
-                  <label className="felt">
-                    <span>Kommentar (valgfritt)</span>
-                    <input value={kommentar} onChange={(e) => setKommentar(e.target.value)} />
-                  </label>
-                  <button className="knapp primær" disabled={!!jobber}>
-                    Ta snapshot nå
-                  </button>
-                </form>
-              )}
-              {jobber && <p className="liten">{jobber}</p>}
-              {feil && <div className="banner feil">{feil}</div>}
-              {liste && liste.length === 0 && <p>Ingen snapshots ennå.</p>}
-              {liste && liste.length > 0 && (
-                <table className="snapshotliste">
-                  <thead>
-                    <tr>
-                      <th>Navn</th>
-                      <th>Tatt</th>
-                      <th>Av</th>
-                      <th>Risker</th>
-                      <th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {liste.map((s) => (
-                      <tr key={s.id}>
-                        <td>
-                          <b>{s.navn}</b>
-                          {s.kommentar && <div className="liten">{s.kommentar}</div>}
-                        </td>
-                        <td>{tid(s.tidspunkt)}</td>
-                        <td>{s.tattAv}</td>
-                        <td className="tall">{s.antallRisker}</td>
-                        <td className="handlinger">
+    <Modal className="bred" lukk={lukk}>
+      <header>
+        <ModalTittel>{valgt ? `Endringer siden «${valgt.info.navn}»` : 'Snapshots'}</ModalTittel>
+        <button className="ikonknapp" onClick={lukk} aria-label="Lukk" title="Lukk">
+          ✕
+        </button>
+      </header>
+      <div className="modal-innhold">
+        {valgt ? (
+          <>
+            <button className="lenkeknapp" onClick={() => setValgt(null)}>
+              ◂ Tilbake til snapshots
+            </button>
+            <SammenligningVisning fra={valgt.doc} til={doc} info={valgt.info} aapneRisk={(id) => (aapneRisk(id), lukk())} />
+          </>
+        ) : (
+          <>
+            <p className="liten">
+              Et snapshot tar vare på registeret slik det er nå, slik at du senere kan se hva som er endret siden, f.eks. siden forrige gjennomgang. Velg «Sammenlign» for å
+              se endringer i BC, ML, WC og FV i tabellen og oversikten, og piler i risikomatrisen. Snapshotene ligger i listene «Riskregister Snapshots» og «Riskregister
+              Snapshotdata».
+            </p>
+            {kanSkrive && (
+              <form
+                className="snapshot-ny"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  void jobb('Tar snapshot…', async () => {
+                    const s = await snapshots.ta(navn.trim() || dagensNavn(), kommentar.trim(), doc)
+                    melding(`Snapshot «${s.navn}» er lagret med ${s.antallRisker} risker.`)
+                    setNavn(dagensNavn())
+                    setKommentar('')
+                    setListe(await snapshots.liste())
+                  })
+                }}
+              >
+                <label className="felt">
+                  <span>Navn</span>
+                  <input value={navn} onChange={(e) => setNavn(e.target.value)} placeholder="F.eks. Gjennomgang 12.11" />
+                </label>
+                <label className="felt">
+                  <span>Kommentar (valgfritt)</span>
+                  <input value={kommentar} onChange={(e) => setKommentar(e.target.value)} />
+                </label>
+                <button className="knapp primær" disabled={!!jobber}>
+                  Ta snapshot nå
+                </button>
+              </form>
+            )}
+            {jobber && <p className="liten">{jobber}</p>}
+            {feil && <div className="banner feil">{feil}</div>}
+            {liste && liste.length === 0 && <p>Ingen snapshots ennå.</p>}
+            {liste && liste.length > 0 && (
+              <table className="snapshotliste">
+                <thead>
+                  <tr>
+                    <th>Navn</th>
+                    <th>Tatt</th>
+                    <th>Av</th>
+                    <th>Risker</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {liste.map((s) => (
+                    <tr key={s.id}>
+                      <td>
+                        <b>{s.navn}</b>
+                        {s.kommentar && <div className="liten">{s.kommentar}</div>}
+                      </td>
+                      <td>{tid(s.tidspunkt)}</td>
+                      <td>{s.tattAv}</td>
+                      <td className="tall">{s.antallRisker}</td>
+                      <td className="handlinger">
+                        <button
+                          className="knapp liten primær"
+                          disabled={!!jobber}
+                          onClick={() =>
+                            void jobb('Henter snapshotet…', async () => {
+                              aktiver(await snapshots.hent(s.id))
+                              lukk()
+                            })
+                          }
+                        >
+                          Sammenlign
+                        </button>
+                        <button className="knapp liten" disabled={!!jobber} onClick={() => void jobb('Henter snapshotet…', async () => setValgt(await snapshots.hent(s.id)))}>
+                          Endringsliste
+                        </button>
+                        <a className="knapp liten" href={snapshotLenke(s.id)} target="_blank" rel="noreferrer" title="Åpner snapshotet skrivebeskyttet i en ny fane">
+                          Åpne
+                        </a>
+                        {kanSkrive && (
                           <button
-                            className="knapp liten primær"
+                            className="lenkeknapp fare"
                             disabled={!!jobber}
-                            onClick={() =>
-                              void jobb('Henter snapshotet…', async () => {
-                                aktiver(await snapshots.hent(s.id))
-                                lukk()
-                              })
-                            }
+                            onClick={() => {
+                              if (confirm(`Slette snapshotet «${s.navn}»?`))
+                                void jobb('Sletter…', async () => {
+                                  await snapshots.slett(s.id)
+                                  setListe(await snapshots.liste())
+                                })
+                            }}
                           >
-                            Sammenlign
+                            Slett
                           </button>
-                          <button className="knapp liten" disabled={!!jobber} onClick={() => void jobb('Henter snapshotet…', async () => setValgt(await snapshots.hent(s.id)))}>
-                            Endringsliste
-                          </button>
-                          <a className="knapp liten" href={snapshotLenke(s.id)} target="_blank" rel="noreferrer" title="Åpner snapshotet skrivebeskyttet i en ny fane">
-                            Åpne
-                          </a>
-                          {kanSkrive && (
-                            <button
-                              className="lenkeknapp fare"
-                              disabled={!!jobber}
-                              onClick={() => {
-                                if (confirm(`Slette snapshotet «${s.navn}»?`))
-                                  void jobb('Sletter…', async () => {
-                                    await snapshots.slett(s.id)
-                                    setListe(await snapshots.liste())
-                                  })
-                              }}
-                            >
-                              Slett
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </>
-          )}
-        </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </>
+        )}
       </div>
-    </div>
+    </Modal>
   )
 }
 

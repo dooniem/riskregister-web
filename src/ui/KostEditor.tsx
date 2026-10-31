@@ -72,7 +72,8 @@ export function KostEditor({ risk: r, anker, start = 'bc', onLagre, onAvbryt }: 
       onKeyDown={(e) => {
         e.stopPropagation()
         if (e.key === 'Escape') onAvbryt()
-        if (e.key === 'Enter') {
+        // Enter lagrer, men ikke når fokus står på en knapp: da gjør knappen det den heter (f.eks. Avbryt)
+        if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) {
           e.preventDefault()
           lagre()
         }

@@ -5,6 +5,7 @@ import type { Bruker, Op } from '../ops'
 import { demoBackend, demoRegistre } from '../store/demoBackend'
 import { ListeBackend } from '../store/listeBackend'
 import { GraphLister } from '../store/lister/graphLister'
+import { Modal, ModalTittel } from './Modal'
 
 type Valg = { lister: boolean; prosjekt: boolean; deltakere: boolean }
 
@@ -71,70 +72,68 @@ export function HentOppsett({ doc, endre, lukk, type, bruker, egetNavn }: { doc:
   )
 
   return (
-    <div className="modal-bakgrunn" onMouseDown={(e) => e.target === e.currentTarget && lukk()}>
-      <div className="modal">
-        <header>
-          <h2>Hent oppsett fra et annet register</h2>
-          <button className="ikonknapp" onClick={lukk}>
-            ✕
-          </button>
-        </header>
-        <div className="modal-innhold skjema">
-          <p className="liten">Registeret det hentes fra, blir ikke endret. Risker og tiltak hentes ikke. De kan importeres fra Excel.</p>
-          {type === 'demo' ? (
-            <label className="felt">
-              <span>Demoregister</span>
-              {andreDemo.length ? (
-                <select value={adresse} onChange={(e) => (setAdresse(e.target.value), setKilde(null))}>
-                  {andreDemo.map((n) => (
-                    <option key={n}>{n}</option>
-                  ))}
-                </select>
-              ) : (
-                <small>Det finnes ingen andre demoregistre i denne nettleseren.</small>
-              )}
-            </label>
-          ) : (
-            <label className="felt">
-              <span>Adressen til området med registeret det skal hentes fra</span>
-              <input value={adresse} onChange={(e) => (setAdresse(e.target.value), setKilde(null))} placeholder="https://firma.sharepoint.com/sites/Prosjekt123" />
-            </label>
-          )}
-          {!kilde && (
-            <div className="knapperad">
-              <button className="knapp" disabled={jobber || !adresse.trim()} onClick={() => void hent()}>
-                {jobber ? 'Henter…' : 'Hent registeret'}
-              </button>
-            </div>
-          )}
-          {feil && <div className="banner feil">{feil}</div>}
-          {kilde && (
-            <div className="felt">
-              <span>Hva skal hentes fra «{kilde.prosjekt.navn || adresse}»?</span>
-              {avkrysning('lister', 'Kategorier og nedtrekkslister', `(${kilde.lister.kategorier.length} kategorier, ${kilde.lister.fag.length} fag, egendefinerte kolonner og statuser). Erstatter listene her, men fag som finnes, beholdes.`)}
-              {avkrysning('prosjekt', 'Prosjektinfo', '(eier, sjef, leder, fase og virksomhet). Navn og nummer beholdes.')}
-              {avkrysning('deltakere', 'Deltakere', `(${nyeDeltakere} som ikke er deltakere her fra før)`)}
-            </div>
-          )}
-          {kilde && (
-            <div className="knapperad">
-              <button className="knapp" onClick={lukk}>
-                Avbryt
-              </button>
-              <button
-                className="knapp primær"
-                disabled={!ops.length}
-                onClick={() => {
-                  endre(...ops)
-                  lukk()
-                }}
-              >
-                {ops.length ? 'Hent inn' : 'Ingenting å hente'}
-              </button>
-            </div>
-          )}
-        </div>
+    <Modal lukk={lukk}>
+      <header>
+        <ModalTittel>Hent oppsett fra et annet register</ModalTittel>
+        <button className="ikonknapp" onClick={lukk} aria-label="Lukk" title="Lukk">
+          ✕
+        </button>
+      </header>
+      <div className="modal-innhold skjema">
+        <p className="liten">Registeret det hentes fra, blir ikke endret. Risker og tiltak hentes ikke. De kan importeres fra Excel.</p>
+        {type === 'demo' ? (
+          <label className="felt">
+            <span>Demoregister</span>
+            {andreDemo.length ? (
+              <select value={adresse} onChange={(e) => (setAdresse(e.target.value), setKilde(null))}>
+                {andreDemo.map((n) => (
+                  <option key={n}>{n}</option>
+                ))}
+              </select>
+            ) : (
+              <small>Det finnes ingen andre demoregistre i denne nettleseren.</small>
+            )}
+          </label>
+        ) : (
+          <label className="felt">
+            <span>Adressen til området med registeret det skal hentes fra</span>
+            <input value={adresse} onChange={(e) => (setAdresse(e.target.value), setKilde(null))} placeholder="https://firma.sharepoint.com/sites/Prosjekt123" />
+          </label>
+        )}
+        {!kilde && (
+          <div className="knapperad">
+            <button className="knapp" disabled={jobber || !adresse.trim()} onClick={() => void hent()}>
+              {jobber ? 'Henter…' : 'Hent registeret'}
+            </button>
+          </div>
+        )}
+        {feil && <div className="banner feil">{feil}</div>}
+        {kilde && (
+          <div className="felt">
+            <span>Hva skal hentes fra «{kilde.prosjekt.navn || adresse}»?</span>
+            {avkrysning('lister', 'Kategorier og nedtrekkslister', `(${kilde.lister.kategorier.length} kategorier, ${kilde.lister.fag.length} fag, egendefinerte kolonner og statuser). Erstatter listene her, men fag som finnes, beholdes.`)}
+            {avkrysning('prosjekt', 'Prosjektinfo', '(eier, sjef, leder, fase og virksomhet). Navn og nummer beholdes.')}
+            {avkrysning('deltakere', 'Deltakere', `(${nyeDeltakere} som ikke er deltakere her fra før)`)}
+          </div>
+        )}
+        {kilde && (
+          <div className="knapperad">
+            <button className="knapp" onClick={lukk}>
+              Avbryt
+            </button>
+            <button
+              className="knapp primær"
+              disabled={!ops.length}
+              onClick={() => {
+                endre(...ops)
+                lukk()
+              }}
+            >
+              {ops.length ? 'Hent inn' : 'Ingenting å hente'}
+            </button>
+          </div>
+        )}
       </div>
-    </div>
+    </Modal>
   )
 }

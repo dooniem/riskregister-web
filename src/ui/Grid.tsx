@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Kolonne } from '../columns'
 import { GRUPPER, KOLONNER, editorTekst, formatEndring, formatTall, tolkInput, visTekst } from '../columns'
 import type { Register, Risk, Tiltak } from '../model'
@@ -333,6 +333,48 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
     lagreVerdi(p, tom)
   }
 
+  // Kopier og lim inn i cellen som er valgt. Bruker nettleserens copy- og paste-hendelser i stedet for
+  // navigator.clipboard.readText(), som i Firefox og Safari viser en ekstra «Lim inn»-knapp hver gang og
+  // ikke finnes i eldre Firefox. Hendelsene kommer i alle nettlesere når tabellen har fokus, også uten markert tekst
+  // (Firefox sender dem til <body>, derfor lytter vi på dokumentet).
+  const utklipp = useRef({ kopier: (_e: ClipboardEvent) => {}, lim: (_e: ClipboardEvent) => {} })
+  useLayoutEffect(() => {
+    utklipp.current = {
+      kopier: (e) => {
+        if (!aktiv || redigerer) return
+        const { r, k, t } = hentCelle(aktiv)
+        if (!r || !k) return
+        e.preventDefault()
+        e.clipboardData?.setData('text/plain', editorTekst(k, r, t))
+      },
+      lim: (e) => {
+        if (!aktiv || redigerer) return
+        const { r, k } = hentCelle(aktiv)
+        if (!r || !k?.felt) return
+        e.preventDefault()
+        if (!kanSkrive) return melding('Du har bare lesetilgang til dette registeret.')
+        // Bare tekst limes inn. Uten tekst (f.eks. et bilde) skal ikke cellen tømmes.
+        if (!e.clipboardData?.types.includes('text/plain')) return
+        const s = e.clipboardData.getData('text/plain')
+        if (okt.laas(r.id)) return melding(`Risk ${r.nr} redigeres av en annen akkurat nå.`)
+        lagreVerdi(aktiv, tolkInput(k, s.replace(/\r?\n$/, '')))
+        okt.slippLaas()
+      },
+    }
+  })
+
+  useEffect(() => {
+    const iTabell = () => !!boks.current && document.activeElement === boks.current
+    const kopier = (e: ClipboardEvent) => iTabell() && utklipp.current.kopier(e)
+    const lim = (e: ClipboardEvent) => iTabell() && utklipp.current.lim(e)
+    document.addEventListener('copy', kopier)
+    document.addEventListener('paste', lim)
+    return () => {
+      document.removeEventListener('copy', kopier)
+      document.removeEventListener('paste', lim)
+    }
+  }, [])
+
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (redigerer) return
     const mod = e.ctrlKey || e.metaKey
@@ -348,21 +390,8 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
       }
       return
     }
-    const { r, k, t } = hentCelle(aktiv)
-    if (mod && e.key.toLowerCase() === 'c' && r && k) {
-      e.preventDefault()
-      void navigator.clipboard?.writeText(editorTekst(k, r, t))
-      return
-    }
-    if (mod && e.key.toLowerCase() === 'v' && r && k?.felt) {
-      e.preventDefault()
-      void navigator.clipboard?.readText().then((s) => {
-        if (okt.laas(r.id)) return melding(`Risk ${r.nr} redigeres av en annen akkurat nå.`)
-        lagreVerdi(aktiv, tolkInput(k, s.replace(/\r?\n$/, '')))
-        okt.slippLaas()
-      })
-      return
-    }
+    const { r, k } = hentCelle(aktiv)
+    // Ctrl/Cmd+C og V håndteres i copy- og paste-hendelsene (utklipp over)
     // Alt+pil ned åpner lista, som i Excel
     if (e.altKey && e.key === 'ArrowDown' && (k?.type === 'valg' || k?.type === 'dato')) {
       e.preventDefault()
@@ -405,12 +434,15 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
         setAktiv(null)
         return
     }
-    if (e.key.length === 1 && !mod && !e.altKey && erKost(k) && /[\d,.-]/.test(e.key)) {
+    // Et tegn starter redigering. Tegn skrevet med AltGr (Windows: Ctrl+Alt) eller Option (Mac), f.eks. @ og |,
+    // teller også, men ikke snarveier med Ctrl eller Cmd alene.
+    const tegn = e.key.length === 1 && !e.metaKey && (!e.ctrlKey || e.altKey)
+    if (tegn && erKost(k) && /[\d,.-]/.test(e.key)) {
       e.preventDefault()
       startRedigering(aktiv)
       return
     }
-    if (e.key.length === 1 && !mod && !e.altKey && k?.felt && k.type !== 'avkrysning') {
+    if (tegn && k?.felt && k.type !== 'avkrysning') {
       e.preventDefault()
       startRedigering(aktiv, e.key)
     }

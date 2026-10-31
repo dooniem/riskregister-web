@@ -26,7 +26,7 @@ export const FAG_FARGER: { navn: string; bg: string; fg: string }[] = [
   { navn: 'Blå', bg: '#1d4ed8', fg: '#fff' },
   { navn: 'Rød', bg: '#b91c1c', fg: '#fff' },
   { navn: 'Grønn', bg: '#15803d', fg: '#fff' },
-  { navn: 'Oransje', bg: '#ea580c', fg: '#fff' },
+  { navn: 'Oransje', bg: '#c2410c', fg: '#fff' },
   { navn: 'Lilla', bg: '#7e22ce', fg: '#fff' },
   { navn: 'Turkis', bg: '#0e7490', fg: '#fff' },
   { navn: 'Rosa', bg: '#db2777', fg: '#fff' },

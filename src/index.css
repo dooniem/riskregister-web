@@ -131,6 +131,8 @@ code {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  /* I Safari på iPhone/iPad er 100vh høyere enn det synlige området når adresselinja vises, så bunnen havnet bak den */
+  height: 100dvh;
 }
 .toppfelt {
   display: flex;
@@ -464,7 +466,7 @@ table.summer td.fv {
 }
 .teller {
   font-size: 11px;
-  color: var(--dempet);
+  color: #52606e; /* litt mørkere enn --dempet, så kontrasten holder også på grå bakgrunn */
   margin-left: 2px;
 }
 .sok {
@@ -815,7 +817,7 @@ table.grid {
   border-right: none;
 }
 .ny-rad .hint {
-  color: #8a96a3;
+  color: #667280;
   margin-left: 16px;
   font-size: 12px;
 }
@@ -1005,24 +1007,31 @@ table.grid {
 }
 
 /* Modal */
-.modal-bakgrunn {
-  position: fixed;
-  inset: 0;
+/* Dialogene er <dialog> åpnet med showModal(). Nullstiller nettleserens egne stiler (kant, marg, farge), som er ulike
+   i Chrome, Firefox og Safari. display settes bare når dialogen er åpen, ellers overstyres skjulingen. */
+dialog.modal {
+  border: none;
+  padding: 0;
+  color: inherit;
+  overflow: visible;
+  overscroll-behavior: contain;
+}
+dialog.modal::backdrop {
   background: rgba(15, 25, 35, 0.4);
-  display: grid;
-  place-items: center;
-  z-index: 100;
-  padding: 16px;
+  overflow: hidden;
+  overscroll-behavior: contain;
 }
 .modal {
   background: var(--flate);
   border-radius: 12px;
   width: 560px;
-  max-width: 100%;
+  max-width: calc(100% - 32px);
   max-height: 90vh;
-  display: flex;
   flex-direction: column;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+.modal[open] {
+  display: flex;
 }
 .modal.bred {
   width: 900px;
@@ -1096,10 +1105,16 @@ table.enkel-tabell {
 }
 
 /* Meldinger nederst */
+/* Nullstiller nettleserens popover-stiler (kant, bakgrunn, midtstilling) */
 .meldinger {
   position: fixed;
-  bottom: 18px;
-  left: 50%;
+  inset: auto auto 18px 50%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  overflow: visible;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
@@ -1397,11 +1412,10 @@ table.enkel-tabell {
   .rad4 {
     grid-template-columns: repeat(2, 1fr);
   }
-  .modal-bakgrunn {
-    padding: 0;
-  }
   .modal {
-    max-height: 100vh;
+    max-width: 100%;
+    max-height: 100%;
+    width: 100%;
     height: 100%;
     border-radius: 0;
   }

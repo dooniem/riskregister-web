@@ -6,6 +6,7 @@ import type { Konflikt } from '../ops'
 import { loggInn } from '../store/auth'
 import { ListeBackend } from '../store/listeBackend'
 import type { Okt, Snapshot } from '../sync'
+import { Modal, ModalTittel } from './Modal'
 
 const INNSTILLING_NAVN: Record<string, string> = {
   registerId: 'registerets id',
@@ -181,67 +182,65 @@ export function AvklarDialog({ okt, konflikter }: { okt: Okt; konflikter: Konfli
   const doc = okt.doc
   const ferdig = () => konflikter.forEach((k) => okt.avgjor(k, brukMin.has(k)))
   return (
-    <div className="modal-bakgrunn">
-      <div className="modal avklar">
-        <header>
-          <h2>Endret av andre mens du var frakoblet</h2>
-        </header>
-        <div className="modal-innhold">
-          <p>
-            Noen av endringene dine ble ikke lagret med en gang, og i mellomtiden har noen andre endret de samme feltene. Velg hvilken verdi som skal gjelde. Den andres er valgt,
-            så ingenting blir overskrevet uten at du bestemmer det.
-          </p>
-          <table className="avklar-tabell">
-            <thead>
-              <tr>
-                <th>Felt</th>
-                <th>Da du endret</th>
-                <th>Nå</th>
-                <th>Din endring</th>
-              </tr>
-            </thead>
-            <tbody>
-              {konflikter.map((k, i) => (
-                <tr key={i}>
-                  <td>
-                    {k.riskNr ? `Risk ${k.riskNr}: ` : ''}
-                    {feltNavn(k.felt, doc)}
+    <Modal className="avklar">
+      <header>
+        <ModalTittel>Endret av andre mens du var frakoblet</ModalTittel>
+      </header>
+      <div className="modal-innhold">
+        <p>
+          Noen av endringene dine ble ikke lagret med en gang, og i mellomtiden har noen andre endret de samme feltene. Velg hvilken verdi som skal gjelde. Den andres er valgt,
+          så ingenting blir overskrevet uten at du bestemmer det.
+        </p>
+        <table className="avklar-tabell">
+          <thead>
+            <tr>
+              <th>Felt</th>
+              <th>Da du endret</th>
+              <th>Nå</th>
+              <th>Din endring</th>
+            </tr>
+          </thead>
+          <tbody>
+            {konflikter.map((k, i) => (
+              <tr key={i}>
+                <td>
+                  {k.riskNr ? `Risk ${k.riskNr}: ` : ''}
+                  {feltNavn(k.felt, doc)}
+                </td>
+                <td>{vis(k.fra)}</td>
+                {k.slettet ? (
+                  <td colSpan={2}>
+                    {k.felt.startsWith('tiltak.') && k.riskNr ? 'Tiltaket' : 'Risken'} er slettet av andre, så endringen din ({vis(k.min)}) kan ikke lagres.
                   </td>
-                  <td>{vis(k.fra)}</td>
-                  {k.slettet ? (
-                    <td colSpan={2}>
-                      {k.felt.startsWith('tiltak.') && k.riskNr ? 'Tiltaket' : 'Risken'} er slettet av andre, så endringen din ({vis(k.min)}) kan ikke lagres.
+                ) : (
+                  <>
+                    <td>
+                      <label className="avkrysning">
+                        <input type="radio" name={`avklar-${i}`} checked={!brukMin.has(k)} onChange={() => setBrukMin((s) => new Set([...s].filter((x) => x !== k)))} />
+                        <span>
+                          {vis(k.deres)}
+                          {k.av && <span className="liten"> ({k.av})</span>}
+                        </span>
+                      </label>
                     </td>
-                  ) : (
-                    <>
-                      <td>
-                        <label className="avkrysning">
-                          <input type="radio" checked={!brukMin.has(k)} onChange={() => setBrukMin((s) => new Set([...s].filter((x) => x !== k)))} />
-                          <span>
-                            {vis(k.deres)}
-                            {k.av && <span className="liten"> ({k.av})</span>}
-                          </span>
-                        </label>
-                      </td>
-                      <td>
-                        <label className="avkrysning">
-                          <input type="radio" checked={brukMin.has(k)} onChange={() => setBrukMin((s) => new Set([...s, k]))} />
-                          <span>{vis(k.min)}</span>
-                        </label>
-                      </td>
-                    </>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="knapperad">
-            <button className="knapp primær" onClick={ferdig}>
-              Bruk valgene
-            </button>
-          </div>
+                    <td>
+                      <label className="avkrysning">
+                        <input type="radio" name={`avklar-${i}`} checked={brukMin.has(k)} onChange={() => setBrukMin((s) => new Set([...s, k]))} />
+                        <span>{vis(k.min)}</span>
+                      </label>
+                    </td>
+                  </>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="knapperad">
+          <button className="knapp primær" onClick={ferdig}>
+            Bruk valgene
+          </button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }

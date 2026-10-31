@@ -8,6 +8,7 @@ import { skrivNyttRegister } from '../store/listeBackend'
 import { GraphLister, erRotomraade, omraadeLenke } from '../store/lister/graphLister'
 import { LISTER } from '../store/lister/skjema'
 import { DelregisterValg } from './ImportDialog'
+import { Modal, ModalTittel } from './Modal'
 
 interface Props {
   kilde?: Register // registeret det kopieres fra, eller et importert register
@@ -73,89 +74,87 @@ export function NyttRegisterDialog({ kilde, importert, filnavn, backendType, luk
   )
 
   return (
-    <div className="modal-bakgrunn" onMouseDown={(e) => e.target === e.currentTarget && lukk()}>
-      <div className="modal">
-        <header>
-          <h2>{importert ? 'Importer fra Excel' : kilde ? 'Lag nytt register fra dette' : 'Nytt register'}</h2>
-          <button className="ikonknapp" onClick={lukk}>
-            ✕
-          </button>
-        </header>
-        {ferdig ? (
-          <div className="modal-innhold">
-            <p>Registeret er opprettet.</p>
-            {ferdig.nettside && (
-              <p>
-                Området i SharePoint:{' '}
-                <a href={ferdig.nettside} target="_blank" rel="noreferrer">
-                  {ferdig.nettside}
-                </a>
-                . Listene ligger under Områdeinnhold. Legg gjerne lenken nedenfor i navigasjonen på området, så finner alle registeret.
-              </p>
-            )}
-            <label className="felt">
-              <span>Lenke som åpner registeret (kan legges på prosjektsiden)</span>
-              <input readOnly value={ferdig.lenke} onFocus={(e) => e.currentTarget.select()} />
-            </label>
-            <div className="knapperad">
-              <button className="knapp" onClick={() => void navigator.clipboard.writeText(ferdig.lenke)}>
-                Kopier lenke
-              </button>
-              <a className="knapp primær" href={ferdig.lenke}>
-                Åpne registeret
+    <Modal lukk={lukk}>
+      <header>
+        <ModalTittel>{importert ? 'Importer fra Excel' : kilde ? 'Lag nytt register fra dette' : 'Nytt register'}</ModalTittel>
+        <button className="ikonknapp" onClick={lukk} aria-label="Lukk" title="Lukk">
+          ✕
+        </button>
+      </header>
+      {ferdig ? (
+        <div className="modal-innhold">
+          <p>Registeret er opprettet.</p>
+          {ferdig.nettside && (
+            <p>
+              Området i SharePoint:{' '}
+              <a href={ferdig.nettside} target="_blank" rel="noreferrer">
+                {ferdig.nettside}
               </a>
-            </div>
+              . Listene ligger under Områdeinnhold. Legg gjerne lenken nedenfor i navigasjonen på området, så finner alle registeret.
+            </p>
+          )}
+          <label className="felt">
+            <span>Lenke som åpner registeret (kan legges på prosjektsiden)</span>
+            <input readOnly value={ferdig.lenke} onFocus={(e) => e.currentTarget.select()} />
+          </label>
+          <div className="knapperad">
+            <button className="knapp" onClick={() => void navigator.clipboard.writeText(ferdig.lenke)}>
+              Kopier lenke
+            </button>
+            <a className="knapp primær" href={ferdig.lenke}>
+              Åpne registeret
+            </a>
           </div>
-        ) : (
-          <div className="modal-innhold skjema">
-            <label className="felt">
-              <span>Prosjektnavn</span>
-              <input autoFocus value={navn} onChange={(e) => setNavn(e.target.value)} placeholder="F.eks. Nytt kontorbygg Bjørvika" />
+        </div>
+      ) : (
+        <div className="modal-innhold skjema">
+          <label className="felt">
+            <span>Prosjektnavn</span>
+            <input autoFocus value={navn} onChange={(e) => setNavn(e.target.value)} placeholder="F.eks. Nytt kontorbygg Bjørvika" />
+          </label>
+          <div className="felt">
+            <span>Hvor skal registeret ligge?</span>
+            <label className="avkrysning">
+              <input type="radio" checked={hvor === 'sharepoint'} onChange={() => setHvor('sharepoint')} />
+              <span>På prosjektets SharePoint-område (tilgangen styres av området)</span>
             </label>
-            <div className="felt">
-              <span>Hvor skal registeret ligge?</span>
-              <label className="avkrysning">
-                <input type="radio" checked={hvor === 'sharepoint'} onChange={() => setHvor('sharepoint')} />
-                <span>På prosjektets SharePoint-område (tilgangen styres av området)</span>
-              </label>
-              <label className="avkrysning">
-                <input type="radio" checked={hvor === 'demo'} onChange={() => setHvor('demo')} />
-                <span>Demo i denne nettleseren (for testing uten SharePoint)</span>
-              </label>
-            </div>
-            {hvor === 'sharepoint' && (
-              <label className="felt">
-                <span>Adressen til SharePoint-området</span>
-                <input value={omraade} onChange={(e) => setOmraade(e.target.value)} placeholder="https://firma.sharepoint.com/sites/Prosjekt123" />
-                <small>
-                  Det kan være ett riskregister per område. Appen lager listene {Object.values(LISTER).map((l) => `«${l.visningsnavn}»`).join(', ')}. Du må være eier av
-                  området.
-                </small>
-              </label>
-            )}
-            {kilde && (
-              <div className="felt">
-                <span>Hva skal følge med fra «{kilde.prosjekt.navn || 'registeret'}»?</span>
-                {avkrysning('lister', 'Kategorier og egne nedtrekkslister')}
-                {avkrysning('prosjektinfo', 'Prosjektinfo', '(eier, sjef, leder, fase)')}
-                {avkrysning('deltakere', 'Deltakere')}
-                {avkrysning('risker', 'Risker og tiltak', '(får nye ID-er og nummereres fra 1)')}
-                {behold.risker && avkrysning('lukkede', 'Også lukkede risker')}
-                {behold.risker && importert && kilde.risker.length > 0 && <DelregisterValg risker={kilde.risker} filnavn={filnavn ?? kilde.prosjekt.navn} valg={prefix} setValg={setPrefix} />}
-              </div>
-            )}
-            {feil && <div className="banner feil">{feil}</div>}
-            <div className="knapperad">
-              <button className="knapp" onClick={lukk}>
-                Avbryt
-              </button>
-              <button className="knapp primær" disabled={jobber} onClick={() => void opprett()}>
-                {jobber ? 'Oppretter…' : 'Opprett register'}
-              </button>
-            </div>
+            <label className="avkrysning">
+              <input type="radio" checked={hvor === 'demo'} onChange={() => setHvor('demo')} />
+              <span>Demo i denne nettleseren (for testing uten SharePoint)</span>
+            </label>
           </div>
-        )}
-      </div>
-    </div>
+          {hvor === 'sharepoint' && (
+            <label className="felt">
+              <span>Adressen til SharePoint-området</span>
+              <input value={omraade} onChange={(e) => setOmraade(e.target.value)} placeholder="https://firma.sharepoint.com/sites/Prosjekt123" />
+              <small>
+                Det kan være ett riskregister per område. Appen lager listene {Object.values(LISTER).map((l) => `«${l.visningsnavn}»`).join(', ')}. Du må være eier av
+                området.
+              </small>
+            </label>
+          )}
+          {kilde && (
+            <div className="felt">
+              <span>Hva skal følge med fra «{kilde.prosjekt.navn || 'registeret'}»?</span>
+              {avkrysning('lister', 'Kategorier og egne nedtrekkslister')}
+              {avkrysning('prosjektinfo', 'Prosjektinfo', '(eier, sjef, leder, fase)')}
+              {avkrysning('deltakere', 'Deltakere')}
+              {avkrysning('risker', 'Risker og tiltak', '(får nye ID-er og nummereres fra 1)')}
+              {behold.risker && avkrysning('lukkede', 'Også lukkede risker')}
+              {behold.risker && importert && kilde.risker.length > 0 && <DelregisterValg risker={kilde.risker} filnavn={filnavn ?? kilde.prosjekt.navn} valg={prefix} setValg={setPrefix} />}
+            </div>
+          )}
+          {feil && <div className="banner feil">{feil}</div>}
+          <div className="knapperad">
+            <button className="knapp" onClick={lukk}>
+              Avbryt
+            </button>
+            <button className="knapp primær" disabled={jobber} onClick={() => void opprett()}>
+              {jobber ? 'Oppretter…' : 'Opprett register'}
+            </button>
+          </div>
+        </div>
+      )}
+    </Modal>
   )
 }

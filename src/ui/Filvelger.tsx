@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { FilElement, FilKilde, FilMappe } from '../store/filer'
 import { erExcel } from '../store/filer'
 import { dekrypterExcel, erKryptert } from '../kryptert'
+import { Modal, ModalTittel } from './Modal'
 
 interface Felles {
   // Mappene i SharePoint. Mangler den, kan brukeren lime inn en mappelenke hvis lagKilde er gitt, ellers bare bruke egen PC.
@@ -121,162 +122,160 @@ export function Filvelger(p: Props) {
   const rader = treff ?? innhold ?? []
 
   return (
-    <div className="modal-bakgrunn" onMouseDown={(e) => e.target === e.currentTarget && p.lukk()}>
-      <div className="modal filvelger">
-        <header>
-          <h2>{p.modus === 'aapne' ? 'Importer fra Excel' : 'Eksporter til Excel'}</h2>
-          <button className="ikonknapp" onClick={p.lukk}>
-            ✕
-          </button>
-        </header>
-        <div className="modal-innhold">
-          <div className="fv-pc">
-            {p.modus === 'aapne' ? (
-              <>
-                <button className="knapp" onClick={() => filRef.current?.click()}>
-                  Fra min PC…
-                </button>
-                <input ref={filRef} type="file" accept=".xlsm,.xlsx" hidden onChange={(e) => e.target.files?.[0] && fraPc(e.target.files[0])} />
-                <span className="liten">Åpner vanlig fildialog.</span>
-              </>
-            ) : (
-              <>
-                <button className="knapp" onClick={p.lagretPc}>
-                  Last ned til min PC
-                </button>
-                <span className="liten">Lagres i nedlastingsmappen, som vanlig nedlasting.</span>
-              </>
-            )}
-          </div>
-
-          {laast && (
-            <form
-              className="fv-passord"
-              onSubmit={(e) => {
-                e.preventDefault()
-                laasOpp()
-              }}
-            >
-              <label className="felt">
-                <span>«{laast.navn}» er låst med passord</span>
-                <input type="password" autoFocus value={passord} onChange={(e) => setPassord(e.target.value)} placeholder="Passord" autoComplete="off" />
-                <small>Filen låses opp her i nettleseren. Passordet sendes ingen steder og blir ikke lagret.</small>
-              </label>
-              {jobber && <p className="liten">{jobber}</p>}
-              {feil && <div className="banner feil">{feil}</div>}
-              <div className="knapperad">
-                <button type="button" className="knapp" onClick={() => setLaast(null)}>
-                  Avbryt
-                </button>
-                <button className="knapp primær" disabled={!passord || !!jobber}>
-                  Lås opp
-                </button>
-              </div>
-            </form>
+    <Modal className="filvelger" lukk={p.lukk}>
+      <header>
+        <ModalTittel>{p.modus === 'aapne' ? 'Importer fra Excel' : 'Eksporter til Excel'}</ModalTittel>
+        <button className="ikonknapp" onClick={p.lukk} aria-label="Lukk" title="Lukk">
+          ✕
+        </button>
+      </header>
+      <div className="modal-innhold">
+        <div className="fv-pc">
+          {p.modus === 'aapne' ? (
+            <>
+              <button className="knapp" onClick={() => filRef.current?.click()}>
+                Fra min PC…
+              </button>
+              <input ref={filRef} type="file" accept=".xlsm,.xlsx" hidden onChange={(e) => e.target.files?.[0] && fraPc(e.target.files[0])} />
+              <span className="liten">Åpner vanlig fildialog.</span>
+            </>
+          ) : (
+            <>
+              <button className="knapp" onClick={p.lagretPc}>
+                Last ned til min PC
+              </button>
+              <span className="liten">Lagres i nedlastingsmappen, som vanlig nedlasting.</span>
+            </>
           )}
-          {kilde ? (
-            <div className="fv-sp">
-              <div className="fv-topp">
-                <strong>{kilde.navn}</strong>
-                {kilde.demo && <span className="liten"> (bare for å vise hvordan det virker, filene finnes ikke på ekte)</span>}
-              </div>
-              <div className="fv-sti">
-                <button className="knapp" disabled={(sti.length < 2 && !sti[0]?.forelder) || !!jobber} onClick={() => void opp()} title="Opp ett nivå">
-                  ↑ Opp
-                </button>
-                <span className="fv-brodsmuler">
-                  {sti.map((m, i) => (
-                    <span key={m.id}>
-                      {i > 0 && ' › '}
-                      {i < sti.length - 1 ? (
-                        <button className="lenkeknapp" onClick={() => void gaaTil(m, sti.slice(0, i + 1))}>
-                          {m.navn}
-                        </button>
-                      ) : (
-                        <strong>{m.navn}</strong>
-                      )}
-                    </span>
-                  ))}
-                </span>
-              </div>
-              <form
-                className="fv-sok"
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  sokNaa()
-                }}
-              >
-                <input value={sok} onChange={(e) => (setSok(e.target.value), !e.target.value && setTreff(null))} placeholder="Søk etter Excel-filer i hele biblioteket" />
-                <button className="knapp" disabled={!!jobber}>
-                  Søk
-                </button>
-              </form>
-              <ul className="fv-liste">
-                {treff && <li className="fv-info">{treff.length ? `${treff.length} treff på «${sok}»` : `Ingen Excel-filer funnet for «${sok}»`}</li>}
-                {!treff && innhold && !rader.length && <li className="fv-info">Mappen er tom.</li>}
-                {rader.map((f) => {
-                  const excel = !f.mappe && erExcel(f.navn)
-                  const aktiv = f.mappe || (excel && p.modus === 'aapne') || (p.modus === 'lagre' && excel)
-                  return (
-                    <li key={f.id}>
-                      <button
-                        className={'fv-rad' + (aktiv ? '' : ' passiv')}
-                        disabled={!aktiv || !!jobber}
-                        onClick={() => (f.mappe ? void gaaTil({ id: f.id, navn: f.navn, forelder: mappe?.id }, [...sti, { id: f.id, navn: f.navn, forelder: mappe?.id }]) : velgFil(f))}
-                      >
-                        <span className={'fv-ikon ' + (f.mappe ? 'mappe' : excel ? 'excel' : 'fil')} aria-hidden>
-                          {f.mappe ? '' : excel ? 'X' : ''}
-                        </span>
-                        <span className="fv-navn">
-                          {f.navn}
-                          {f.sted && <small> i {f.sted}</small>}
-                        </span>
-                        <span className="fv-meta">{f.mappe ? '' : `${dato(f.endret)} ${storrelse(f.storrelse)}`}</span>
-                      </button>
-                    </li>
-                  )
-                })}
-              </ul>
-              {p.modus === 'lagre' && (
-                <form
-                  className="fv-lagre"
-                  onSubmit={(e) => {
-                    e.preventDefault()
-                    lagreHer()
-                  }}
-                >
-                  <label className="felt">
-                    <span>Filnavn</span>
-                    <input value={filnavn} onChange={(e) => setFilnavn(e.target.value)} />
-                  </label>
-                  <button className="knapp primær" disabled={!mappe || !!jobber}>
-                    Lagre i «{mappe?.navn ?? '…'}»
-                  </button>
-                </form>
-              )}
+        </div>
+
+        {laast && (
+          <form
+            className="fv-passord"
+            onSubmit={(e) => {
+              e.preventDefault()
+              laasOpp()
+            }}
+          >
+            <label className="felt">
+              <span>«{laast.navn}» er låst med passord</span>
+              <input type="password" autoFocus value={passord} onChange={(e) => setPassord(e.target.value)} placeholder="Passord" autoComplete="off" />
+              <small>Filen låses opp her i nettleseren. Passordet sendes ingen steder og blir ikke lagret.</small>
+            </label>
+            {jobber && <p className="liten">{jobber}</p>}
+            {feil && <div className="banner feil">{feil}</div>}
+            <div className="knapperad">
+              <button type="button" className="knapp" onClick={() => setLaast(null)}>
+                Avbryt
+              </button>
+              <button className="knapp primær" disabled={!passord || !!jobber}>
+                Lås opp
+              </button>
             </div>
-          ) : p.lagKilde ? (
+          </form>
+        )}
+        {kilde ? (
+          <div className="fv-sp">
+            <div className="fv-topp">
+              <strong>{kilde.navn}</strong>
+              {kilde.demo && <span className="liten"> (bare for å vise hvordan det virker, filene finnes ikke på ekte)</span>}
+            </div>
+            <div className="fv-sti">
+              <button className="knapp" disabled={(sti.length < 2 && !sti[0]?.forelder) || !!jobber} onClick={() => void opp()} title="Opp ett nivå">
+                ↑ Opp
+              </button>
+              <span className="fv-brodsmuler">
+                {sti.map((m, i) => (
+                  <span key={m.id}>
+                    {i > 0 && ' › '}
+                    {i < sti.length - 1 ? (
+                      <button className="lenkeknapp" onClick={() => void gaaTil(m, sti.slice(0, i + 1))}>
+                        {m.navn}
+                      </button>
+                    ) : (
+                      <strong>{m.navn}</strong>
+                    )}
+                  </span>
+                ))}
+              </span>
+            </div>
             <form
-              className="fv-sp fv-lenke"
+              className="fv-sok"
               onSubmit={(e) => {
                 e.preventDefault()
-                if (lenke.trim()) void jobb('Finner mappen…', async () => setKilde(await p.lagKilde!(lenke.trim())))
+                sokNaa()
               }}
             >
-              <label className="felt">
-                <span>Eller hent fra SharePoint: lim inn lenken til mappen der Excel-filen ligger</span>
-                <input value={lenke} onChange={(e) => setLenke(e.target.value)} placeholder="https://firma.sharepoint.com/sites/Prosjekt123/Delte dokumenter/…" />
-              </label>
-              <button className="knapp" disabled={!lenke.trim() || !!jobber}>
-                Vis mappen
+              <input value={sok} onChange={(e) => (setSok(e.target.value), !e.target.value && setTreff(null))} placeholder="Søk etter Excel-filer i hele biblioteket" />
+              <button className="knapp" disabled={!!jobber}>
+                Søk
               </button>
             </form>
-          ) : null}
+            <ul className="fv-liste">
+              {treff && <li className="fv-info">{treff.length ? `${treff.length} treff på «${sok}»` : `Ingen Excel-filer funnet for «${sok}»`}</li>}
+              {!treff && innhold && !rader.length && <li className="fv-info">Mappen er tom.</li>}
+              {rader.map((f) => {
+                const excel = !f.mappe && erExcel(f.navn)
+                const aktiv = f.mappe || (excel && p.modus === 'aapne') || (p.modus === 'lagre' && excel)
+                return (
+                  <li key={f.id}>
+                    <button
+                      className={'fv-rad' + (aktiv ? '' : ' passiv')}
+                      disabled={!aktiv || !!jobber}
+                      onClick={() => (f.mappe ? void gaaTil({ id: f.id, navn: f.navn, forelder: mappe?.id }, [...sti, { id: f.id, navn: f.navn, forelder: mappe?.id }]) : velgFil(f))}
+                    >
+                      <span className={'fv-ikon ' + (f.mappe ? 'mappe' : excel ? 'excel' : 'fil')} aria-hidden>
+                        {f.mappe ? '' : excel ? 'X' : ''}
+                      </span>
+                      <span className="fv-navn">
+                        {f.navn}
+                        {f.sted && <small> i {f.sted}</small>}
+                      </span>
+                      <span className="fv-meta">{f.mappe ? '' : `${dato(f.endret)} ${storrelse(f.storrelse)}`}</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+            {p.modus === 'lagre' && (
+              <form
+                className="fv-lagre"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  lagreHer()
+                }}
+              >
+                <label className="felt">
+                  <span>Filnavn</span>
+                  <input value={filnavn} onChange={(e) => setFilnavn(e.target.value)} />
+                </label>
+                <button className="knapp primær" disabled={!mappe || !!jobber}>
+                  Lagre i «{mappe?.navn ?? '…'}»
+                </button>
+              </form>
+            )}
+          </div>
+        ) : p.lagKilde ? (
+          <form
+            className="fv-sp fv-lenke"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (lenke.trim()) void jobb('Finner mappen…', async () => setKilde(await p.lagKilde!(lenke.trim())))
+            }}
+          >
+            <label className="felt">
+              <span>Eller hent fra SharePoint: lim inn lenken til mappen der Excel-filen ligger</span>
+              <input value={lenke} onChange={(e) => setLenke(e.target.value)} placeholder="https://firma.sharepoint.com/sites/Prosjekt123/Delte dokumenter/…" />
+            </label>
+            <button className="knapp" disabled={!lenke.trim() || !!jobber}>
+              Vis mappen
+            </button>
+          </form>
+        ) : null}
 
-          {!laast && jobber && <p className="liten">{jobber}</p>}
-          {!laast && feil && <div className="banner feil">{feil}</div>}
-        </div>
+        {!laast && jobber && <p className="liten">{jobber}</p>}
+        {!laast && feil && <div className="banner feil">{feil}</div>}
       </div>
-    </div>
+    </Modal>
   )
 }
