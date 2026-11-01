@@ -2809,6 +2809,53 @@ td .valgpil.synlig {
   content: '✓';
 }
 
+/* ---- Skanska-skriften Shape Sans ----
+   Brukes når den er installert på maskinen (local). Skriftfilene ligger ikke i repoet, fordi repoet og nettsiden er offentlige.
+   Medium dekker også vekt 600, så halvfete overskrifter blir Medium og ikke kunstig fete.
+   Display finnes i én vekt og dekker alle vekter, så nettleseren ikke lager en falsk fet variant. */
+@font-face {
+  font-family: 'Shape Sans';
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+  src: local('Shape Sans Light'), local('ShapeSans-Light');
+}
+@font-face {
+  font-family: 'Shape Sans';
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: local('Shape Sans Regular'), local('ShapeSans-Regular'), local('Shape Sans');
+}
+@font-face {
+  font-family: 'Shape Sans';
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+  src: local('Shape Sans Regular Italic'), local('Shape Sans Italic'), local('ShapeSans-RegularItalic'), local('ShapeSans-Italic');
+}
+@font-face {
+  font-family: 'Shape Sans';
+  font-weight: 500 600;
+  font-style: normal;
+  font-display: swap;
+  src: local('Shape Sans Medium'), local('ShapeSans-Medium');
+}
+@font-face {
+  font-family: 'Shape Sans';
+  font-weight: 700 900;
+  font-style: normal;
+  font-display: swap;
+  src: local('Shape Sans Bold'), local('ShapeSans-Bold');
+}
+@font-face {
+  font-family: 'Shape Sans Display';
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  src: local('Shape Sans Display'), local('ShapeSans-Display');
+}
+
 /* ---- Moderne utseende ----
    Samme oppbygning og funksjoner som det klassiske, men lysere topplinje, én lav oversikt,
    tynnere linjer i tabellen og merker i stedet for fylte celler. Slås på under Mer > Utseende. */
@@ -2825,9 +2872,12 @@ td .valgpil.synlig {
   --aksent: #143275;
   --aksent-lys: #dce0ea;
   --skygge: 0 1px 3px rgba(0, 0, 0, 0.06);
-  --kondensert: 'Barlow Semi Condensed', 'Barlow', 'Segoe UI', system-ui, sans-serif;
-  font-family: 'Barlow', 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+  /* Shape Sans Display til overskrifter og store tall, Shape Sans til resten. Barlow når Shape Sans mangler. */
+  --kondensert: 'Shape Sans Display', 'Barlow Semi Condensed', 'Barlow', 'Segoe UI', system-ui, sans-serif;
+  --brodtekst: 'Shape Sans', 'Barlow', 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+  font-family: var(--brodtekst);
   font-size: 14px;
+  line-height: 1.25;
   font-variant-numeric: tabular-nums;
   background: var(--bg);
   color: var(--tekst);
@@ -2992,7 +3042,7 @@ td .valgpil.synlig {
   justify-content: flex-start;
 }
 .stil-moderne .oversikt .kort-tittel label {
-  font-family: 'Barlow', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--brodtekst, 'Barlow', 'Segoe UI', system-ui, sans-serif);
   font-size: 13px;
   margin-left: 12px;
 }
