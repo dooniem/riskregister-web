@@ -162,3 +162,8 @@
   background: #b9c2d6;
   color: #000;
 }
+/* Årsak og konsekvens i samlet visning: Shape Sans Regular, som profilen bruker til brødtekst.
+   Den nøytrale profilen har 500 her fordi Barlow blir for tynn, men i Shape Sans blir 500 Medium og like tung som hendelsen over. */
+:root[data-profil='skanska'] .beskrivelse-samlet dl {
+  font-weight: 400;
+}
