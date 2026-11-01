@@ -4,24 +4,36 @@
 // For å legge til en ny bedrift: lag en CSS-fil her som overstyrer variablene i .stil-moderne, og legg den inn i PROFILER.
 import { useSyncExternalStore } from 'react'
 import './skanska.css'
+import skanskaIkon from './skanska-ikon.svg'
 import skanskaLogo from './skanska-logo.svg'
 
 export interface Profil {
   navn: string
   logo?: string
+  ikon?: string // fanesymbolet (favicon)
 }
 
 const PROFILER: Record<string, Profil> = {
-  skanska: { navn: 'Skanska', logo: skanskaLogo },
+  skanska: { navn: 'Skanska', logo: skanskaLogo, ikon: skanskaIkon },
 }
 
 let valgt: string | null = null
 const lyttere = new Set<() => void>()
+// Det nøytrale fanesymbolet fra index.html, så det kan settes tilbake
+let noytraltIkon: string | null = null
+
+function settIkon(href: string | undefined) {
+  const lenke = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
+  if (!lenke) return
+  noytraltIkon ??= lenke.href
+  lenke.href = href ?? noytraltIkon
+}
 
 function sett(key: string | null) {
   valgt = key && PROFILER[key] ? key : null
   if (valgt) document.documentElement.dataset.profil = valgt
   else delete document.documentElement.dataset.profil
+  settIkon(valgt ? PROFILER[valgt].ikon : undefined)
   lyttere.forEach((l) => l())
 }
 
