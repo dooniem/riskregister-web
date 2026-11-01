@@ -1,10 +1,10 @@
-/* ---- Skanska-profilen ----
-   Gjelder bare moderne og samlet visning, og bare når profilen «skanska» er valgt (se src/profil/index.ts).
-   Alt som er Skanska-spesifikt ligger i denne filen og i skanska-logo.svg. Fjernes profilen, blir appen nøytral.
+/* ---- Bedriftsprofilen ----
+   Gjelder bare moderne og samlet visning, og bare når profilen er slått på (?profil=yes, se src/profil/index.ts).
+   Alt som er profilspesifikt ligger i denne filen, logo.svg og ikon.svg. Uten profil er appen nøytral.
 
-   Kilder: Skanskas fargedokument, grafikkdokument og typografidokument (2021).
-   - Skanska Blue #143275 er kjernen: aksent og overskrifter. Skanska Gray og gråskalaen er flater.
-   - Skanska Active Green #3ECE7B er bare for handlinger: Ny risk og streken under valgt side.
+   Kilder: profilens farge-, grafikk- og typografiregler.
+   - Primærblå #143275 er kjernen: aksent og overskrifter. Lysegrå og gråskalaen er flater.
+   - Handlingsgrønn #3ECE7B er bare for handlinger: Ny risk og streken under valgt side.
    - Tertiærfargene er satt av til grafer og illustrasjoner: eksponering, fag og kostspenn.
    - Shape Sans Display til overskrifter, Shape Sans til resten, linjeavstand 125 %. */
 
@@ -54,8 +54,8 @@
   src: local('Shape Sans Display'), local('ShapeSans-Display');
 }
 
-:root[data-profil='skanska'] .stil-moderne {
-  /* Flater og tekst: Skanska Gray, Dim White og gråskalaen */
+:root[data-profil='yes'] .stil-moderne {
+  /* Flater og tekst: lysegrå, nesten hvit og gråskalaen */
   --bg: #ececec;
   --flate: #ffffff;
   --flate-2: #f5f5f5;
@@ -74,7 +74,7 @@
   --hode-gruppe: #ffffff;
   --overskrift: #143275;
 
-  /* Skanska Blue som aksent, Active Green på hovedhandlingen */
+  /* Primærblå som aksent, handlingsgrønn på hovedhandlingen */
   --aksent: #143275;
   --aksent-lys: #dce0ea;
   --aksent-hover: #0e2457;
@@ -94,7 +94,7 @@
   --r: #af3149;
   --m: #143275;
 
-  /* Kost: Skanska Green, Yellow og Red 60 %, med 15 %-tinter */
+  /* Kost: grønn, gul og rød 60 %, med 15 %-tinter */
   --kost-bc: #aeddbc;
   --kost-bc-lys: #f3faf6;
   --kost-ml: #f4dd7d;
@@ -104,7 +104,7 @@
   --kost-spenn-r: #e7c1c8;
   --kost-spenn-m: #b9c2d6;
 
-  /* Eksponering, risiko: Skanska Green, Yellow 60 %, Yellow, Orange og Red */
+  /* Eksponering, risiko: grønn, gul 60 %, gul, oransje og rød */
   --eks-r-0: #aeddbc;
   --eks-r-1: #f8ebb1;
   --eks-r-2: #f4dd7d;
@@ -115,7 +115,7 @@
   --eks-r-2-tekst: #1a1a1a;
   --eks-r-3-tekst: #1a1a1a;
   --eks-r-4-tekst: #ffffff;
-  /* Eksponering, mulighet: tinter av Skanska Blue (15, 30, 45, 80 og 100 %) */
+  /* Eksponering, mulighet: tinter av primærblå (15, 30, 45, 80 og 100 %) */
   --eks-m-0: #dce0ea;
   --eks-m-1: #b9c2d6;
   --eks-m-2: #95a3c1;
@@ -127,26 +127,26 @@
   --eks-m-3-tekst: #ffffff;
   --eks-m-4-tekst: #ffffff;
 
-  /* Fag: samme navn som i den nøytrale profilen, men fra Skanskas palett */
-  --fag-0: #143275; /* Blå: Skanska Blue */
+  /* Fag: samme navn som i den nøytrale profilen, men fra profilens palett */
+  --fag-0: #143275; /* Blå: primærblå */
   --fag-0-tekst: #ffffff;
-  --fag-1: #af3149; /* Rød: Skanska Red */
+  --fag-1: #af3149; /* Rød: profilrød */
   --fag-1-tekst: #ffffff;
-  --fag-2: #aeddbc; /* Grønn: Skanska Green */
+  --fag-2: #aeddbc; /* Grønn: profilgrønn */
   --fag-2-tekst: #143275;
-  --fag-3: #eda977; /* Oransje: Skanska Orange */
+  --fag-3: #eda977; /* Oransje: profiloransje */
   --fag-3-tekst: #143275;
-  --fag-4: #824a8e; /* Lilla: Skanska Purple */
+  --fag-4: #824a8e; /* Lilla: profillilla */
   --fag-4-tekst: #ffffff;
-  --fag-5: #4b9fa3; /* Turkis: Skanska Teal */
+  --fag-5: #4b9fa3; /* Turkis: profilturkis */
   --fag-5-tekst: #000000;
-  --fag-6: #b493bc; /* Rosa: Skanska Purple 60 % */
+  --fag-6: #b493bc; /* Rosa: profillilla 60 % */
   --fag-6-tekst: #143275;
-  --fag-7: #ddd6c0; /* Brun: Skanska Beige */
+  --fag-7: #ddd6c0; /* Brun: profilbeige */
   --fag-7-tekst: #143275;
-  --fag-8: #f4dd7d; /* Gul: Skanska Yellow */
+  --fag-8: #f4dd7d; /* Gul: profilgul */
   --fag-8-tekst: #143275;
-  --fag-9: #333333; /* Grå: Skanska Dim Black */
+  --fag-9: #333333; /* Grå: mørkegrå */
   --fag-9-tekst: #ffffff;
 
   /* Skrift: Shape Sans når den er installert, ellers Barlow som i den nøytrale profilen */
@@ -154,36 +154,36 @@
   --brodtekst: 'Shape Sans', 'Barlow', 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
   line-height: 1.25;
 }
-:root[data-profil='skanska'] .stil-moderne .knapp.ny-risk {
+:root[data-profil='yes'] .stil-moderne .knapp.ny-risk {
   font-weight: 600;
   padding-inline: 16px 18px;
 }
-:root[data-profil='skanska'] .stil-moderne ::selection {
+:root[data-profil='yes'] .stil-moderne ::selection {
   background: #b9c2d6;
   color: #000;
 }
 /* Årsak og konsekvens i samlet visning: Shape Sans Regular, som profilen bruker til brødtekst.
    Den nøytrale profilen har 500 her fordi Barlow blir for tynn, men i Shape Sans blir 500 Medium og like tung som hendelsen over. */
-:root[data-profil='skanska'] .beskrivelse-samlet dl {
+:root[data-profil='yes'] .beskrivelse-samlet dl {
   font-weight: 400;
 }
 /* Overskrifter etter typografidokumentet: sidetittelen i Shape Sans Display (H2), kortoverskrifter som
    underoverskrifter i Shape Sans Regular (H4, 18/22 px), slik profilen bruker Regular til underoverskrifter.
    Litt mindre enn i dokumentet, fordi dette er et arbeidsverktøy og ikke en nettside. */
-:root[data-profil='skanska'] .rb-hode h2 {
+:root[data-profil='yes'] .rb-hode h2 {
   font-size: 30px;
   font-weight: 400;
   line-height: 1.1;
 }
-:root[data-profil='skanska'] .risikobilde h3,
-:root[data-profil='skanska'] .stormatrise.inline > header h2 {
+:root[data-profil='yes'] .risikobilde h3,
+:root[data-profil='yes'] .stormatrise.inline > header h2 {
   font-family: var(--brodtekst);
   font-size: 20px;
   font-weight: 400;
   line-height: 1.2;
 }
 /* Hjelpeteksten over matrisen: 13 px i stedet for 12, nærmere profilens minste brødtekst (14 px) */
-:root[data-profil='skanska'] .stormatrise.inline p.liten {
+:root[data-profil='yes'] .stormatrise.inline p.liten {
   font-size: 13px;
   line-height: 1.35;
 }

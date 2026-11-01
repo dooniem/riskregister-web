@@ -1,11 +1,11 @@
 // Bedriftsprofil: farger, skrift og logo for moderne og samlet visning.
-// Uten profil er appen nøytral. En profil velges i config.json («"profil": "skanska"»),
-// og kan overstyres i adressen med ?profil=skanska eller ?profil=ingen, for eksempel for å vise appen frem nøytralt.
-// For å legge til en ny bedrift: lag en CSS-fil her som overstyrer variablene i .stil-moderne, og legg den inn i PROFILER.
+// Uten profil er appen nøytral, og det er standard. Profilen slås på i adressen med ?profil=yes og av med ?profil=no.
+// Valget huskes i fanen. Den kan også slås på for alle med «"profil": "yes"» i config.json.
+// For å legge til en ny profil: lag en CSS-fil her som overstyrer variablene i .stil-moderne, og legg den inn i PROFILER.
 import { useSyncExternalStore } from 'react'
-import './skanska.css'
-import skanskaIkon from './skanska-ikon.svg'
-import skanskaLogo from './skanska-logo.svg'
+import './profil.css'
+import ikon from './ikon.svg'
+import logo from './logo.svg'
 
 export interface Profil {
   navn: string
@@ -14,7 +14,7 @@ export interface Profil {
 }
 
 const PROFILER: Record<string, Profil> = {
-  skanska: { navn: 'Skanska', logo: skanskaLogo, ikon: skanskaIkon },
+  yes: { navn: 'Logo', logo, ikon },
 }
 
 let valgt: string | null = null
@@ -47,7 +47,7 @@ export async function lastProfil() {
   } catch {
     /* ignorer */
   }
-  if (fraAdresse) return sett(fraAdresse === 'ingen' ? null : fraAdresse)
+  if (fraAdresse) return sett(fraAdresse === 'no' || fraAdresse === 'ingen' ? null : fraAdresse)
   try {
     const r = await fetch(import.meta.env.BASE_URL + 'config.json', { cache: 'no-store' })
     if (r.ok) {
