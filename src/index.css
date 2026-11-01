@@ -3596,8 +3596,9 @@ td.aktiv .tiltak-samlet-tekst {
 /* Eierskapsgruppen slått sammen: initialer og navn, kategorien under */
 .eier-samlet {
   display: grid;
-  /* Eier og kategori er to ulike felt, ikke navn med undertittel: luft mellom, og kategorien som eget merke */
-  gap: 10px;
+  /* Eier og kategori er to ulike felt, ikke navn med undertittel. Kategorien står på linje med konsekvensen
+     (tredje linje i risikokortet), eieren på linje med hendelsen. */
+  gap: 22px;
   justify-items: start;
 }
 .eier-samlet-navn {
