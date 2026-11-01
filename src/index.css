@@ -3930,7 +3930,8 @@ td.aktiv .tiltak-samlet-tekst {
 .beskrivelse-samlet {
   display: grid;
   gap: 6px;
-  white-space: normal;
+  /* Linjeskift (Alt+Enter) vises som i Excel */
+  white-space: pre-wrap;
   word-break: break-word;
 }
 .beskrivelse-hendelse {

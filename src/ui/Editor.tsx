@@ -14,13 +14,14 @@ interface Props {
   valg: string[]
   bredde: number
   etikett?: string // feltet som redigeres, når én celle viser flere felt
+  markorStart?: number // hvor markøren skal stå når editoren åpnes (der det ble klikket), ellers bakerst
   inline?: boolean // står i teksten i stedet for oppå cellen, i samme boks som teksten (ingen layoutforskyvning)
   onFerdig: (tekst: string, flytt: Flytt) => void
   onAvbryt: () => void
 }
 
 // Editoren legger seg oppå cellen, som når man skriver direkte i en Excel-celle
-export function CelleEditor({ kolonne, start, erstatt, valg, bredde, etikett, inline, onFerdig, onAvbryt }: Props) {
+export function CelleEditor({ kolonne, start, erstatt, valg, bredde, etikett, markorStart, inline, onFerdig, onAvbryt }: Props) {
   const [tekst, setTekst] = useState(start)
   // Markert linje i valglista. Åpnes lista uten at man har skrevet, står markeringen på dagens verdi.
   const startIndeks = erstatt ? (start.trim() ? 0 : -1) : valg.indexOf(start)
@@ -29,6 +30,13 @@ export function CelleEditor({ kolonne, start, erstatt, valg, bredde, etikett, in
   const ref = useRef<HTMLTextAreaElement & HTMLInputElement>(null)
   const liste = useRef<HTMLUListElement>(null)
   const ferdig = useRef(false)
+  // Hvor markøren skal stå etter et linjeskift satt inn med Alt+Enter
+  const markor = useRef<number | null>(null)
+  useLayoutEffect(() => {
+    if (markor.current == null) return
+    ref.current?.setSelectionRange(markor.current, markor.current)
+    markor.current = null
+  }, [tekst])
 
   useLayoutEffect(() => {
     const el = ref.current
@@ -36,7 +44,9 @@ export function CelleEditor({ kolonne, start, erstatt, valg, bredde, etikett, in
     el.focus()
     // Som F2 i Excel: markøren havner bakerst i teksten. Valglister markerer alt, så man kan skrive over.
     if (!erstatt && kolonne.type === 'valg') el.select?.()
+    else if (!erstatt && markorStart != null) el.setSelectionRange?.(markorStart, markorStart)
     else el.setSelectionRange?.(el.value.length, el.value.length)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [erstatt, kolonne.type])
 
   // Textarea vokser med innholdet
@@ -111,6 +121,17 @@ export function CelleEditor({ kolonne, start, erstatt, valg, bredde, etikett, in
       e.preventDefault()
       ferdig.current = true
       onAvbryt()
+      return
+    }
+    // Alt+Enter gir ikke linjeskift i en tekstboks av seg selv (bare Shift+Enter gjør det), så det settes inn her, som i Excel
+    if (e.key === 'Enter' && kolonne.type === 'langtekst' && e.altKey) {
+      e.preventDefault()
+      const el = ref.current
+      if (!el) return
+      const fra = el.selectionStart ?? tekst.length
+      const til = el.selectionEnd ?? fra
+      setTekst(tekst.slice(0, fra) + '\n' + tekst.slice(til))
+      markor.current = fra + 1
       return
     }
     if (e.key === 'Enter' && !(kolonne.type === 'langtekst' && (e.altKey || e.shiftKey))) {
