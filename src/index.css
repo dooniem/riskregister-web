@@ -1063,6 +1063,36 @@ dialog.modal::backdrop {
   margin: 10px 0 6px;
   font-size: 14px;
 }
+.modal.om .modal-innhold {
+  line-height: 1.5;
+}
+.modal.om .modal-innhold p,
+.modal.om .modal-innhold ul {
+  margin: 0 0 10px;
+  max-width: 62ch;
+}
+.modal.om .modal-innhold h3 {
+  margin-top: 16px;
+}
+.modal.om .modal-innhold ul {
+  padding-left: 20px;
+}
+.modal.om .modal-innhold li + li {
+  margin-top: 4px;
+}
+.om-merk {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--flate-2, #f5f5f5);
+}
+.modal.om .modal-innhold .om-laget {
+  max-width: none;
+  margin: 18px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--linje);
+  font-size: 12px;
+  color: var(--dempet);
+}
 .avkrysning {
   display: flex;
   gap: 8px;
