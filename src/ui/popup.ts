@@ -26,10 +26,11 @@ export function usePopup<T extends HTMLElement>(anker: DOMRect, onLagre: () => v
       // En lagring man ikke ville ha, kan angres med Ctrl+Z, mens en endring som forkastes uten beskjed er borte.
       siste.current.onLagre()
     }
-    const t = setTimeout(() => window.addEventListener('mousedown', h))
+    // Lytter i fangstfasen, ellers når ikke klikket hit når en celle stopper det (som linjene i samlet beskrivelse)
+    const t = setTimeout(() => window.addEventListener('mousedown', h, true))
     return () => {
       clearTimeout(t)
-      window.removeEventListener('mousedown', h)
+      window.removeEventListener('mousedown', h, true)
     }
   }, [])
 

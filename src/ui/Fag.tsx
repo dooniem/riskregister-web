@@ -22,10 +22,10 @@ function useKlikkUtenfor(lukk: () => void) {
   useEffect(() => {
     const h = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && sist.current()
     const k = (e: KeyboardEvent) => e.key === 'Escape' && sist.current()
-    setTimeout(() => window.addEventListener('mousedown', h))
+    setTimeout(() => window.addEventListener('mousedown', h, true))
     window.addEventListener('keydown', k)
     return () => {
-      window.removeEventListener('mousedown', h)
+      window.removeEventListener('mousedown', h, true)
       window.removeEventListener('keydown', k)
     }
   }, [])

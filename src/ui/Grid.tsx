@@ -78,6 +78,8 @@ const SAMMEN_TITTEL: Record<string, string> = { tiltak: 'Tiltak, eier og frist',
 const SAMLET_GRUPPER = ['beskrivelse', 'eierskap', 'tiltak']
 // Feltene som vises og redigeres i den sammenslåtte beskrivelsen i samlet utseende
 const BESKRIVELSE = ['hendelse', 'aarsak', 'konsekvenser']
+// Feltene som kan endres rett i den sammenslåtte tiltakscellen: status (prikken), eier og frist
+const TILTAK_SAMLET = ['tiltakstatus', 'tiltakseier', 'frist']
 const BESKRIVELSE_NAVN: Record<string, string> = { hendelse: 'Hendelse', aarsak: 'Årsak', konsekvenser: 'Konsekvens' }
 
 export function synligeKolonner(v: Visning, egendef2Aktiv = false, moderne = false, samlet = false): Kolonne[] {
@@ -127,8 +129,8 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   )
 
   const risker = useMemo(() => sorter(filtrer(doc, visning), visning.sortering), [doc, visning])
-  // Felles skala for kostspennet i moderne utseende, så spennene kan sammenlignes mellom riskene
-  const kostMaks = useMemo(() => kostSkala(doc.risker), [doc.risker])
+  // Felles skala for kostspennet når brukeren har valgt det i FV-kolonnen, ellers egen skala per risk
+  const kostSkala = useMemo(() => (visning.kostSkala === 'prosjekt' ? prosjektSkala(doc.risker) : undefined), [doc.risker, visning.kostSkala])
   const grupperte: Gruppe[] = useMemo(() => grupper(doc, risker, visning.gruppering), [doc, risker, visning.gruppering])
 
   // Alle synlige linjer i rekkefølge. En risk tar like mange linjer som den har tiltak (minst én).
@@ -196,7 +198,15 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
       setAktiv({ ...aktiv, kol: BESKRIVELSE[bi + (retning === 'ned' ? 1 : -1)] })
       return
     }
-    const ki = kolonner.findIndex((k) => k.key === (samlet && (BESKRIVELSE.includes(aktiv.kol) || aktiv.kol === 'rm') ? 'hendelse' : aktiv.kol))
+    const ki = kolonner.findIndex(
+      (k) =>
+        k.key ===
+        (samlet && (BESKRIVELSE.includes(aktiv.kol) || aktiv.kol === 'rm')
+          ? 'hendelse'
+          : sammen.includes('tiltak') && TILTAK_SAMLET.includes(aktiv.kol)
+            ? 'tiltak'
+            : aktiv.kol),
+    )
     const li = finnLinje(aktiv)
     if (ki < 0 || li < 0) return
     let nyK = ki
@@ -705,7 +715,8 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   moderne={moderne}
                   samlet={samlet}
                   sammen={sammen}
-                  kostMaks={kostMaks}
+                  kostSkala={kostSkala}
+                  person={visning.person}
                   byttSkarisk={byttSkarisk}
                 />
               ))}
@@ -736,6 +747,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
           doc={doc}
           visning={visning}
           setVisning={setVisning}
+          moderne={moderne}
           x={meny.x}
           y={meny.y}
           lukk={() => setMeny(null)}
@@ -835,7 +847,8 @@ interface RaderProps {
   moderne: boolean
   samlet: boolean
   sammen: string[]
-  kostMaks: Skala
+  kostSkala?: Skala
+  person?: string
   byttSkarisk: (riskId: string) => void
 }
 
@@ -871,7 +884,10 @@ function RiskRader(p: RaderProps) {
     const pos: Posisjon = { riskId: r.id, tiltakId: k.nivaa === 'risk' ? r.tiltak[0]?.id : t?.id, kol: k.key }
     // I samlet utseende står årsak og konsekvens i hendelse-cellen, så de regnes som samme celle
     const samletBeskrivelse = p.samlet && k.key === 'hendelse'
-    const her = (kol?: string) => kol === k.key || (samletBeskrivelse && !!kol && (BESKRIVELSE.includes(kol) || kol === 'rm'))
+    // Status, eier og frist står i tiltakscellen når tiltaksgruppen er slått sammen
+    const tiltakSammen = k.key === 'tiltak' && p.sammen.includes('tiltak')
+    const her = (kol?: string) =>
+      kol === k.key || (samletBeskrivelse && !!kol && (BESKRIVELSE.includes(kol) || kol === 'rm')) || (tiltakSammen && !!kol && TILTAK_SAMLET.includes(kol))
     const erAktiv = p.aktiv?.riskId === r.id && her(p.aktiv.kol) && (k.nivaa === 'risk' || p.aktiv.tiltakId === t?.id)
     const redigeres = p.redigerer?.riskId === r.id && her(p.redigerer.kol) && (k.nivaa === 'risk' || p.redigerer.tiltakId === t?.id)
     const andreHer = p.tilstede.filter((x) => x.kolonne === k.key && (k.nivaa === 'risk' || x.tiltakId === t?.id))
@@ -895,6 +911,8 @@ function RiskRader(p: RaderProps) {
       erAktiv ? 'aktiv' : '',
       !k.felt ? 'lesecelle' : '',
       k.nivaa === 'tiltak' && rad > 0 ? 'tiltak-fortsatt' : '',
+      // Med personfilter tones tiltakene som andre eier ned, så ens egne skiller seg ut
+      k.nivaa === 'tiltak' && p.person && t && t.eier?.trim().toLowerCase() !== p.person.trim().toLowerCase() ? 'annen-eier' : '',
       p.sammen.includes(k.gruppe) && GRUPPER.find((g) => g.key === k.gruppe)?.hoved === k.key ? 'samlet' : '',
     ].join(' ')
     const span = k.nivaa === 'risk' ? n : 1
@@ -954,10 +972,18 @@ function RiskRader(p: RaderProps) {
     if (k.key === 'eksponering' && p.moderne) innhold = <VurderingCelle r={r} kanSkrive={p.kanSkrive} />
     if (k.nivaa === 'tiltak' && !t && k.key === 'tiltak' && p.kanSkrive) innhold = <span className="plassholder">+ legg til tiltak</span>
     const samletTiltak = k.key === 'tiltak' && t && p.sammen.includes('tiltak')
-    if (samletTiltak) innhold = <TiltakSamlet t={t} doc={p.doc} />
+    if (samletTiltak)
+      innhold = (
+        <TiltakSamlet
+          t={t}
+          doc={p.doc}
+          aktiv={erAktiv ? p.aktiv?.kol : undefined}
+          velg={p.kanSkrive ? (kol, ev) => ev.button === 0 && (ev.stopPropagation(), p.klikk({ ...pos, kol }, ev)) : undefined}
+        />
+      )
     if (k.key === 'eier' && p.sammen.includes('eierskap')) innhold = <EierSamlet r={r} doc={p.doc} medEgendef={p.samlet} />
     // Teksten i samlet beskrivelse redigeres der den står, i samme boks, så ingenting rundt flytter seg
-    const redigertKol = samletBeskrivelse && p.redigerer ? KOL[p.redigerer.kol] : k
+    const redigertKol = (samletBeskrivelse || tiltakSammen) && p.redigerer ? KOL[p.redigerer.kol] : k
     const inlineEditor =
       redigeres && p.redigerer && samletBeskrivelse && BESKRIVELSE.includes(p.redigerer.kol) ? (
         <CelleEditor
@@ -983,7 +1009,7 @@ function RiskRader(p: RaderProps) {
           velg={(kol, ev) => ev.button === 0 && (ev.stopPropagation(), p.klikk({ ...pos, kol }, ev))}
         />
       )
-    if (k.key === 'fv') innhold = p.moderne ? <KostCelle r={r} skala={p.kostMaks} /> : formatTall(fv(r))
+    if (k.key === 'fv') innhold = p.moderne ? <KostCelle r={r} skala={p.kostSkala} /> : formatTall(fv(r))
     // Tomme celler får et usynlig tegn, så en ny tiltakslinje er like høy som en med én linje tekst
     if (innhold === '' || innhold == null) innhold = '\u200b'
 
@@ -1072,16 +1098,40 @@ function Initialer({ navn, doc }: { navn: string; doc: Register }) {
 }
 
 // Moderne utseende med tiltaksgruppen slått sammen: status som prikk, teksten, eier og frist i samme celle
-function TiltakSamlet({ t, doc }: { t: Tiltak; doc: Register }) {
+function TiltakSamlet({
+  t,
+  doc,
+  aktiv,
+  velg,
+}: {
+  t: Tiltak
+  doc: Register
+  aktiv?: string
+  velg?: (kol: string, ev: React.MouseEvent) => void
+}) {
   const status = t.status || 'Ikke startet'
   const ferdig = status === 'Utført' || status === 'Utføres ikke'
+  // Status, eier og frist kan klikkes hver for seg og åpner lista eller kalenderen der de står
+  const felt = (kol: string, tittel: string) =>
+    velg
+      ? {
+          className: 'tiltak-felt' + (aktiv === kol ? ' valgt' : ''),
+          title: tittel,
+          onMouseDown: (ev: React.MouseEvent) => velg(kol, ev),
+        }
+      : { className: 'tiltak-felt', title: tittel }
+  const frist = t.frist ? 'Frist ' + formatDato(t.frist) + (forfalt(t) ? ', forfalt' : '') : 'Ingen frist'
   return (
-    <div className={'tiltak-samlet' + (ferdig ? ' ferdig' : '')}>
-      <span className={'status-prikk ts-' + status.replace(/\s/g, '-').toLowerCase()} title={`Status: ${status}`} aria-label={`Status: ${status}`} role="img" />
+    <div className={'tiltak-samlet' + (ferdig ? ' ferdig' : '') + (velg ? ' kan-endre' : '')}>
+      <span {...felt('tiltakstatus', `Status: ${status}${velg ? '. Klikk for å endre' : ''}`)}>
+        <span className={'status-prikk ts-' + status.replace(/\s/g, '-').toLowerCase()} aria-label={`Status: ${status}`} role="img" />
+      </span>
       <span className="tiltak-samlet-tekst">{t.tekst || <span className="plassholder">Uten tekst</span>}</span>
-      {t.eier ? <Initialer navn={t.eier} doc={doc} /> : <span />}
-      <span className={'tiltak-samlet-frist' + (forfalt(t) ? ' forfalt' : '')} title={t.frist ? 'Frist ' + formatDato(t.frist) + (forfalt(t) ? ', forfalt' : '') : 'Ingen frist'}>
-        {t.frist ? kortDato(t.frist) : ''}
+      <span {...felt('tiltakseier', t.eier ? `Tiltakseier: ${t.eier}${velg ? '. Klikk for å endre' : ''}` : velg ? 'Sett tiltakseier' : 'Ingen tiltakseier')}>
+        {t.eier ? <Initialer navn={t.eier} doc={doc} /> : velg ? <span className="initialer tom" aria-hidden>+</span> : null}
+      </span>
+      <span {...felt('frist', frist + (velg ? (t.frist ? '. Klikk for å endre' : '. Klikk for å sette') : ''))}>
+        <span className={'tiltak-samlet-frist' + (forfalt(t) ? ' forfalt' : '')}>{t.frist ? kortDato(t.frist) : velg ? <span className="frist-tom">Frist</span> : ''}</span>
       </span>
     </div>
   )
@@ -1207,39 +1257,48 @@ function tegnVedKlikk(e: React.MouseEvent): number | undefined {
   return undefined
 }
 
-export interface Skala {
+interface Skala {
   lo: number
   hi: number
 }
 
-// Felles skala for kostspennene, så de kan sammenlignes mellom riskene. Lengden settes ved 90-persentilen av
-// spennene, så ett stort spenn ikke krymper alle de andre; spenn som går forbi, når kanten og tones ut der.
-// Har noen risker negative tall (f.eks. muligheter ført som minus), får skalaen like mye plass på begge sider av null.
-export function kostSkala(risker: Risk[]): Skala {
-  const med = risker.filter((r) => r.bc || r.ml || r.wc)
-  if (!med.length) return { lo: 0, hi: 1 }
-  const storst = med.map((r) => Math.max(Math.abs(r.bc), Math.abs(r.ml), Math.abs(r.wc))).sort((a, b) => a - b)
-  const m = Math.max(1, storst[Math.round(0.9 * (storst.length - 1))])
-  const negativ = med.some((r) => Math.min(r.bc, r.ml, r.wc) < 0)
-  const positiv = med.some((r) => Math.max(r.bc, r.ml, r.wc) > 0)
-  return { lo: negativ ? -m : 0, hi: positiv || !negativ ? m : 0 }
+// Felles skala for hele prosjektet: fra laveste til høyeste verdi blant alle riskene, med null der den faller.
+// Viser hvor mye hver risk betyr for prosjektet som helhet; små spenn blir korte.
+function prosjektSkala(risker: Risk[]): Skala {
+  let lo = 0
+  let hi = 0
+  for (const r of risker) {
+    lo = Math.min(lo, r.bc, r.ml, r.wc)
+    hi = Math.max(hi, r.bc, r.ml, r.wc)
+  }
+  return hi > lo ? { lo, hi } : { lo: 0, hi: 1 }
 }
 
-function KostCelle({ r, skala }: { r: Risk; skala: Skala }) {
-  const pst = (v: number) => Math.min(100, Math.max(0, ((v - skala.lo) / (skala.hi - skala.lo)) * 100))
-  const p = (v: number) => `${pst(v)}%`
+// Kostspennet. Med egen skala per risk (standard) går streken fra best til verst over hele cellen, med mest
+// sannsynlig (grå) og forventet verdi (svart) inne i spennet; den viser skjevheten, og størrelsen leses av tallet.
+// Med prosjektskala står alle riskene på samme akse, så lengden viser hvor mye risken betyr for prosjektet.
+function KostCelle({ r, skala }: { r: Risk; skala?: Skala }) {
   const tom = !r.bc && !r.ml && !r.wc
-  const fra = Math.min(r.bc, r.wc)
-  const til = Math.max(r.bc, r.wc)
-  const kl = ['kost-spenn', r.rm === 'M' ? 'm' : '', til > skala.hi ? 'over' : '', fra < skala.lo ? 'under' : ''].filter(Boolean).join(' ')
+  const lo = Math.min(r.bc, r.ml, r.wc)
+  const hi = Math.max(r.bc, r.ml, r.wc)
+  // Litt luft i hver ende, så endemerkene ikke havner utenfor
+  const akse = skala ?? { lo, hi }
+  const pst = (v: number) => (akse.hi > akse.lo ? 4 + ((v - akse.lo) / (akse.hi - akse.lo)) * 92 : 50)
+  const p = (v: number) => `${pst(v)}%`
+  const nullStrek = skala ? skala.lo < 0 && skala.hi > 0 : lo < 0 && hi > 0
+  const strek =
+    hi > lo
+      ? { left: p(lo), width: `max(3px, ${pst(hi) - pst(lo)}%)` }
+      : { left: `calc(${p(lo)} - 2px)`, width: '4px' }
   return (
     <div className="kost-celle" title={`Best ${formatTall(r.bc)}, mest sannsynlig ${formatTall(r.ml)}, verst ${formatTall(r.wc)} (i 1000 kr)`}>
       <span className="kost-fv">{tom ? '-' : formatTall(fv(r))}</span>
       {!tom && (
         <>
-          <span className={kl} aria-hidden>
-            {skala.lo < 0 && <s style={{ left: p(0) }} />}
-            <i style={{ left: p(fra), width: `max(3px, ${pst(til) - pst(fra)}%)` }} />
+          <span className={'kost-spenn egen' + (r.rm === 'M' ? ' m' : '')} aria-hidden>
+            {nullStrek && <s style={{ left: p(0) }} />}
+            <i style={strek} />
+            {hi > lo && <b className="ml" style={{ left: p(r.ml) }} />}
             <b style={{ left: p(fv(r)) }} />
           </span>
           <span className="kost-fra-til">
@@ -1256,6 +1315,7 @@ function KolonneMeny({
   doc,
   visning,
   setVisning,
+  moderne,
   x,
   y,
   lukk,
@@ -1264,6 +1324,7 @@ function KolonneMeny({
   doc: Register
   visning: Visning
   setVisning: (f: (v: Visning) => Visning) => void
+  moderne: boolean
   x: number
   y: number
   lukk: () => void
@@ -1297,6 +1358,18 @@ function KolonneMeny({
       <button onClick={() => sorter(true)}>Sorter stigende (A–Å, 1–9)</button>
       <button onClick={() => sorter(false)}>Sorter synkende (Å–A, 9–1)</button>
       {visning.sortering.length > 0 && <button onClick={() => (setVisning((v) => ({ ...v, sortering: [] })), lukk())}>Fjern sortering (tilbake til Nr.)</button>}
+      {moderne && k.key === 'fv' && (
+        <>
+          <hr />
+          <div className="meny-tittel">Skala for kostspennet</div>
+          <label className="meny-valg">
+            <input type="radio" name="kostskala" checked={visning.kostSkala !== 'prosjekt'} onChange={() => setVisning((v) => ({ ...v, kostSkala: undefined }))} /> Egen per risk
+          </label>
+          <label className="meny-valg">
+            <input type="radio" name="kostskala" checked={visning.kostSkala === 'prosjekt'} onChange={() => setVisning((v) => ({ ...v, kostSkala: 'prosjekt' }))} /> Felles for prosjektet
+          </label>
+        </>
+      )}
       <hr />
       {brukVerdier ? (
         <>

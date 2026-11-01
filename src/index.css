@@ -3919,6 +3919,11 @@ td.aktiv .tiltak-samlet-tekst {
   top: 0;
   height: 38px;
   vertical-align: middle;
+  /* Barlow i 13px/500 blir utydelig på Windows-skjermer uten høy oppløsning (prikken i «i» forsvinner) */
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #4a565e;
 }
 .stil-samlet .grid td.k-nr::before {
   display: none;
@@ -4115,26 +4120,24 @@ td.aktiv .tiltak-samlet-tekst {
   width: 20px;
 }
 
-/* Kostspennet: nullstrek når skalaen går under null, og tonet ende når spennet går forbi skalaen */
+/* Kostspennet med egen skala per risk: streken er hele spennet, med mest sannsynlig (grå) og forventet verdi (svart).
+   Nullstreken vises når spennet går fra minus til pluss. */
+.kost-spenn.egen {
+  background: none;
+}
+.kost-spenn.egen b.ml {
+  top: -1px;
+  height: 6px;
+  width: 2px;
+  background: #8a959c;
+}
 .kost-spenn s {
   position: absolute;
-  top: -2px;
-  bottom: -2px;
+  top: -3px;
+  bottom: -3px;
   width: 1px;
   margin-left: -0.5px;
-  background: rgba(29, 40, 48, 0.28);
-}
-.kost-spenn.over i {
-  -webkit-mask-image: linear-gradient(to right, #000 70%, transparent);
-  mask-image: linear-gradient(to right, #000 70%, transparent);
-}
-.kost-spenn.under i {
-  -webkit-mask-image: linear-gradient(to left, #000 70%, transparent);
-  mask-image: linear-gradient(to left, #000 70%, transparent);
-}
-.kost-spenn.over.under i {
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 20%, #000 80%, transparent);
-  mask-image: linear-gradient(to right, transparent, #000 20%, #000 80%, transparent);
+  background: rgba(29, 40, 48, 0.35);
 }
 
 /* Samlet: visningsvalg og Ny risk til høyre i verktøylinjen */
@@ -4169,4 +4172,76 @@ td.aktiv .tiltak-samlet-tekst {
   align-items: center;
   gap: 8px;
   padding: 4px 0;
+}
+
+/* Valg av skala for kostspennet i menyen på FV-kolonnen */
+.kolonnemeny .meny-valg {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.kolonnemeny .meny-valg:hover {
+  background: var(--aksent-lys);
+}
+
+/* Sammenslått tiltakscelle: status, eier og frist kan klikkes hver for seg */
+.tiltak-felt {
+  display: flex;
+  justify-content: center;
+  min-height: 22px;
+  border-radius: 4px;
+}
+.tiltak-felt:last-child {
+  justify-content: flex-end;
+}
+.tiltak-samlet.kan-endre .tiltak-felt {
+  cursor: pointer;
+}
+.tiltak-samlet.kan-endre .tiltak-felt:hover,
+.tiltak-felt.valgt {
+  background: var(--aksent-lys);
+  box-shadow: 0 0 0 3px var(--aksent-lys);
+}
+.tiltak-samlet .status-prikk {
+  margin-top: 0.45em;
+}
+.initialer.tom {
+  background: none;
+  border: 1px dashed #b8c0c6;
+  color: #8a959c;
+  font-weight: 500;
+}
+.frist-tom {
+  color: #9aa4ab;
+  font-size: 12px;
+}
+/* Tomme plasser for eier og frist vises bare når musa er over raden eller cellen er valgt */
+.initialer.tom,
+.frist-tom {
+  visibility: hidden;
+}
+tr:hover .initialer.tom,
+tr:hover .frist-tom,
+td.aktiv .initialer.tom,
+td.aktiv .frist-tom {
+  visibility: visible;
+}
+
+/* Personfilter («Bare mine») i verktøylinjen */
+.person-knapp {
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.person-knapp.aktiv {
+  border-color: var(--aksent);
+  color: var(--aksent);
+  background: var(--aksent-lys);
+}
+.grid td.annen-eier:not(.aktiv) > * {
+  opacity: 0.45;
 }

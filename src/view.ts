@@ -32,6 +32,8 @@ export interface Visning {
   visOversikt: boolean
   fag?: string[] // valgte fag-id-er, UTEN_FAG for risker uten fag. Tom = alle
   skjulFag?: boolean // skjul fagmerkene i Nr.-kolonnen og på kortene (også i utskrift)
+  person?: string // vis bare risker der personen er risikoeier eller tiltakseier
+  kostSkala?: 'prosjekt' // kostspennet i moderne utseende: egen skala per risk (standard) eller felles skala for prosjektet
 }
 
 export const STANDARD_VISNING: Visning = {
@@ -122,11 +124,28 @@ export function iFag(r: Risk, doc: Register, fag?: string[]): boolean {
   return !fag?.length || fag.includes(doc.lister.fag.some((f) => f.id === r.fag) ? r.fag! : UTEN_FAG)
 }
 
+// Risken angår personen når hen er risikoeier eller eier minst ett av tiltakene
+export function harPerson(r: Risk, navn: string): boolean {
+  const n = navn.trim().toLowerCase()
+  const lik = (x?: string) => !!x && x.trim().toLowerCase() === n
+  return lik(r.eier) || r.tiltak.some((t) => lik(t.eier))
+}
+
+// Alle som står som risikoeier eller tiltakseier, pluss deltakerlisten, sortert
+export function eierNavn(doc: Register): string[] {
+  const s = new Map<string, string>()
+  const legg = (x?: string) => x?.trim() && !s.has(x.trim().toLowerCase()) && s.set(x.trim().toLowerCase(), x.trim())
+  doc.deltakere.forEach((d) => legg(d.navn))
+  doc.risker.forEach((r) => (legg(r.eier), r.tiltak.forEach((t) => legg(t.eier))))
+  return [...s.values()].sort((a, b) => a.localeCompare(b, 'nb'))
+}
+
 export function filtrer(doc: Register, v: Visning, ignorer?: string): Risk[] {
   const sok = v.sok.trim().toLowerCase()
   return doc.risker.filter((r) => {
     if (!iFane(r, v.fane)) return false
     if (!iFag(r, doc, v.fag)) return false
+    if (v.person && !harPerson(r, v.person)) return false
     if (sok) {
       const hay = [r.nr, r.aarsak, r.hendelse, r.konsekvenser, r.eier, r.kategori, r.egendef, r.egendef2, ...r.tiltak.flatMap((t) => [t.tekst, t.eier, t.beskrivelse])]
         .join(' ')
