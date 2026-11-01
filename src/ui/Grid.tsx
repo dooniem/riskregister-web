@@ -635,7 +635,11 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
       <table className="grid" style={fyllBredde ? { width: '100%', minWidth: totalBredde } : { width: totalBredde }}>
         <colgroup>
           {kolonner.map((k) => (
-            <col key={k.key} style={{ width: fyllBredde && k.key === 'hendelse' ? undefined : bredde(k) }} />
+            // --andel: kolonnens del av bredden i prosent, så utskriften kan skalere tabellen til arkbredden
+            <col
+              key={k.key}
+              style={{ width: fyllBredde && k.key === 'hendelse' ? undefined : bredde(k), '--andel': ((bredde(k) / totalBredde) * 100).toFixed(3) } as React.CSSProperties}
+            />
           ))}
         </colgroup>
         <thead>
