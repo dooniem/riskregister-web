@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Kolonne } from '../columns'
-import { GRUPPER, KOLONNER, editorTekst, formatDato, formatEndring, formatTall, tolkInput, visTekst } from '../columns'
+import { GRUPPER, KOL, KOLONNER, editorTekst, formatDato, formatEndring, formatTall, tolkInput, visTekst } from '../columns'
 import type { Register, Risk, Tiltak } from '../model'
 import { KONSEKVENS, SANNSYNLIGHET, eksponering, eksponeringFarge, fagFarge, fv, nyRisk, nyttTiltak } from '../model'
 import type { Op, RiskFelt, TiltakFelt } from '../ops'
@@ -13,7 +13,7 @@ import { CelleEditor } from './Editor'
 import { FagMerke, FagVelger, fagForNyRisk } from './Fag'
 import { KostEditor } from './KostEditor'
 import { VurderingEditor } from './VurderingEditor'
-import { Laas } from './Ikoner'
+import { Laas, Pil } from './Ikoner'
 import { RiskInfo } from './RiskInfo'
 import { initialer, likNavn } from './Personer'
 
@@ -46,6 +46,9 @@ interface Props {
   // Moderne utseende: BC, ML og WC samles i FV-kolonnen, og sannsynlighet og konsekvens i eksponeringskolonnen.
   // De redigeres sammen i et lite vindu.
   moderne?: boolean
+  // Samlet utseende: som moderne, men beskrivelse, eierskap og tiltak er alltid slått sammen til én kolonne hver,
+  // og R&M vises som et merke i beskrivelsen
+  samlet?: boolean
 }
 
 const Kalenderikon = () => (
@@ -64,16 +67,25 @@ const ENKEL_GRUPPE = ['kost', 'vurdering']
 const MODERNE_BREDDE: Record<string, number> = { fv: 132, eksponering: 128, tilSkarisk: 76 }
 // Bredder i moderne utseende når gruppen er slått sammen og cellen viser også det som er skjult
 const SAMMEN_BREDDE: Record<string, number> = { tiltak: 400, eier: 190 }
-const SAMMEN_TITTEL: Record<string, string> = { tiltak: 'Tiltak, eier og frist', eier: 'Risikoeier og kategori' }
+// Smalere i samlet utseende, så hele raden får plass på en vanlig PC-skjerm. Beskrivelsen fyller resten.
+const SAMLET_BREDDE: Record<string, number> = { tiltak: 340, eier: 170, hendelse: 340 }
+const SAMMEN_TITTEL: Record<string, string> = { tiltak: 'Tiltak, eier og frist', eier: 'Risikoeier og kategori', hendelse: 'Hendelse, årsak og konsekvens' }
+// Gruppene som alltid er slått sammen i samlet utseende
+const SAMLET_GRUPPER = ['beskrivelse', 'eierskap', 'tiltak']
+// Feltene som vises og redigeres i den sammenslåtte beskrivelsen i samlet utseende
+const BESKRIVELSE = ['hendelse', 'aarsak', 'konsekvenser']
+const BESKRIVELSE_NAVN: Record<string, string> = { hendelse: 'Hendelse', aarsak: 'Årsak', konsekvenser: 'Konsekvens' }
 
-export function synligeKolonner(v: Visning, egendef2Aktiv = false, moderne = false): Kolonne[] {
+export function synligeKolonner(v: Visning, egendef2Aktiv = false, moderne = false, samlet = false): Kolonne[] {
+  const sammen = samlet ? [...v.skjulteGrupper, ...SAMLET_GRUPPER] : v.skjulteGrupper
   return KOLONNER.filter((k) => {
     if (k.key === 'egendef2' && !egendef2Aktiv) return false
     if (moderne && SAMLET_I_MODERNE.includes(k.key)) return false
-    if (v.skjulteKolonner.includes(k.key)) return false
+    if (samlet && k.key === 'rm') return false
+    if (v.skjulteKolonner.includes(k.key) && !(samlet && SAMLET_GRUPPER.includes(k.gruppe))) return false
     // FV og eksponering er alene i gruppene sine i moderne utseende, så de vises selv om gruppen er slått sammen
     if (moderne && ENKEL_GRUPPE.includes(k.gruppe)) return true
-    if (v.skjulteGrupper.includes(k.gruppe)) return GRUPPER.find((g) => g.key === k.gruppe)?.hoved === k.key
+    if (sammen.includes(k.gruppe)) return GRUPPER.find((g) => g.key === k.gruppe)?.hoved === k.key
     return true
   })
 }
@@ -81,7 +93,7 @@ export function synligeKolonner(v: Visning, egendef2Aktiv = false, moderne = fal
 // Fulle navn på kostkolonnene, vist som hjelpetekst på overskriften
 const KOST_NAVN: Record<string, string> = { bc: 'Best case', ml: 'Most likely', wc: 'Worst case', eksponering: 'Sannsynlighet × konsekvens' }
 
-export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapneDetalj, melding, kanSkrive, mot, moderne = false }: Props) {
+export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapneDetalj, melding, kanSkrive, mot, moderne = false, samlet = false }: Props) {
   const [aktiv, setAktiv] = useState<Posisjon | null>(null)
   const [redigerer, setRedigerer] = useState<(Posisjon & { start: string; erstatt: boolean }) | null>(null)
   const [meny, setMeny] = useState<{ kol: string; x: number; y: number } | null>(null)
@@ -93,12 +105,20 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   const boks = useRef<HTMLDivElement>(null)
 
   const egendef2 = doc.lister.egendef2Aktiv
-  const kolonner = useMemo(() => synligeKolonner(visning, egendef2, moderne), [visning, egendef2, moderne])
+  const kolonner = useMemo(() => synligeKolonner(visning, egendef2, moderne, samlet), [visning, egendef2, moderne, samlet])
   // Gruppene som er slått sammen. I moderne utseende viser da hovedkolonnen mer av det som er skjult.
-  const sammen = useMemo(() => (moderne ? visning.skjulteGrupper : []), [moderne, visning.skjulteGrupper])
+  const sammen = useMemo(
+    () => (samlet ? [...new Set([...visning.skjulteGrupper, ...SAMLET_GRUPPER])] : moderne ? visning.skjulteGrupper : []),
+    [moderne, samlet, visning.skjulteGrupper],
+  )
   const bredde = useCallback(
-    (k: Kolonne) => visning.bredder[k.key] ?? (sammen.includes(k.gruppe) ? SAMMEN_BREDDE[k.key] : undefined) ?? (moderne ? MODERNE_BREDDE[k.key] : undefined) ?? k.bredde,
-    [visning.bredder, moderne, sammen],
+    (k: Kolonne) =>
+      visning.bredder[k.key] ??
+      (samlet ? SAMLET_BREDDE[k.key] : undefined) ??
+      (sammen.includes(k.gruppe) ? SAMMEN_BREDDE[k.key] : undefined) ??
+      (moderne ? MODERNE_BREDDE[k.key] : undefined) ??
+      k.bredde,
+    [visning.bredder, moderne, samlet, sammen],
   )
 
   const risker = useMemo(() => sorter(filtrer(doc, visning), visning.sortering), [doc, visning])
@@ -164,7 +184,14 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
 
   const flytt = (retning: Flytt) => {
     if (!aktiv || retning === 'ingen') return
-    const ki = kolonner.findIndex((k) => k.key === aktiv.kol)
+    // Årsak og konsekvens står i hendelse-kolonnen i samlet utseende
+    // Pil opp og ned flytter mellom hendelse, årsak og konsekvens før neste risk
+    const bi = samlet ? BESKRIVELSE.indexOf(aktiv.kol) : -1
+    if (bi >= 0 && ((retning === 'ned' && bi < 2) || (retning === 'opp' && bi > 0))) {
+      setAktiv({ ...aktiv, kol: BESKRIVELSE[bi + (retning === 'ned' ? 1 : -1)] })
+      return
+    }
+    const ki = kolonner.findIndex((k) => k.key === (samlet && BESKRIVELSE.includes(aktiv.kol) ? 'hendelse' : aktiv.kol))
     const li = finnLinje(aktiv)
     if (ki < 0 || li < 0) return
     let nyK = ki
@@ -545,13 +572,15 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   const harFilter = (key: string) => (visning.filter.verdier[key]?.length ?? 0) > 0 || !!visning.filter.tekst[key]
 
   const totalBredde = kolonner.reduce((s, k) => s + bredde(k), 0)
+  const fyllBredde = samlet && kolonner.some((k) => k.key === 'hendelse') && visning.bredder.hendelse == null
 
   return (
     <div className="grid-boks" ref={boks} tabIndex={0} onKeyDown={onKeyDown} onClick={() => setMeny(null)}>
-      <table className="grid" style={{ width: totalBredde }}>
+      {/* I samlet utseende fyller beskrivelsen resten av bredden, så tabellen alltid går helt ut */}
+      <table className="grid" style={fyllBredde ? { width: '100%', minWidth: totalBredde } : { width: totalBredde }}>
         <colgroup>
           {kolonner.map((k) => (
-            <col key={k.key} style={{ width: bredde(k) }} />
+            <col key={k.key} style={{ width: fyllBredde && k.key === 'hendelse' ? undefined : bredde(k) }} />
           ))}
         </colgroup>
         <thead>
@@ -570,7 +599,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                         setVisning((v) => ({ ...v, skjulteGrupper: sammen ? v.skjulteGrupper.filter((x) => x !== g.key) : [...v.skjulteGrupper, g.key] }))
                       }
                     >
-                      <span className="chevron">{sammen ? '▸' : '▾'}</span> {g.tittel}
+                      <span className="chevron">{sammen ? <Pil retning="hoyre" /> : <Pil />}</span> {g.tittel}
                     </button>
                   )}
                 </th>
@@ -597,7 +626,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                     setMeny(meny?.kol === k.key ? null : { kol: k.key, x: rect.left, y: rect.bottom + 4 })
                   }}
                 >
-                  ▾
+                  <Pil />
                 </button>
                 <span className="resize" onMouseDown={(e) => startResize(k, e)} onClick={(e) => e.stopPropagation()} />
               </th>
@@ -647,6 +676,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   kanSkrive={kanSkrive}
                   mot={mot}
                   moderne={moderne}
+                  samlet={samlet}
                   sammen={sammen}
                   kostMaks={kostMaks}
                   byttSkarisk={byttSkarisk}
@@ -743,7 +773,7 @@ function GruppeOverskrift({ gruppe, antallKol, lukket, bytt, mot }: { gruppe: Gr
     <tbody className="gruppe-tbody">
       <tr>
         <td colSpan={antallKol} onClick={bytt}>
-          <span className="chevron">{lukket ? '▸' : '▾'}</span>
+          <span className="chevron">{lukket ? <Pil retning="hoyre" /> : <Pil />}</span>
           <strong>{gruppe.navn}</strong>
           <span className="gruppe-info">
             {gruppe.risker.length} {gruppe.risker.length === 1 ? 'risk' : 'risker'}
@@ -776,6 +806,7 @@ interface RaderProps {
   fagVelger: (riskId: string, e: React.MouseEvent) => void
   mot?: Map<string, Risk>
   moderne: boolean
+  samlet: boolean
   sammen: string[]
   kostMaks: number
   byttSkarisk: (riskId: string) => void
@@ -811,8 +842,11 @@ function RiskRader(p: RaderProps) {
 
   const celle = (k: Kolonne, t: Tiltak | undefined, rad: number) => {
     const pos: Posisjon = { riskId: r.id, tiltakId: k.nivaa === 'risk' ? r.tiltak[0]?.id : t?.id, kol: k.key }
-    const erAktiv = p.aktiv?.riskId === r.id && p.aktiv.kol === k.key && (k.nivaa === 'risk' || p.aktiv.tiltakId === t?.id)
-    const redigeres = p.redigerer?.riskId === r.id && p.redigerer.kol === k.key && (k.nivaa === 'risk' || p.redigerer.tiltakId === t?.id)
+    // I samlet utseende står årsak og konsekvens i hendelse-cellen, så de regnes som samme celle
+    const samletBeskrivelse = p.samlet && k.key === 'hendelse'
+    const her = (kol?: string) => kol === k.key || (samletBeskrivelse && !!kol && BESKRIVELSE.includes(kol))
+    const erAktiv = p.aktiv?.riskId === r.id && her(p.aktiv.kol) && (k.nivaa === 'risk' || p.aktiv.tiltakId === t?.id)
+    const redigeres = p.redigerer?.riskId === r.id && her(p.redigerer.kol) && (k.nivaa === 'risk' || p.redigerer.tiltakId === t?.id)
     const andreHer = p.tilstede.filter((x) => x.kolonne === k.key && (k.nivaa === 'risk' || x.tiltakId === t?.id))
     const stil: React.CSSProperties = {}
     if (k.frosset) stil.left = p.frossenVenstre[k.key]
@@ -894,7 +928,8 @@ function RiskRader(p: RaderProps) {
     if (k.nivaa === 'tiltak' && !t && k.key === 'tiltak' && p.kanSkrive) innhold = <span className="plassholder">+ legg til tiltak</span>
     const samletTiltak = k.key === 'tiltak' && t && p.sammen.includes('tiltak')
     if (samletTiltak) innhold = <TiltakSamlet t={t} doc={p.doc} />
-    if (k.key === 'eier' && p.sammen.includes('eierskap')) innhold = <EierSamlet r={r} doc={p.doc} />
+    if (k.key === 'eier' && p.sammen.includes('eierskap')) innhold = <EierSamlet r={r} doc={p.doc} medEgendef={p.samlet} />
+    if (samletBeskrivelse) innhold = <BeskrivelseSamlet r={r} aktiv={erAktiv ? p.aktiv?.kol : undefined} velg={(kol, ev) => ev.button === 0 && (ev.stopPropagation(), p.klikk({ ...pos, kol }, ev))} />
     if (k.key === 'fv') innhold = p.moderne ? <KostCelle r={r} maks={p.kostMaks} /> : formatTall(fv(r))
     // Tomme celler får et usynlig tegn, så en ny tiltakslinje er like høy som en med én linje tekst
     if (innhold === '' || innhold == null) innhold = '\u200b'
@@ -908,7 +943,7 @@ function RiskRader(p: RaderProps) {
         onMouseDown={(ev) => ev.button === 0 && p.klikk(pos, ev)}
         onContextMenu={(ev) => p.kontekst(pos, ev)}
       >
-        {k.type === 'langtekst' && !samletTiltak ? <div className="tekstklipp">{innhold}</div> : innhold}
+        {k.type === 'langtekst' && !samletTiltak && !samletBeskrivelse ? <div className="tekstklipp">{innhold}</div> : innhold}
         {endring(k)}
         {andreHer.map((x) => (
           <span key={x.brukerId} className="navnelapp" style={{ background: x.farge }}>
@@ -922,7 +957,7 @@ function RiskRader(p: RaderProps) {
         )}
         {(((k.type === 'valg' || k.type === 'dato') && k.felt) || (p.moderne && (k.key === 'eksponering' || k.key === 'fv'))) && p.kanSkrive && !redigeres && (
           <span className={'valgpil' + (erAktiv ? ' synlig' : '')} aria-hidden>
-            {k.type === 'dato' ? <Kalenderikon /> : '▾'}
+            {k.type === 'dato' ? <Kalenderikon /> : <Pil />}
           </span>
         )}
         {k.key === 'tiltak' && erAktiv && p.kanSkrive && !redigeres && (
@@ -932,7 +967,8 @@ function RiskRader(p: RaderProps) {
         )}
         {redigeres && p.redigerer && (
           <CelleEditor
-            kolonne={k}
+            kolonne={samletBeskrivelse ? KOL[p.redigerer.kol] : k}
+            etikett={samletBeskrivelse ? BESKRIVELSE_NAVN[p.redigerer.kol] : undefined}
             start={p.redigerer.start}
             erstatt={p.redigerer.erstatt}
             valg={k.valg?.(p.doc) ?? []}
@@ -1000,8 +1036,9 @@ function TiltakSamlet({ t, doc }: { t: Tiltak; doc: Register }) {
 }
 
 // Moderne utseende med eierskapsgruppen slått sammen: initialer og navn, med kategorien under
-function EierSamlet({ r, doc }: { r: Risk; doc: Register }) {
-  if (!r.eier && !r.kategori) return null
+function EierSamlet({ r, doc, medEgendef }: { r: Risk; doc: Register; medEgendef?: boolean }) {
+  const under = [r.kategori, medEgendef ? r.egendef : ''].filter(Boolean).join(' · ')
+  if (!r.eier && !under) return null
   return (
     <div className="eier-samlet">
       {r.eier && (
@@ -1010,7 +1047,26 @@ function EierSamlet({ r, doc }: { r: Risk; doc: Register }) {
           {r.eier}
         </span>
       )}
-      {r.kategori && <span className="eier-samlet-kategori">{r.kategori}</span>}
+      {under && <span className="eier-samlet-kategori">{under}</span>}
+    </div>
+  )
+}
+
+// Samlet utseende: hendelsen med årsak og konsekvens under. Hver linje redigeres for seg, med ett klikk på linjen.
+function BeskrivelseSamlet({ r, aktiv, velg }: { r: Risk; aktiv?: string; velg: (kol: string, ev: React.MouseEvent) => void }) {
+  const kl = (kol: string) => (aktiv === kol ? 'valgt' : undefined)
+  return (
+    <div className="beskrivelse-samlet">
+      <div className={'beskrivelse-hendelse ' + (kl('hendelse') ?? '')} onMouseDown={(ev) => velg('hendelse', ev)}>
+        {r.hendelse || <span className="plassholder">Uten hendelse</span>}
+        {r.rm === 'M' && <span className="mulighet-merke">Mulighet</span>}
+      </div>
+      <dl>
+        <dt className={kl('aarsak')} onMouseDown={(ev) => velg('aarsak', ev)}>Årsak</dt>
+        <dd className={kl('aarsak')} onMouseDown={(ev) => velg('aarsak', ev)}>{r.aarsak || <span className="plassholder">Legg til årsak</span>}</dd>
+        <dt className={kl('konsekvenser')} onMouseDown={(ev) => velg('konsekvenser', ev)}>Konsekvens</dt>
+        <dd className={kl('konsekvenser')} onMouseDown={(ev) => velg('konsekvenser', ev)}>{r.konsekvenser || <span className="plassholder">Legg til konsekvens</span>}</dd>
+      </dl>
     </div>
   )
 }

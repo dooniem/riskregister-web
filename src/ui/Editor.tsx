@@ -13,12 +13,13 @@ interface Props {
   erstatt: boolean // true når redigering startet ved å skrive et tegn
   valg: string[]
   bredde: number
+  etikett?: string // feltet som redigeres, når én celle viser flere felt
   onFerdig: (tekst: string, flytt: Flytt) => void
   onAvbryt: () => void
 }
 
 // Editoren legger seg oppå cellen, som når man skriver direkte i en Excel-celle
-export function CelleEditor({ kolonne, start, erstatt, valg, bredde, onFerdig, onAvbryt }: Props) {
+export function CelleEditor({ kolonne, start, erstatt, valg, bredde, etikett, onFerdig, onAvbryt }: Props) {
   const [tekst, setTekst] = useState(start)
   // Markert linje i valglista. Åpnes lista uten at man har skrevet, står markeringen på dagens verdi.
   const startIndeks = erstatt ? (start.trim() ? 0 : -1) : valg.indexOf(start)
@@ -153,7 +154,7 @@ export function CelleEditor({ kolonne, start, erstatt, valg, bredde, onFerdig, o
     return (
       <div {...ramme} style={{ width: Math.max(bredde, 340) }}>
         <textarea {...felles} onChange={(e) => setTekst(e.target.value)} rows={3} />
-        <div className="editor-hint">Enter lagrer · Alt+Enter ny linje · Esc avbryter</div>
+        <div className="editor-hint">{etikett && <b>{etikett} · </b>}Enter lagrer · Alt+Enter ny linje · Esc avbryter</div>
       </div>
     )
 

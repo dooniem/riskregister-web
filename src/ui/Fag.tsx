@@ -4,6 +4,7 @@ import { FAG_FARGER, fagFarge, kortFag, uid } from '../model'
 import type { Op } from '../ops'
 import type { Visning } from '../view'
 import { UTEN_FAG, iFane } from '../view'
+import { Pil } from './Ikoner'
 
 export function FagMerke({ fag, onClick }: { fag: Fag; onClick?: (e: React.MouseEvent) => void }) {
   const f = fagFarge(fag)
@@ -103,7 +104,7 @@ export function FagMeny(p: MenyProps) {
     <div className="meny-holder fag-holder">
       <button className={'knapp' + (valgte.length ? ' aktivt-filter' : '')} onMouseDown={(e) => e.stopPropagation()} onClick={() => setAapen(!aapen)}>
         {enesteValgt && <FagMerke fag={enesteValgt} />}
-        {etikett} ▾
+        {etikett} <Pil />
       </button>
       {aapen && <FagListe {...p} lukk={() => setAapen(false)} />}
     </div>

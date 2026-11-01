@@ -20,14 +20,13 @@ type Props = {
   endre: (op: Op) => void
   kanSkrive: boolean
   melding: (t: string) => void
-  pc?: boolean
 }
 
 const LANGT_TRYKK_MS = 500
 
-// Kompakt visning: ett kort per risk. Brukes alltid på mobil, og på PC når «Kompakt» er valgt.
+// Kortvisning: ett kort per risk. Brukes på mobil i alle utseender.
 // Trykk åpner risken i panelet. Høyreklikk eller langt trykk åpner en meny med info og handlinger.
-export function Kortliste({ okt, doc, andre, visning, aapne, endre, kanSkrive, melding, pc }: Props) {
+export function Kortliste({ okt, doc, andre, visning, aapne, endre, kanSkrive, melding }: Props) {
   const grupperte = useMemo(() => grupper(doc, sorter(filtrer(doc, visning), visning.sortering), visning.gruppering), [doc, visning])
   const idag = new Date().toISOString().slice(0, 10)
   const [meny, setMeny] = useState<{ riskId: string; x: number; y: number } | null>(null)
@@ -57,7 +56,7 @@ export function Kortliste({ okt, doc, andre, visning, aapne, endre, kanSkrive, m
   }
   const menyRisk = meny && doc.risker.find((x) => x.id === meny.riskId)
   return (
-    <div className={'kortliste' + (pc ? ' kortliste-pc' : '')}>
+    <div className="kortliste">
       {grupperte.map((g) => (
         <section key={g.navn || '_'}>
           {g.navn && (
