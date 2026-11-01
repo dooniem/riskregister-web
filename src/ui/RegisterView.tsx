@@ -106,6 +106,19 @@ export function RegisterView({ okt, tilbake }: Props) {
   // Øker når «Ny risk» i verktøylinjen trykkes, så tabellen legger til en rad og setter markøren i den
   const [nyRiskTeller, setNyRiskTeller] = useState(0)
   const [meny, setMeny] = useState(false)
+  // Mer-menyen lukkes ved klikk utenfor den (knappen selv åpner og lukker som før)
+  const merRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!meny) return
+    const h = (e: MouseEvent) => !merRef.current?.contains(e.target as Node) && setMeny(false)
+    const k = (e: KeyboardEvent) => e.key === 'Escape' && setMeny(false)
+    window.addEventListener('mousedown', h, true)
+    window.addEventListener('keydown', k)
+    return () => {
+      window.removeEventListener('mousedown', h, true)
+      window.removeEventListener('keydown', k)
+    }
+  }, [meny])
   const [hentOppsett, setHentOppsett] = useState(false)
   const [filvelger, setFilvelger] = useState<null | 'aapne' | 'lagre'>(null)
   const [importert, setImportert] = useState<{ reg: Register; filnavn: string } | null>(null)
@@ -338,7 +351,7 @@ export function RegisterView({ okt, tilbake }: Props) {
           <button className="knapp" onClick={() => setProsjekt('prosjekt')}>
             Prosjekt og deltakere
           </button>
-          <div className="meny-holder">
+          <div className="meny-holder" ref={merRef}>
             <button className={'knapp mer-knapp' + (meny ? ' aapen' : '')} onClick={() => setMeny(!meny)} title="Import, eksport, utskrift, lister og mer">
               <span className="mer-ikon" aria-hidden>
                 <Meny />
