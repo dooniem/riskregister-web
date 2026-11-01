@@ -3547,14 +3547,29 @@ td.aktiv .tiltak-samlet-tekst {
   color: #8a969f;
 }
 .tiltak-samlet-frist {
+  /* Fristen er det man ser etter i tiltakslista: full tekstfarge, halvfet og tall med lik bredde.
+     Farge bare når den betyr noe: rav innen 14 dager, rødt merke når den er passert. */
+  display: inline-block;
   text-align: right;
   white-space: nowrap;
   font-size: 13px;
-  color: var(--dempet);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--tekst);
+  padding: 1px 6px;
+  margin-right: -6px;
+  border-radius: 4px;
+}
+.tiltak-samlet-frist.snart {
+  color: #b54708;
 }
 .tiltak-samlet-frist.forfalt {
   color: #b42318;
-  font-weight: 600;
+  background: #fdecea;
+}
+.tiltak-samlet-frist.avsluttet {
+  color: #8a969f;
+  font-weight: 500;
 }
 .status-prikk {
   width: 8px;

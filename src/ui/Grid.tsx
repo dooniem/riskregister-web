@@ -1122,6 +1122,14 @@ function RiskRader(p: RaderProps) {
 }
 
 const forfalt = (t: Tiltak) => !!t.frist && t.status !== 'Utført' && t.status !== 'Utføres ikke' && t.frist < new Date().toISOString().slice(0, 10)
+// Fristen i tiltakscellen: forfalt, snart (innen 14 dager), avsluttet eller vanlig
+function fristKlasse(t: Tiltak): string {
+  if (!t.frist) return ''
+  if (t.status === 'Utført' || t.status === 'Utføres ikke') return ' avsluttet'
+  if (forfalt(t)) return ' forfalt'
+  const om14 = new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10)
+  return t.frist <= om14 ? ' snart' : ''
+}
 const MND = ['jan.', 'feb.', 'mars', 'apr.', 'mai', 'juni', 'juli', 'aug.', 'sep.', 'okt.', 'nov.', 'des.']
 // Kort dato som «30. nov.», med år bare når det ikke er i år
 function kortDato(iso: string): string {
@@ -1176,7 +1184,7 @@ function TiltakSamlet({
         {t.eier ? <Initialer navn={t.eier} doc={doc} /> : velg ? <span className="initialer tom" aria-hidden>+</span> : null}
       </span>
       <span {...felt('frist', frist + (velg ? (t.frist ? '. Klikk for å endre' : '. Klikk for å sette') : ''))}>
-        <span className={'tiltak-samlet-frist' + (forfalt(t) ? ' forfalt' : '')}>{t.frist ? kortDato(t.frist) : velg ? <span className="frist-tom">Frist</span> : ''}</span>
+        <span className={'tiltak-samlet-frist' + fristKlasse(t)}>{t.frist ? kortDato(t.frist) : velg ? <span className="frist-tom">Frist</span> : ''}</span>
       </span>
     </div>
   )
