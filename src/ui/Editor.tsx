@@ -29,6 +29,13 @@ export function CelleEditor({ kolonne, start, erstatt, valg, bredde, etikett, in
   const ref = useRef<HTMLTextAreaElement & HTMLInputElement>(null)
   const liste = useRef<HTMLUListElement>(null)
   const ferdig = useRef(false)
+  // Hvor markøren skal stå etter et linjeskift satt inn med Alt+Enter
+  const markor = useRef<number | null>(null)
+  useLayoutEffect(() => {
+    if (markor.current == null) return
+    ref.current?.setSelectionRange(markor.current, markor.current)
+    markor.current = null
+  }, [tekst])
 
   useLayoutEffect(() => {
     const el = ref.current
@@ -111,6 +118,17 @@ export function CelleEditor({ kolonne, start, erstatt, valg, bredde, etikett, in
       e.preventDefault()
       ferdig.current = true
       onAvbryt()
+      return
+    }
+    // Alt+Enter gir ikke linjeskift i en tekstboks av seg selv (bare Shift+Enter gjør det), så det settes inn her, som i Excel
+    if (e.key === 'Enter' && kolonne.type === 'langtekst' && e.altKey) {
+      e.preventDefault()
+      const el = ref.current
+      if (!el) return
+      const fra = el.selectionStart ?? tekst.length
+      const til = el.selectionEnd ?? fra
+      setTekst(tekst.slice(0, fra) + '\n' + tekst.slice(til))
+      markor.current = fra + 1
       return
     }
     if (e.key === 'Enter' && !(kolonne.type === 'langtekst' && (e.altKey || e.shiftKey))) {
