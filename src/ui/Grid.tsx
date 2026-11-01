@@ -128,7 +128,6 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
 
   const risker = useMemo(() => sorter(filtrer(doc, visning), visning.sortering), [doc, visning])
   // Felles skala for kostspennet i moderne utseende, så spennene kan sammenlignes mellom riskene
-  const kostMaks = useMemo(() => kostSkala(doc.risker), [doc.risker])
   const grupperte: Gruppe[] = useMemo(() => grupper(doc, risker, visning.gruppering), [doc, risker, visning.gruppering])
 
   // Alle synlige linjer i rekkefølge. En risk tar like mange linjer som den har tiltak (minst én).
@@ -705,7 +704,6 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   moderne={moderne}
                   samlet={samlet}
                   sammen={sammen}
-                  kostMaks={kostMaks}
                   byttSkarisk={byttSkarisk}
                 />
               ))}
@@ -835,7 +833,6 @@ interface RaderProps {
   moderne: boolean
   samlet: boolean
   sammen: string[]
-  kostMaks: Skala
   byttSkarisk: (riskId: string) => void
 }
 
@@ -983,7 +980,7 @@ function RiskRader(p: RaderProps) {
           velg={(kol, ev) => ev.button === 0 && (ev.stopPropagation(), p.klikk({ ...pos, kol }, ev))}
         />
       )
-    if (k.key === 'fv') innhold = p.moderne ? <KostCelle r={r} skala={p.kostMaks} /> : formatTall(fv(r))
+    if (k.key === 'fv') innhold = p.moderne ? <KostCelle r={r} /> : formatTall(fv(r))
     // Tomme celler får et usynlig tegn, så en ny tiltakslinje er like høy som en med én linje tekst
     if (innhold === '' || innhold == null) innhold = '\u200b'
 
@@ -1207,39 +1204,24 @@ function tegnVedKlikk(e: React.MouseEvent): number | undefined {
   return undefined
 }
 
-export interface Skala {
-  lo: number
-  hi: number
-}
-
-// Felles skala for kostspennene, så de kan sammenlignes mellom riskene. Lengden settes ved 90-persentilen av
-// spennene, så ett stort spenn ikke krymper alle de andre; spenn som går forbi, når kanten og tones ut der.
-// Har noen risker negative tall (f.eks. muligheter ført som minus), får skalaen like mye plass på begge sider av null.
-export function kostSkala(risker: Risk[]): Skala {
-  const med = risker.filter((r) => r.bc || r.ml || r.wc)
-  if (!med.length) return { lo: 0, hi: 1 }
-  const storst = med.map((r) => Math.max(Math.abs(r.bc), Math.abs(r.ml), Math.abs(r.wc))).sort((a, b) => a - b)
-  const m = Math.max(1, storst[Math.round(0.9 * (storst.length - 1))])
-  const negativ = med.some((r) => Math.min(r.bc, r.ml, r.wc) < 0)
-  const positiv = med.some((r) => Math.max(r.bc, r.ml, r.wc) > 0)
-  return { lo: negativ ? -m : 0, hi: positiv || !negativ ? m : 0 }
-}
-
-function KostCelle({ r, skala }: { r: Risk; skala: Skala }) {
-  const pst = (v: number) => Math.min(100, Math.max(0, ((v - skala.lo) / (skala.hi - skala.lo)) * 100))
-  const p = (v: number) => `${pst(v)}%`
+// Kostspennet med egen skala per risk: streken går fra best til verst, med mest sannsynlig (grå) og forventet
+// verdi (svart) inne i spennet. Den viser skjevheten i spennet; størrelsen leses av tallet over.
+// En felles skala gjorde små spenn til prikker når andre risker var store, og negative tall stjal halve bredden.
+function KostCelle({ r }: { r: Risk }) {
   const tom = !r.bc && !r.ml && !r.wc
-  const fra = Math.min(r.bc, r.wc)
-  const til = Math.max(r.bc, r.wc)
-  const kl = ['kost-spenn', r.rm === 'M' ? 'm' : '', til > skala.hi ? 'over' : '', fra < skala.lo ? 'under' : ''].filter(Boolean).join(' ')
+  const lo = Math.min(r.bc, r.ml, r.wc)
+  const hi = Math.max(r.bc, r.ml, r.wc)
+  // Litt luft i hver ende, så endemerkene ikke havner utenfor
+  const p = (v: number) => (hi > lo ? `${4 + ((v - lo) / (hi - lo)) * 92}%` : '50%')
   return (
     <div className="kost-celle" title={`Best ${formatTall(r.bc)}, mest sannsynlig ${formatTall(r.ml)}, verst ${formatTall(r.wc)} (i 1000 kr)`}>
       <span className="kost-fv">{tom ? '-' : formatTall(fv(r))}</span>
       {!tom && (
         <>
-          <span className={kl} aria-hidden>
-            {skala.lo < 0 && <s style={{ left: p(0) }} />}
-            <i style={{ left: p(fra), width: `max(3px, ${pst(til) - pst(fra)}%)` }} />
+          <span className={'kost-spenn egen' + (r.rm === 'M' ? ' m' : '')} aria-hidden>
+            <i style={hi > lo ? { left: '4%', right: '4%' } : { left: 'calc(50% - 2px)', width: '4px' }} />
+            {lo < 0 && hi > 0 && <s style={{ left: p(0) }} />}
+            {hi > lo && <b className="ml" style={{ left: p(r.ml) }} />}
             <b style={{ left: p(fv(r)) }} />
           </span>
           <span className="kost-fra-til">

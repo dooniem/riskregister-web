@@ -4115,26 +4115,24 @@ td.aktiv .tiltak-samlet-tekst {
   width: 20px;
 }
 
-/* Kostspennet: nullstrek når skalaen går under null, og tonet ende når spennet går forbi skalaen */
+/* Kostspennet med egen skala per risk: streken er hele spennet, med mest sannsynlig (grå) og forventet verdi (svart).
+   Nullstreken vises når spennet går fra minus til pluss. */
+.kost-spenn.egen {
+  background: none;
+}
+.kost-spenn.egen b.ml {
+  top: -1px;
+  height: 6px;
+  width: 2px;
+  background: #8a959c;
+}
 .kost-spenn s {
   position: absolute;
-  top: -2px;
-  bottom: -2px;
+  top: -3px;
+  bottom: -3px;
   width: 1px;
   margin-left: -0.5px;
-  background: rgba(29, 40, 48, 0.28);
-}
-.kost-spenn.over i {
-  -webkit-mask-image: linear-gradient(to right, #000 70%, transparent);
-  mask-image: linear-gradient(to right, #000 70%, transparent);
-}
-.kost-spenn.under i {
-  -webkit-mask-image: linear-gradient(to left, #000 70%, transparent);
-  mask-image: linear-gradient(to left, #000 70%, transparent);
-}
-.kost-spenn.over.under i {
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 20%, #000 80%, transparent);
-  mask-image: linear-gradient(to right, transparent, #000 20%, #000 80%, transparent);
+  background: rgba(29, 40, 48, 0.35);
 }
 
 /* Samlet: visningsvalg og Ny risk til høyre i verktøylinjen */
