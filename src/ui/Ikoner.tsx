@@ -59,3 +59,12 @@ export function Kolonneikon({ str = 14 }: { str?: number }) {
     </svg>
   )
 }
+
+export function Person({ str = 14 }: { str?: number }) {
+  return (
+    <svg className="ikon" width={str} height={str} viewBox="0 0 24 24" aria-hidden="true" {...strek}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5" />
+    </svg>
+  )
+}

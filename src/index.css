@@ -4229,3 +4229,19 @@ td.aktiv .initialer.tom,
 td.aktiv .frist-tom {
   visibility: visible;
 }
+
+/* Personfilter («Bare mine») i verktøylinjen */
+.person-knapp {
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.person-knapp.aktiv {
+  border-color: var(--aksent);
+  color: var(--aksent);
+  background: var(--aksent-lys);
+}
+.grid td.annen-eier:not(.aktiv) > * {
+  opacity: 0.45;
+}

@@ -9,7 +9,7 @@ import type { Konflikt, Op } from '../ops'
 import { SimulertKollega } from '../sim'
 import type { Okt } from '../sync'
 import type { Stil, Visning } from '../view'
-import { GRUPPERINGER, STANDARD_VISNING, STILER, filtrer, lagreStil, lesStil } from '../view'
+import { GRUPPERINGER, STANDARD_VISNING, STILER, filtrer, lagreStil, lesStil, eierNavn } from '../view'
 import { DemoFiler, type FilKilde } from '../store/filer'
 import { GraphFiler } from '../store/graphFiler'
 import { GraphLister, omraadeLenke } from '../store/lister/graphLister'
@@ -20,7 +20,7 @@ import { Filvelger } from './Filvelger'
 import { ImportDialog } from './ImportDialog'
 import { Grid } from './Grid'
 import { Kortliste } from './Kortliste'
-import { Kolonneikon, Laas, Meny, Pil, Pluss } from './Ikoner'
+import { Kolonneikon, Laas, Meny, Person, Pil, Pluss } from './Ikoner'
 import { HentOppsett } from './HentOppsett'
 import { Oversikt } from './Oversikt'
 import { Prosjektpanel } from './Prosjektpanel'
@@ -208,7 +208,7 @@ export function RegisterView({ okt, tilbake }: Props) {
     window.location.search = '?' + p.toString()
   }
 
-  const filterAktivt = !!visning.sok || Object.keys(visning.filter.verdier).length > 0 || Object.values(visning.filter.tekst).some(Boolean) || !!visning.filter.matrise || !!visning.fag?.length
+  const filterAktivt = !!visning.sok || Object.keys(visning.filter.verdier).length > 0 || Object.values(visning.filter.tekst).some(Boolean) || !!visning.filter.matrise || !!visning.fag?.length || !!visning.person
   const tittel = [doc.prosjekt.nummer, doc.prosjekt.navn].filter(Boolean).join(' ') || 'Riskregister uten navn'
   // Endringer samles noen sekunder før de lagres. Så lenge noen venter, sier vi det i stedet for «lagret».
   const visStatus = status === 'lagret' && snap.ventende ? 'lagrer' : status
@@ -248,6 +248,31 @@ export function RegisterView({ okt, tilbake }: Props) {
             {g.tittel}
           </option>
         ))}
+      </select>
+    </label>
+  )
+  // Personfilter: «Bare mine» og alle som står som risiko- eller tiltakseier, for å jobbe med sin del av planen
+  const allePersoner = eierNavn(doc)
+  const meg = allePersoner.find((n) => n.toLowerCase() === b.bruker.navn.trim().toLowerCase())
+  const personValg = (
+    <label className={'knapp grupper-knapp person-knapp' + (visning.person ? ' aktiv' : '')}>
+      {samlet && <Person />}
+      {visning.person ? (visning.person === meg ? 'Bare mine' : visning.person) : 'Alle personer'} <Pil />
+      <select
+        aria-label="Vis risker for person"
+        title="Vis bare risker der personen er risikoeier eller tiltakseier"
+        value={visning.person ?? ''}
+        onChange={(e) => setVisning((v) => ({ ...v, person: e.target.value || undefined }))}
+      >
+        <option value="">Alle personer</option>
+        {meg && <option value={meg}>Bare mine ({meg})</option>}
+        <optgroup label="Risiko- eller tiltakseier">
+          {allePersoner.map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </optgroup>
       </select>
     </label>
   )
@@ -530,6 +555,7 @@ export function RegisterView({ okt, tilbake }: Props) {
             <input className="sok" placeholder="Søk i alle felt…" value={visning.sok} onChange={(e) => setVisning((v) => ({ ...v, sok: e.target.value }))} />
             {!samlet && grupperValg}
             <FagMeny doc={doc} visning={visning} setVisning={setVisning} endre={endre} kanSkrive={b.kanSkrive} />
+            {personValg}
             {!mobil && !samlet && kolonneKnapp}
             </>
           )}
@@ -537,7 +563,7 @@ export function RegisterView({ okt, tilbake }: Props) {
           {filterAktivt && visning.fane !== 'skarisk' && (
             <span className="filterinfo">
               Viser {antall.vist} av {antall[visning.fane]}
-              <button className="lenkeknapp" onClick={() => setVisning((v) => ({ ...v, sok: '', fag: [], filter: { verdier: {}, tekst: {} } }))}>
+              <button className="lenkeknapp" onClick={() => setVisning((v) => ({ ...v, sok: '', fag: [], person: undefined, filter: { verdier: {}, tekst: {} } }))}>
                 Fjern alle filtre
               </button>
             </span>

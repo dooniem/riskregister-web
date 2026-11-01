@@ -716,6 +716,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   samlet={samlet}
                   sammen={sammen}
                   kostSkala={kostSkala}
+                  person={visning.person}
                   byttSkarisk={byttSkarisk}
                 />
               ))}
@@ -847,6 +848,7 @@ interface RaderProps {
   samlet: boolean
   sammen: string[]
   kostSkala?: Skala
+  person?: string
   byttSkarisk: (riskId: string) => void
 }
 
@@ -909,6 +911,8 @@ function RiskRader(p: RaderProps) {
       erAktiv ? 'aktiv' : '',
       !k.felt ? 'lesecelle' : '',
       k.nivaa === 'tiltak' && rad > 0 ? 'tiltak-fortsatt' : '',
+      // Med personfilter tones tiltakene som andre eier ned, så ens egne skiller seg ut
+      k.nivaa === 'tiltak' && p.person && t && t.eier?.trim().toLowerCase() !== p.person.trim().toLowerCase() ? 'annen-eier' : '',
       p.sammen.includes(k.gruppe) && GRUPPER.find((g) => g.key === k.gruppe)?.hoved === k.key ? 'samlet' : '',
     ].join(' ')
     const span = k.nivaa === 'risk' ? n : 1
