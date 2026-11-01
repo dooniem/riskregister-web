@@ -16,7 +16,7 @@ export function OmDialog({ demo, lukk }: { demo: boolean; lukk: () => void }) {
       <div className="modal-innhold">
         <p>
           Riskregister er en nettside som jobber direkte mot prosjektets SharePoint-område. Riskene, tiltakene og
-          innstillingene ligger i lister på området, ikke hos oss. Appen har ingen egen server eller database, og du
+          innstillingene ligger i lister på området. Appen har ingen egen server eller database, og du
           logger inn med din vanlige jobbkonto.
         </p>
         {demo && (
