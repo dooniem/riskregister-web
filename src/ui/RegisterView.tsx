@@ -757,6 +757,15 @@ const SAMLET_KOLONNER: [string, string][] = [
   ['tilSkarisk', 'Til Skarisk'],
 ]
 
+// Avkrysningsboks for en hel gruppe: huket av når alle er valgt, med strek når bare noen er det
+function AlleValgt({ alle, noen, onChange }: { alle: boolean; noen: boolean; onChange: (paa: boolean) => void }) {
+  const ref = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = noen
+  }, [noen])
+  return <input ref={ref} type="checkbox" checked={alle} onChange={() => onChange(!alle)} />
+}
+
 function SamletKolonnevelger({ doc, visning, setVisning, lukk }: { doc: Register; visning: Visning; setVisning: (f: (v: Visning) => Visning) => void; lukk: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -831,33 +840,53 @@ function Kolonnevelger({ doc, visning, setVisning, lukk }: { doc: Register; visn
         ))}
       </div>
       <div className="meny-tittel">Kolonner</div>
-      {GRUPPER.filter((g) => g.key !== 'fast').map((g) => (
-        <div key={g.key} className="kolgruppe">
-          <label className="gruppelabel">
-            <input
-              type="checkbox"
-              checked={!visning.skjulteGrupper.includes(g.key)}
-              onChange={(e) =>
-                setVisning((v) => ({ ...v, skjulteGrupper: e.target.checked ? v.skjulteGrupper.filter((x) => x !== g.key) : [...v.skjulteGrupper, g.key] }))
-              }
-            />
-            <strong>{g.tittel}</strong>
-          </label>
-          {KOLONNER.filter((k) => k.gruppe === g.key && (k.key !== 'egendef2' || doc.lister.egendef2Aktiv)).map((k) => (
-            <label key={k.key} className="kollabel">
-              <input
-                type="checkbox"
-                disabled={!!k.frosset}
-                checked={!visning.skjulteKolonner.includes(k.key)}
-                onChange={(e) =>
-                  setVisning((v) => ({ ...v, skjulteKolonner: e.target.checked ? v.skjulteKolonner.filter((x) => x !== k.key) : [...v.skjulteKolonner, k.key] }))
-                }
-              />
-              {k.tittel(doc)}
-            </label>
-          ))}
-        </div>
-      ))}
+      {GRUPPER.filter((g) => g.key !== 'fast').map((g) => {
+        const kols = KOLONNER.filter((k) => k.gruppe === g.key && (k.key !== 'egendef2' || doc.lister.egendef2Aktiv))
+        const valgbare = kols.filter((k) => !k.frosset).map((k) => k.key)
+        const synlige = valgbare.filter((key) => !visning.skjulteKolonner.includes(key)).length
+        const sammen = visning.skjulteGrupper.includes(g.key)
+        return (
+          <div key={g.key} className={'kolgruppe' + (sammen ? ' sammen' : '')}>
+            <div className="gruppelabel">
+              {/* Gruppeavhukingen velger alle eller ingen av kolonnene. Sammenslåing er et eget valg til høyre. */}
+              <label>
+                <AlleValgt
+                  alle={synlige === valgbare.length}
+                  noen={synlige > 0 && synlige < valgbare.length}
+                  onChange={(paa) =>
+                    setVisning((v) => ({
+                      ...v,
+                      skjulteKolonner: paa ? v.skjulteKolonner.filter((x) => !valgbare.includes(x)) : [...v.skjulteKolonner.filter((x) => !valgbare.includes(x)), ...valgbare],
+                    }))
+                  }
+                />
+                <strong>{g.tittel}</strong>
+              </label>
+              <button
+                className="lenkeknapp sammen-knapp"
+                title={sammen ? 'Vis kolonnene i gruppen hver for seg' : 'Slå gruppen sammen til én kolonne'}
+                onClick={() => setVisning((v) => ({ ...v, skjulteGrupper: sammen ? v.skjulteGrupper.filter((x) => x !== g.key) : [...v.skjulteGrupper, g.key] }))}
+              >
+                {sammen ? 'Utvid' : 'Slå sammen'}
+              </button>
+            </div>
+            {sammen && <div className="liten sammen-info">Slått sammen til én kolonne ({KOLONNER.find((k) => k.key === g.hoved)?.tittel(doc)})</div>}
+            {kols.map((k) => (
+              <label key={k.key} className="kollabel">
+                <input
+                  type="checkbox"
+                  disabled={!!k.frosset}
+                  checked={!visning.skjulteKolonner.includes(k.key)}
+                  onChange={(e) =>
+                    setVisning((v) => ({ ...v, skjulteKolonner: e.target.checked ? v.skjulteKolonner.filter((x) => x !== k.key) : [...v.skjulteKolonner, k.key] }))
+                  }
+                />
+                {k.tittel(doc)}
+              </label>
+            ))}
+          </div>
+        )
+      })}
       <button className="lenkeknapp" onClick={() => setVisning((v) => ({ ...v, skjulteGrupper: [], skjulteKolonner: [], bredder: {} }))}>
         Tilbakestill kolonner og bredder
       </button>

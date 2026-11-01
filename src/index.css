@@ -4377,3 +4377,22 @@ td.aktiv .eier-felt .eier-tom {
 .grid td.frosset.aktiv:has(.egendef-valg .editor-ramme) {
   z-index: 3 !important;
 }
+
+/* Kolonnevelger: gruppeavhukingen velger alle kolonnene, sammenslåing er et eget valg til høyre */
+.kolgruppe .gruppelabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.kolgruppe .sammen-knapp {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.kolgruppe .sammen-info {
+  color: var(--dempet);
+  padding: 0 0 2px 22px;
+}
+.kolgruppe.sammen .kollabel {
+  opacity: 0.6;
+}
