@@ -1,4 +1,7 @@
+import { GJELDENDE, VERSJONER } from '../versjoner'
 import { Modal, ModalTittel } from './Modal'
+
+const dato = (iso: string) => new Date(iso).toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
 
 // «Om»-vinduet nederst i Mer-menyen: hva appen er, hvor dataene ligger, og noen tips for vanlige brukere.
 export function OmDialog({ demo, lukk }: { demo: boolean; lukk: () => void }) {
@@ -20,6 +23,22 @@ export function OmDialog({ demo, lukk }: { demo: boolean; lukk: () => void }) {
           <p className="om-merk">
             Du er i demomodus. Her lagres alt bare i denne nettleseren, og ingenting sendes til SharePoint.
           </p>
+        )}
+
+        <h3>Nytt i versjon {GJELDENDE.versjon}</h3>
+        <VersjonInnhold v={GJELDENDE} />
+        {VERSJONER.length > 1 && (
+          <details className="om-tidligere">
+            <summary>Tidligere versjoner</summary>
+            {VERSJONER.slice(1).map((v) => (
+              <section key={v.versjon}>
+                <h4>
+                  Versjon {v.versjon} <span>{dato(v.dato)}</span>
+                </h4>
+                <VersjonInnhold v={v} />
+              </section>
+            ))}
+          </details>
         )}
 
         <h3>Hvem har tilgang</h3>
@@ -48,11 +67,26 @@ export function OmDialog({ demo, lukk }: { demo: boolean; lukk: () => void }) {
             tabellen og i risikobildet.
           </li>
           <li>Registeret kan eksporteres til Excel og skrives ut eller lagres som PDF fra Mer-menyen.</li>
-          <li>Utseendet velger du i Mer-menyen. Valget gjelder bare for deg, i denne nettleseren.</li>
         </ul>
-
-        <p className="om-laget">Laget av Magnus Petersen</p>
       </div>
+      <footer className="om-fot">
+        Riskregister {GJELDENDE.versjon} · {dato(GJELDENDE.dato)} · Laget av Magnus Petersen
+      </footer>
     </Modal>
+  )
+}
+
+function VersjonInnhold({ v }: { v: (typeof VERSJONER)[number] }) {
+  return (
+    <>
+      {v.oppsummering && <p>{v.oppsummering}</p>}
+      {v.nytt && v.nytt.length > 0 && (
+        <ul>
+          {v.nytt.map((n) => (
+            <li key={n}>{n}</li>
+          ))}
+        </ul>
+      )}
+    </>
   )
 }
