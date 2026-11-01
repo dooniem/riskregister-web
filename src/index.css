@@ -2877,7 +2877,7 @@ td .valgpil.synlig {
   color: var(--cta-tekst);
   border-radius: var(--cta-radius);
 }
-.stil-moderne .knapp.ny-risk:hover {
+.stil-moderne .knapp.primær.ny-risk:hover {
   background: var(--cta-bg-hover);
   border-color: var(--cta-bg-hover);
 }
