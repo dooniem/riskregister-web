@@ -49,6 +49,8 @@ interface Props {
   // Samlet utseende: som moderne, men beskrivelse, eierskap og tiltak er alltid slått sammen til én kolonne hver,
   // og R&M vises som et merke i beskrivelsen
   samlet?: boolean
+  // Teller som øker når «Ny risk» i verktøylinjen trykkes
+  nyRiskTeller?: number
 }
 
 const Kalenderikon = () => (
@@ -69,6 +71,8 @@ const MODERNE_BREDDE: Record<string, number> = { fv: 132, eksponering: 128, tilS
 const SAMMEN_BREDDE: Record<string, number> = { tiltak: 400, eier: 190 }
 // Smalere i samlet utseende, så hele raden får plass på en vanlig PC-skjerm. Beskrivelsen fyller resten.
 const SAMLET_BREDDE: Record<string, number> = { tiltak: 340, eier: 170, hendelse: 340 }
+// Overskrifter som er kortere eller tydeligere i samlet utseende
+const SAMLET_TITTEL: Record<string, string> = { fv: 'Forventet kost', tilSkarisk: 'Skarisk' }
 const SAMMEN_TITTEL: Record<string, string> = { tiltak: 'Tiltak, eier og frist', eier: 'Risikoeier og kategori', hendelse: 'Hendelse, årsak og konsekvens' }
 // Gruppene som alltid er slått sammen i samlet utseende
 const SAMLET_GRUPPER = ['beskrivelse', 'eierskap', 'tiltak']
@@ -82,7 +86,8 @@ export function synligeKolonner(v: Visning, egendef2Aktiv = false, moderne = fal
     if (k.key === 'egendef2' && !egendef2Aktiv) return false
     if (moderne && SAMLET_I_MODERNE.includes(k.key)) return false
     if (samlet && k.key === 'rm') return false
-    if (v.skjulteKolonner.includes(k.key) && !(samlet && SAMLET_GRUPPER.includes(k.gruppe))) return false
+    // Beskrivelsen kan ikke skjules i samlet utseende, den er hele poenget
+    if (v.skjulteKolonner.includes(k.key) && !(samlet && k.key === 'hendelse')) return false
     // FV og eksponering er alene i gruppene sine i moderne utseende, så de vises selv om gruppen er slått sammen
     if (moderne && ENKEL_GRUPPE.includes(k.gruppe)) return true
     if (sammen.includes(k.gruppe)) return GRUPPER.find((g) => g.key === k.gruppe)?.hoved === k.key
@@ -93,7 +98,7 @@ export function synligeKolonner(v: Visning, egendef2Aktiv = false, moderne = fal
 // Fulle navn på kostkolonnene, vist som hjelpetekst på overskriften
 const KOST_NAVN: Record<string, string> = { bc: 'Best case', ml: 'Most likely', wc: 'Worst case', eksponering: 'Sannsynlighet × konsekvens' }
 
-export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapneDetalj, melding, kanSkrive, mot, moderne = false, samlet = false }: Props) {
+export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapneDetalj, melding, kanSkrive, mot, moderne = false, samlet = false, nyRiskTeller = 0 }: Props) {
   const [aktiv, setAktiv] = useState<Posisjon | null>(null)
   const [redigerer, setRedigerer] = useState<(Posisjon & { start: string; erstatt: boolean }) | null>(null)
   const [meny, setMeny] = useState<{ kol: string; x: number; y: number } | null>(null)
@@ -123,7 +128,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
 
   const risker = useMemo(() => sorter(filtrer(doc, visning), visning.sortering), [doc, visning])
   // Felles skala for kostspennet i moderne utseende, så spennene kan sammenlignes mellom riskene
-  const kostMaks = useMemo(() => Math.max(1, ...doc.risker.map((r) => Math.max(r.bc, r.ml, r.wc))), [doc.risker])
+  const kostMaks = useMemo(() => kostSkala(doc.risker), [doc.risker])
   const grupperte: Gruppe[] = useMemo(() => grupper(doc, risker, visning.gruppering), [doc, risker, visning.gruppering])
 
   // Alle synlige linjer i rekkefølge. En risk tar like mange linjer som den har tiltak (minst én).
@@ -191,7 +196,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
       setAktiv({ ...aktiv, kol: BESKRIVELSE[bi + (retning === 'ned' ? 1 : -1)] })
       return
     }
-    const ki = kolonner.findIndex((k) => k.key === (samlet && BESKRIVELSE.includes(aktiv.kol) ? 'hendelse' : aktiv.kol))
+    const ki = kolonner.findIndex((k) => k.key === (samlet && (BESKRIVELSE.includes(aktiv.kol) || aktiv.kol === 'rm') ? 'hendelse' : aktiv.kol))
     const li = finnLinje(aktiv)
     if (ki < 0 || li < 0) return
     let nyK = ki
@@ -345,6 +350,16 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
     endre({ t: 'addRisk', risk: r })
     setAktiv({ riskId: r.id, tiltakId: r.tiltak[0].id, kol: kolonner.find((k) => k.key === 'hendelse') ? 'hendelse' : kolonner[1]?.key ?? 'nr' })
   }
+
+  // «Ny risk» i verktøylinjen: samme som + Ny risk nederst i tabellen
+  const forrigeNy = useRef(nyRiskTeller)
+  useEffect(() => {
+    if (nyRiskTeller === forrigeNy.current) return
+    forrigeNy.current = nyRiskTeller
+    nyRad()
+    boks.current?.focus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nyRiskTeller])
 
   const settFag = (riskId: string, fag: string) => {
     const r = doc.risker.find((x) => x.id === riskId)
@@ -516,8 +531,15 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
       const { k, r } = hentCelle(p)
       if (k?.type === 'avkrysning' && r) {
         if (!okt.laastAv(r.id)) lagreVerdi(p, !r.tilSkarisk)
-      } else if (k?.felt || harVindu(k)) startRedigering(p)
+      // Etter musetrykket flytter nettleseren fokus til tabellen. Editoren åpnes etterpå, ellers mister den fokus og lukkes med en gang.
+      } else if (k?.felt || harVindu(k)) setTimeout(() => startRedigering(p), 0)
       else if (k?.key === 'nr') aapneDetalj(p.riskId)
+      return
+    }
+    // Samlet beskrivelse: andre klikk på en linje som allerede er valgt, åpner teksten for redigering
+    const valgtFraFor = aktiv?.riskId === p.riskId && aktiv.kol === p.kol
+    if (samlet && BESKRIVELSE.includes(p.kol) && valgtFraFor && kanSkrive && !redigerer && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+      setTimeout(() => startRedigering(p), 0)
       return
     }
     setAktiv(p)
@@ -615,7 +637,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                 onClick={(e) => klikkOverskrift(k, e)}
                 title={(KOST_NAVN[k.key] ? KOST_NAVN[k.key] + '. ' : '') + 'Klikk for å sortere. Shift+klikk for å sortere på flere kolonner.'}
               >
-                <span className="kol-tittel">{(sammen.includes(k.gruppe) && SAMMEN_TITTEL[k.key]) || k.tittel(doc)}</span>
+                <span className="kol-tittel">{(samlet && SAMLET_TITTEL[k.key]) || (sammen.includes(k.gruppe) && SAMMEN_TITTEL[k.key]) || k.tittel(doc)}</span>
                 {sortIkon(k.key)}
                 <button
                   className={'filterknapp ' + (harFilter(k.key) ? 'aktiv' : '')}
@@ -808,7 +830,7 @@ interface RaderProps {
   moderne: boolean
   samlet: boolean
   sammen: string[]
-  kostMaks: number
+  kostMaks: Skala
   byttSkarisk: (riskId: string) => void
 }
 
@@ -844,7 +866,7 @@ function RiskRader(p: RaderProps) {
     const pos: Posisjon = { riskId: r.id, tiltakId: k.nivaa === 'risk' ? r.tiltak[0]?.id : t?.id, kol: k.key }
     // I samlet utseende står årsak og konsekvens i hendelse-cellen, så de regnes som samme celle
     const samletBeskrivelse = p.samlet && k.key === 'hendelse'
-    const her = (kol?: string) => kol === k.key || (samletBeskrivelse && !!kol && BESKRIVELSE.includes(kol))
+    const her = (kol?: string) => kol === k.key || (samletBeskrivelse && !!kol && (BESKRIVELSE.includes(kol) || kol === 'rm'))
     const erAktiv = p.aktiv?.riskId === r.id && her(p.aktiv.kol) && (k.nivaa === 'risk' || p.aktiv.tiltakId === t?.id)
     const redigeres = p.redigerer?.riskId === r.id && her(p.redigerer.kol) && (k.nivaa === 'risk' || p.redigerer.tiltakId === t?.id)
     const andreHer = p.tilstede.filter((x) => x.kolonne === k.key && (k.nivaa === 'risk' || x.tiltakId === t?.id))
@@ -929,8 +951,33 @@ function RiskRader(p: RaderProps) {
     const samletTiltak = k.key === 'tiltak' && t && p.sammen.includes('tiltak')
     if (samletTiltak) innhold = <TiltakSamlet t={t} doc={p.doc} />
     if (k.key === 'eier' && p.sammen.includes('eierskap')) innhold = <EierSamlet r={r} doc={p.doc} medEgendef={p.samlet} />
-    if (samletBeskrivelse) innhold = <BeskrivelseSamlet r={r} aktiv={erAktiv ? p.aktiv?.kol : undefined} velg={(kol, ev) => ev.button === 0 && (ev.stopPropagation(), p.klikk({ ...pos, kol }, ev))} />
-    if (k.key === 'fv') innhold = p.moderne ? <KostCelle r={r} maks={p.kostMaks} /> : formatTall(fv(r))
+    // Teksten i samlet beskrivelse redigeres der den står, i samme boks, så ingenting rundt flytter seg
+    const redigertKol = samletBeskrivelse && p.redigerer ? KOL[p.redigerer.kol] : k
+    const inlineEditor =
+      redigeres && p.redigerer && samletBeskrivelse && BESKRIVELSE.includes(p.redigerer.kol) ? (
+        <CelleEditor
+          inline
+          kolonne={redigertKol}
+          etikett={BESKRIVELSE_NAVN[p.redigerer.kol]}
+          start={p.redigerer.start}
+          erstatt={p.redigerer.erstatt}
+          valg={[]}
+          bredde={p.bredde(k)}
+          onFerdig={p.ferdig}
+          onAvbryt={p.avbryt}
+        />
+      ) : null
+    if (samletBeskrivelse)
+      innhold = (
+        <BeskrivelseSamlet
+          r={r}
+          aktiv={erAktiv ? p.aktiv?.kol : undefined}
+          editor={inlineEditor ? { kol: p.redigerer!.kol, node: inlineEditor } : undefined}
+          kanSkrive={p.kanSkrive}
+          velg={(kol, ev) => ev.button === 0 && (ev.stopPropagation(), p.klikk({ ...pos, kol }, ev))}
+        />
+      )
+    if (k.key === 'fv') innhold = p.moderne ? <KostCelle r={r} skala={p.kostMaks} /> : formatTall(fv(r))
     // Tomme celler får et usynlig tegn, så en ny tiltakslinje er like høy som en med én linje tekst
     if (innhold === '' || innhold == null) innhold = '\u200b'
 
@@ -965,14 +1012,13 @@ function RiskRader(p: RaderProps) {
             +
           </button>
         )}
-        {redigeres && p.redigerer && (
+        {redigeres && p.redigerer && !inlineEditor && (
           <CelleEditor
-            kolonne={samletBeskrivelse ? KOL[p.redigerer.kol] : k}
-            etikett={samletBeskrivelse ? BESKRIVELSE_NAVN[p.redigerer.kol] : undefined}
+            kolonne={redigertKol}
             start={p.redigerer.start}
             erstatt={p.redigerer.erstatt}
-            valg={k.valg?.(p.doc) ?? []}
-            bredde={p.bredde(k)}
+            valg={redigertKol.valg?.(p.doc) ?? []}
+            bredde={samletBeskrivelse ? 0 : p.bredde(k)}
             onFerdig={p.ferdig}
             onAvbryt={p.avbryt}
           />
@@ -1052,20 +1098,51 @@ function EierSamlet({ r, doc, medEgendef }: { r: Risk; doc: Register; medEgendef
   )
 }
 
-// Samlet utseende: hendelsen med årsak og konsekvens under. Hver linje redigeres for seg, med ett klikk på linjen.
-function BeskrivelseSamlet({ r, aktiv, velg }: { r: Risk; aktiv?: string; velg: (kol: string, ev: React.MouseEvent) => void }) {
-  const kl = (kol: string) => (aktiv === kol ? 'valgt' : undefined)
+// Samlet utseende: R/M-merket og hendelsen, med årsak og konsekvens under. Første klikk velger en linje,
+// neste klikk (eller Enter, F2 eller å begynne å skrive) redigerer teksten der den står.
+function BeskrivelseSamlet({
+  r,
+  aktiv,
+  editor,
+  kanSkrive,
+  velg,
+}: {
+  r: Risk
+  aktiv?: string
+  editor?: { kol: string; node: React.ReactNode }
+  kanSkrive: boolean
+  velg: (kol: string, ev: React.MouseEvent) => void
+}) {
+  const kl = (kol: string, ekstra = '') => [ekstra, aktiv === kol ? 'valgt' : '', editor?.kol === kol ? 'redigeres' : ''].filter(Boolean).join(' ') || undefined
+  const tekst = (kol: string, verdi: string, tom: string) => (editor?.kol === kol ? editor.node : verdi || <span className="plassholder">{tom}</span>)
+  const rmNavn = r.rm === 'R' ? 'Risiko' : r.rm === 'M' ? 'Mulighet' : 'Ikke satt'
   return (
     <div className="beskrivelse-samlet">
-      <div className={'beskrivelse-hendelse ' + (kl('hendelse') ?? '')} onMouseDown={(ev) => velg('hendelse', ev)}>
-        {r.hendelse || <span className="plassholder">Uten hendelse</span>}
-        {r.rm === 'M' && <span className="mulighet-merke">Mulighet</span>}
+      <div className="beskrivelse-hendelse">
+        <span
+          className={'rm-merke rm-' + (r.rm === 'R' || r.rm === 'M' ? r.rm : 'tom') + (aktiv === 'rm' ? ' valgt' : '')}
+          title={rmNavn + (kanSkrive ? '. Klikk for å endre.' : '')}
+          onMouseDown={(ev) => velg('rm', ev)}
+        >
+          {r.rm === 'R' || r.rm === 'M' ? r.rm : '–'}
+        </span>
+        <span className={kl('hendelse', 'linje')} onMouseDown={(ev) => velg('hendelse', ev)}>
+          {tekst('hendelse', r.hendelse, 'Uten hendelse')}
+        </span>
       </div>
       <dl>
-        <dt className={kl('aarsak')} onMouseDown={(ev) => velg('aarsak', ev)}>Årsak</dt>
-        <dd className={kl('aarsak')} onMouseDown={(ev) => velg('aarsak', ev)}>{r.aarsak || <span className="plassholder">Legg til årsak</span>}</dd>
-        <dt className={kl('konsekvenser')} onMouseDown={(ev) => velg('konsekvenser', ev)}>Konsekvens</dt>
-        <dd className={kl('konsekvenser')} onMouseDown={(ev) => velg('konsekvenser', ev)}>{r.konsekvenser || <span className="plassholder">Legg til konsekvens</span>}</dd>
+        <dt className={kl('aarsak')} onMouseDown={(ev) => velg('aarsak', ev)}>
+          Årsak
+        </dt>
+        <dd className={kl('aarsak', 'linje')} onMouseDown={(ev) => velg('aarsak', ev)}>
+          {tekst('aarsak', r.aarsak, 'Legg til årsak')}
+        </dd>
+        <dt className={kl('konsekvenser')} onMouseDown={(ev) => velg('konsekvenser', ev)}>
+          Konsekvens
+        </dt>
+        <dd className={kl('konsekvenser', 'linje')} onMouseDown={(ev) => velg('konsekvenser', ev)}>
+          {tekst('konsekvenser', r.konsekvenser, 'Legg til konsekvens')}
+        </dd>
       </dl>
     </div>
   )
@@ -1102,16 +1179,39 @@ function VurderingCelle({ r, kanSkrive }: { r: Risk; kanSkrive: boolean }) {
 }
 
 // Moderne utseende: forventet verdi med spennet fra best til verst under
-function KostCelle({ r, maks }: { r: Risk; maks: number }) {
-  const p = (v: number) => `${Math.min(100, Math.max(0, (v / maks) * 100))}%`
+export interface Skala {
+  lo: number
+  hi: number
+}
+
+// Felles skala for kostspennene, så de kan sammenlignes mellom riskene. Lengden settes ved 90-persentilen av
+// spennene, så ett stort spenn ikke krymper alle de andre; spenn som går forbi, når kanten og tones ut der.
+// Har noen risker negative tall (f.eks. muligheter ført som minus), får skalaen like mye plass på begge sider av null.
+export function kostSkala(risker: Risk[]): Skala {
+  const med = risker.filter((r) => r.bc || r.ml || r.wc)
+  if (!med.length) return { lo: 0, hi: 1 }
+  const storst = med.map((r) => Math.max(Math.abs(r.bc), Math.abs(r.ml), Math.abs(r.wc))).sort((a, b) => a - b)
+  const m = Math.max(1, storst[Math.round(0.9 * (storst.length - 1))])
+  const negativ = med.some((r) => Math.min(r.bc, r.ml, r.wc) < 0)
+  const positiv = med.some((r) => Math.max(r.bc, r.ml, r.wc) > 0)
+  return { lo: negativ ? -m : 0, hi: positiv || !negativ ? m : 0 }
+}
+
+function KostCelle({ r, skala }: { r: Risk; skala: Skala }) {
+  const pst = (v: number) => Math.min(100, Math.max(0, ((v - skala.lo) / (skala.hi - skala.lo)) * 100))
+  const p = (v: number) => `${pst(v)}%`
   const tom = !r.bc && !r.ml && !r.wc
+  const fra = Math.min(r.bc, r.wc)
+  const til = Math.max(r.bc, r.wc)
+  const kl = ['kost-spenn', r.rm === 'M' ? 'm' : '', til > skala.hi ? 'over' : '', fra < skala.lo ? 'under' : ''].filter(Boolean).join(' ')
   return (
     <div className="kost-celle" title={`Best ${formatTall(r.bc)}, mest sannsynlig ${formatTall(r.ml)}, verst ${formatTall(r.wc)} (i 1000 kr)`}>
       <span className="kost-fv">{tom ? '-' : formatTall(fv(r))}</span>
       {!tom && (
         <>
-          <span className={'kost-spenn' + (r.rm === 'M' ? ' m' : '')} aria-hidden>
-            <i style={{ left: p(r.bc), width: `calc(${p(r.wc)} - ${p(r.bc)})` }} />
+          <span className={kl} aria-hidden>
+            {skala.lo < 0 && <s style={{ left: p(0) }} />}
+            <i style={{ left: p(fra), width: `max(3px, ${pst(til) - pst(fra)}%)` }} />
             <b style={{ left: p(fv(r)) }} />
           </span>
           <span className="kost-fra-til">

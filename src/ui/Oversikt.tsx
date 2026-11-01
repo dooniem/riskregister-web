@@ -98,8 +98,11 @@ export function Oversikt({ doc, visning, setVisning, mot, aapneMatrise, moderne,
     const d = gammel ? s.fv - gammel[rm].fv : 0
     const tekst = formatEndring(d)
     const bra = rm === 'M' ? d > 0 : d < 0
-    const maks = Math.max(1, r.wc, m.wc)
-    const pst = (x: number) => (x / maks) * 100 + '%'
+    // Samme skala for risiko og mulighet, også når noen tall er negative
+    const lo = Math.min(0, r.bc, r.wc, m.bc, m.wc)
+    const hi = Math.max(1, r.bc, r.wc, m.bc, m.wc)
+    const pst = (x: number) => ((x - lo) / (hi - lo)) * 100 + '%'
+    const fra = Math.min(s.bc, s.wc)
     return (
       <div className={'nokkel nokkel-' + rm}>
         <span className="nokkel-tittel">
@@ -116,7 +119,7 @@ export function Oversikt({ doc, visning, setVisning, mot, aapneMatrise, moderne,
           {formatTall(s.bc)} – {formatTall(s.wc)}
         </span>
         <span className={'kost-spenn' + (rm === 'M' ? ' m' : '')} aria-hidden>
-          <i style={{ left: pst(s.bc), width: pst(s.wc - s.bc) }} />
+          <i style={{ left: pst(fra), width: `max(3px, calc(${pst(Math.max(s.bc, s.wc))} - ${pst(fra)}))` }} />
           <b style={{ left: pst(s.fv) }} />
         </span>
       </div>

@@ -3934,10 +3934,30 @@ td.aktiv .tiltak-samlet-tekst {
   word-break: break-word;
 }
 .beskrivelse-hendelse {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
   font-weight: 600;
   font-size: 14.5px;
   line-height: 1.35;
   text-wrap: pretty;
+}
+.beskrivelse-hendelse .linje {
+  flex: 1;
+}
+.beskrivelse-hendelse .rm-merke {
+  flex: none;
+  cursor: pointer;
+  font-size: 11.5px;
+  line-height: 18px;
+  transform: translateY(-1px);
+}
+.beskrivelse-hendelse .rm-merke.rm-tom {
+  background: #eef0eb;
+  color: var(--dempet) !important;
+}
+.beskrivelse-hendelse .rm-merke.valgt {
+  box-shadow: 0 0 0 2px var(--aksent);
 }
 .beskrivelse-samlet dl {
   display: grid;
@@ -3950,34 +3970,70 @@ td.aktiv .tiltak-samlet-tekst {
 }
 .beskrivelse-samlet dt {
   color: #7d8890;
+  cursor: default;
 }
 .beskrivelse-samlet dd {
   margin: 0;
 }
-.beskrivelse-samlet .valgt {
+/* Hver tekstlinje er en boks som kan velges og redigeres. Visning og redigering bruker samme boks
+   (samme padding og negative marg), så teksten står stille når editoren åpnes. */
+.beskrivelse-samlet .linje {
+  min-width: 0;
+  padding: 1px 4px;
+  margin: -1px -4px;
+  border-radius: 4px;
+  cursor: text;
+}
+.beskrivelse-samlet .linje:hover {
+  background: rgba(29, 40, 48, 0.045);
+}
+.beskrivelse-samlet .linje.valgt {
+  background: var(--aksent-lys);
   color: var(--tekst);
 }
-.beskrivelse-samlet dd.valgt,
-.beskrivelse-hendelse.valgt {
-  text-decoration: underline;
-  text-decoration-color: var(--aksent);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
+.beskrivelse-samlet dt.valgt {
+  color: var(--aksent);
+}
+.beskrivelse-samlet .linje.redigeres {
+  background: var(--flate);
+  color: var(--tekst);
+  box-shadow: 0 0 0 2px var(--aksent);
 }
 .beskrivelse-samlet .plassholder {
   color: #9aa4ab;
   font-weight: 400;
 }
-.mulighet-merke {
-  display: inline-block;
-  margin-left: 8px;
-  padding: 1px 6px;
-  border-radius: 3px;
-  background: #e3ecf5;
-  color: #1c4e80;
-  font-size: 11px;
-  font-weight: 600;
-  vertical-align: 2px;
+/* Editoren inne i linjen: arver skrift og linjehøyde, ingen egen ramme eller polstring */
+.editor-ramme.inline {
+  position: relative;
+  left: auto;
+  top: auto;
+  z-index: 25;
+  border: 0;
+  box-shadow: none;
+  background: none;
+}
+.editor-ramme.inline .celle-editor {
+  padding: 0;
+  font: inherit;
+  line-height: inherit;
+  color: inherit;
+  background: none;
+  overflow: hidden;
+}
+.editor-ramme.inline .editor-hint {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: -6px;
+  padding: 3px 8px;
+  border: 1px solid var(--linje-sterk);
+  border-radius: 5px;
+  background: var(--flate);
+  box-shadow: 0 4px 12px rgba(29, 40, 48, 0.1);
+  font-size: 11.5px;
+  font-weight: 400;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 /* Oversikten som en lav stripe: forventet kost med spenn, og matrisene til høyre */
@@ -4056,4 +4112,60 @@ td.aktiv .tiltak-samlet-tekst {
 }
 .oversikt-samlet .mlabel.x {
   width: 20px;
+}
+
+/* Kostspennet: nullstrek når skalaen går under null, og tonet ende når spennet går forbi skalaen */
+.kost-spenn s {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  margin-left: -0.5px;
+  background: rgba(29, 40, 48, 0.28);
+}
+.kost-spenn.over i {
+  -webkit-mask-image: linear-gradient(to right, #000 70%, transparent);
+  mask-image: linear-gradient(to right, #000 70%, transparent);
+}
+.kost-spenn.under i {
+  -webkit-mask-image: linear-gradient(to left, #000 70%, transparent);
+  mask-image: linear-gradient(to left, #000 70%, transparent);
+}
+.kost-spenn.over.under i {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 20%, #000 80%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 20%, #000 80%, transparent);
+}
+
+/* Samlet: visningsvalg og Ny risk til høyre i verktøylinjen */
+.verktoy-hoyre {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.grupper-knapp {
+  position: relative;
+}
+.grupper-knapp select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.grupper-knapp:has(select:focus-visible) {
+  outline: 2px solid var(--aksent);
+  outline-offset: 2px;
+}
+.samlet-kolonnevelger {
+  left: auto;
+  right: 0;
+  width: 260px;
+  padding: 6px 10px 10px;
+}
+.samlet-kolonnevelger .kollabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
 }

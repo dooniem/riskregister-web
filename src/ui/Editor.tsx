@@ -14,12 +14,13 @@ interface Props {
   valg: string[]
   bredde: number
   etikett?: string // feltet som redigeres, når én celle viser flere felt
+  inline?: boolean // står i teksten i stedet for oppå cellen, i samme boks som teksten (ingen layoutforskyvning)
   onFerdig: (tekst: string, flytt: Flytt) => void
   onAvbryt: () => void
 }
 
 // Editoren legger seg oppå cellen, som når man skriver direkte i en Excel-celle
-export function CelleEditor({ kolonne, start, erstatt, valg, bredde, etikett, onFerdig, onAvbryt }: Props) {
+export function CelleEditor({ kolonne, start, erstatt, valg, bredde, etikett, inline, onFerdig, onAvbryt }: Props) {
   const [tekst, setTekst] = useState(start)
   // Markert linje i valglista. Åpnes lista uten at man har skrevet, står markeringen på dagens verdi.
   const startIndeks = erstatt ? (start.trim() ? 0 : -1) : valg.indexOf(start)
@@ -43,8 +44,8 @@ export function CelleEditor({ kolonne, start, erstatt, valg, bredde, etikett, on
     const el = ref.current
     if (kolonne.type !== 'langtekst' || !el) return
     el.style.height = 'auto'
-    el.style.height = Math.min(el.scrollHeight + 2, 420) + 'px'
-  }, [tekst, kolonne.type])
+    el.style.height = (inline ? el.scrollHeight : Math.min(el.scrollHeight + 2, 420)) + 'px'
+  }, [tekst, kolonne.type, inline])
 
   const treff = useMemo(() => {
     if (kolonne.type !== 'valg') return []
@@ -143,7 +144,7 @@ export function CelleEditor({ kolonne, start, erstatt, valg, bredde, etikett, on
 
   // Klikk inne i editoren skal ikke nå cellen under, som ellers flytter fokus og lukker editoren
   const ramme = {
-    className: 'editor-ramme',
+    className: 'editor-ramme' + (inline ? ' inline' : ''),
     onMouseDown: (e: React.MouseEvent) => {
       e.stopPropagation()
       if (e.target !== ref.current) e.preventDefault()
@@ -152,8 +153,8 @@ export function CelleEditor({ kolonne, start, erstatt, valg, bredde, etikett, on
 
   if (kolonne.type === 'langtekst')
     return (
-      <div {...ramme} style={{ width: Math.max(bredde, 340) }}>
-        <textarea {...felles} onChange={(e) => setTekst(e.target.value)} rows={3} />
+      <div {...ramme} style={inline ? undefined : { width: Math.max(bredde, 340) }}>
+        <textarea {...felles} onChange={(e) => setTekst(e.target.value)} rows={inline ? 1 : 3} />
         <div className="editor-hint">{etikett && <b>{etikett} · </b>}Enter lagrer · Alt+Enter ny linje · Esc avbryter</div>
       </div>
     )

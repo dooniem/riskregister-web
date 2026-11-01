@@ -42,3 +42,20 @@ export function Utvid({ str = 12 }: { str?: number }) {
     </svg>
   )
 }
+
+export function Pluss({ str = 14 }: { str?: number }) {
+  return (
+    <svg className="ikon" width={str} height={str} viewBox="0 0 24 24" aria-hidden="true" {...strek}>
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  )
+}
+
+export function Kolonneikon({ str = 14 }: { str?: number }) {
+  return (
+    <svg className="ikon" width={str} height={str} viewBox="0 0 24 24" aria-hidden="true" {...strek}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M9 4v16M15 4v16" />
+    </svg>
+  )
+}

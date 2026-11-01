@@ -20,7 +20,7 @@ import { Filvelger } from './Filvelger'
 import { ImportDialog } from './ImportDialog'
 import { Grid } from './Grid'
 import { Kortliste } from './Kortliste'
-import { Laas, Meny, Pil } from './Ikoner'
+import { Kolonneikon, Laas, Meny, Pil, Pluss } from './Ikoner'
 import { HentOppsett } from './HentOppsett'
 import { Oversikt } from './Oversikt'
 import { Prosjektpanel } from './Prosjektpanel'
@@ -102,6 +102,8 @@ export function RegisterView({ okt, tilbake }: Props) {
   const [detalj, setDetalj] = useState<string | null>(null)
   const [prosjekt, setProsjekt] = useState<false | 'prosjekt' | 'deltakere' | 'gjennomganger' | 'lister'>(false)
   const [kolVelger, setKolVelger] = useState(false)
+  // Øker når «Ny risk» i verktøylinjen trykkes, så tabellen legger til en rad og setter markøren i den
+  const [nyRiskTeller, setNyRiskTeller] = useState(0)
   const [meny, setMeny] = useState(false)
   const [hentOppsett, setHentOppsett] = useState(false)
   const [filvelger, setFilvelger] = useState<null | 'aapne' | 'lagre'>(null)
@@ -223,6 +225,50 @@ export function RegisterView({ okt, tilbake }: Props) {
           }
         : null,
     [b, okt],
+  )
+
+  const grupperValg = samlet ? (
+    // Ser ut som en knapp («Grupper: Ingen»), men er en vanlig nedtrekksliste under, så tastatur og skjermleser virker som før
+    <label className="knapp grupper-knapp">
+      Grupper: {visning.gruppering ? GRUPPERINGER.find((g) => g.key === visning.gruppering)?.tittel : 'Ingen'} <Pil />
+      <select aria-label="Grupper etter" value={visning.gruppering} onChange={(e) => setVisning((v) => ({ ...v, gruppering: e.target.value }))}>
+        {GRUPPERINGER.map((g) => (
+          <option key={g.key} value={g.key}>
+            {g.tittel}
+          </option>
+        ))}
+      </select>
+    </label>
+  ) : (
+    <label className="velg">
+      Grupper etter
+      <select value={visning.gruppering} onChange={(e) => setVisning((v) => ({ ...v, gruppering: e.target.value }))}>
+        {GRUPPERINGER.map((g) => (
+          <option key={g.key} value={g.key}>
+            {g.tittel}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+  const kolonneKnapp = (
+    <div className="meny-holder">
+      <button className="knapp" onClick={() => setKolVelger(!kolVelger)}>
+        {samlet ? <Kolonneikon /> : null}
+        Kolonner {!samlet && <Pil />}
+      </button>
+      {kolVelger &&
+        (samlet ? (
+          <SamletKolonnevelger visning={visning} setVisning={setVisning} lukk={() => setKolVelger(false)} />
+        ) : (
+          <Kolonnevelger doc={doc} visning={visning} setVisning={setVisning} lukk={() => setKolVelger(false)} />
+        ))}
+    </div>
+  )
+  const oversiktKnapp = (
+    <button className="knapp" onClick={() => setVisning((v) => ({ ...v, visOversikt: !v.visOversikt }))}>
+      {visning.visOversikt ? 'Skjul oversikt' : 'Vis oversikt'}
+    </button>
   )
 
   const statusTekst = { laster: 'Laster…', lagret: 'Alle endringer er lagret', lagrer: 'Lagrer…', frakoblet: 'Frakoblet, prøver igjen', feil: 'Lagring feilet' }[visStatus]
@@ -482,31 +528,12 @@ export function RegisterView({ okt, tilbake }: Props) {
           {visning.fane !== 'skarisk' && (
             <>
             <input className="sok" placeholder="Søk i alle felt…" value={visning.sok} onChange={(e) => setVisning((v) => ({ ...v, sok: e.target.value }))} />
-            <label className="velg">
-              Grupper etter
-              <select value={visning.gruppering} onChange={(e) => setVisning((v) => ({ ...v, gruppering: e.target.value }))}>
-                {GRUPPERINGER.map((g) => (
-                  <option key={g.key} value={g.key}>
-                    {g.tittel}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {!samlet && grupperValg}
             <FagMeny doc={doc} visning={visning} setVisning={setVisning} endre={endre} kanSkrive={b.kanSkrive} />
-            {/* I samlet utseende er kolonnene faste: beskrivelse, eierskap og tiltak er alltid slått sammen */}
-            {!mobil && !samlet && (
-              <div className="meny-holder">
-                <button className="knapp" onClick={() => setKolVelger(!kolVelger)}>
-                  Kolonner <Pil />
-                </button>
-                {kolVelger && <Kolonnevelger doc={doc} visning={visning} setVisning={setVisning} lukk={() => setKolVelger(false)} />}
-              </div>
-            )}
+            {!mobil && !samlet && kolonneKnapp}
             </>
           )}
-          <button className="knapp" onClick={() => setVisning((v) => ({ ...v, visOversikt: !v.visOversikt }))}>
-            {visning.visOversikt ? 'Skjul oversikt' : 'Vis oversikt'}
-          </button>
+          {!samlet && oversiktKnapp}
           {filterAktivt && visning.fane !== 'skarisk' && (
             <span className="filterinfo">
               Viser {antall.vist} av {antall[visning.fane]}
@@ -514,6 +541,19 @@ export function RegisterView({ okt, tilbake }: Props) {
                 Fjern alle filtre
               </button>
             </span>
+          )}
+          {/* Samlet: visningsvalgene og Ny risk samlet til høyre */}
+          {samlet && (
+            <div className="verktoy-hoyre">
+              {visning.fane !== 'skarisk' && grupperValg}
+              {visning.fane !== 'skarisk' && !mobil && kolonneKnapp}
+              {oversiktKnapp}
+              {b.kanSkrive && visning.fane !== 'skarisk' && !mobil && (
+                <button className="knapp primær" onClick={() => setNyRiskTeller((n) => n + 1)}>
+                  <Pluss /> Ny risk
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -552,6 +592,7 @@ export function RegisterView({ okt, tilbake }: Props) {
             mot={motRisker}
             moderne={moderne}
             samlet={samlet}
+            nyRiskTeller={nyRiskTeller}
           />
           )}
           {detalj && <Detaljpanel okt={okt} doc={doc} riskId={detalj} endre={endre} lukk={() => setDetalj(null)} kanSkrive={b.kanSkrive} />}
@@ -687,6 +728,44 @@ function Meldinger({ antall, children }: { antall: number; children: React.React
   return (
     <div className="meldinger" ref={ref} role="status" popover={harPopover ? 'manual' : undefined}>
       {children}
+    </div>
+  )
+}
+
+// Samlet utseende: kolonnene er faste og slått sammen, så her kan de bare vises eller skjules
+const SAMLET_KOLONNER: [string, string][] = [
+  ['eier', 'Risikoeier og kategori'],
+  ['eksponering', 'Eksponering'],
+  ['fv', 'Forventet kost'],
+  ['tiltak', 'Tiltak, eier og frist'],
+  ['tilSkarisk', 'Til Skarisk'],
+]
+
+function SamletKolonnevelger({ visning, setVisning, lukk }: { visning: Visning; setVisning: (f: (v: Visning) => Visning) => void; lukk: () => void }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const h = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && lukk()
+    setTimeout(() => window.addEventListener('mousedown', h))
+    return () => window.removeEventListener('mousedown', h)
+  }, [lukk])
+  return (
+    <div className="nedtrekk kolonnevelger samlet-kolonnevelger" ref={ref}>
+      <div className="meny-tittel">Vis kolonner</div>
+      <label className="kollabel">
+        <input type="checkbox" checked disabled /> Hendelse, årsak og konsekvens
+      </label>
+      {SAMLET_KOLONNER.map(([key, navn]) => (
+        <label key={key} className="kollabel">
+          <input
+            type="checkbox"
+            checked={!visning.skjulteKolonner.includes(key)}
+            onChange={(e) =>
+              setVisning((v) => ({ ...v, skjulteKolonner: e.target.checked ? v.skjulteKolonner.filter((x) => x !== key) : [...v.skjulteKolonner, key] }))
+            }
+          />{' '}
+          {navn}
+        </label>
+      ))}
     </div>
   )
 }
