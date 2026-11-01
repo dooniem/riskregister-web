@@ -80,6 +80,10 @@ const SAMLET_GRUPPER = ['beskrivelse', 'eierskap', 'tiltak']
 const BESKRIVELSE = ['hendelse', 'aarsak', 'konsekvenser']
 // Feltene som kan endres rett i den sammenslåtte tiltakscellen: status (prikken), eier og frist
 const TILTAK_SAMLET = ['tiltakstatus', 'tiltakseier', 'frist']
+// De egendefinerte feltene, som i samlet utseende kan vises som nedtrekkslister i risikokortet
+const EGENDEF = ['egendef', 'egendef2']
+// Kategori står under risikoeieren når eierskapsgruppen er slått sammen
+const EIER_SAMLET = ['kategori']
 const BESKRIVELSE_NAVN: Record<string, string> = { hendelse: 'Hendelse', aarsak: 'Årsak', konsekvenser: 'Konsekvens' }
 
 export function synligeKolonner(v: Visning, egendef2Aktiv = false, moderne = false, samlet = false): Kolonne[] {
@@ -112,6 +116,8 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   const boks = useRef<HTMLDivElement>(null)
 
   const egendef2 = doc.lister.egendef2Aktiv
+  // Egendefinerte felt som vises i risikokortet i samlet utseende. Ingen som standard.
+  const egendefKort = useMemo(() => (samlet ? (visning.samletEgendef ?? []).filter((k) => k === 'egendef' || (k === 'egendef2' && egendef2)) : []), [samlet, visning.samletEgendef, egendef2])
   const kolonner = useMemo(() => synligeKolonner(visning, egendef2, moderne, samlet), [visning, egendef2, moderne, samlet])
   // Gruppene som er slått sammen. I moderne utseende viser da hovedkolonnen mer av det som er skjult.
   const sammen = useMemo(
@@ -201,10 +207,12 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
     const ki = kolonner.findIndex(
       (k) =>
         k.key ===
-        (samlet && (BESKRIVELSE.includes(aktiv.kol) || aktiv.kol === 'rm')
+        (samlet && (BESKRIVELSE.includes(aktiv.kol) || EGENDEF.includes(aktiv.kol) || aktiv.kol === 'rm')
           ? 'hendelse'
           : sammen.includes('tiltak') && TILTAK_SAMLET.includes(aktiv.kol)
             ? 'tiltak'
+            : sammen.includes('eierskap') && EIER_SAMLET.includes(aktiv.kol)
+              ? 'eier'
             : aktiv.kol),
     )
     const li = finnLinje(aktiv)
@@ -715,6 +723,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   moderne={moderne}
                   samlet={samlet}
                   sammen={sammen}
+                  egendef={egendefKort}
                   kostSkala={kostSkala}
                   person={visning.person}
                   byttSkarisk={byttSkarisk}
@@ -848,6 +857,7 @@ interface RaderProps {
   samlet: boolean
   sammen: string[]
   kostSkala?: Skala
+  egendef: string[]
   person?: string
   byttSkarisk: (riskId: string) => void
 }
@@ -886,8 +896,9 @@ function RiskRader(p: RaderProps) {
     const samletBeskrivelse = p.samlet && k.key === 'hendelse'
     // Status, eier og frist står i tiltakscellen når tiltaksgruppen er slått sammen
     const tiltakSammen = k.key === 'tiltak' && p.sammen.includes('tiltak')
+    const eierSammen = k.key === 'eier' && p.sammen.includes('eierskap')
     const her = (kol?: string) =>
-      kol === k.key || (samletBeskrivelse && !!kol && (BESKRIVELSE.includes(kol) || kol === 'rm')) || (tiltakSammen && !!kol && TILTAK_SAMLET.includes(kol))
+      kol === k.key || (samletBeskrivelse && !!kol && (BESKRIVELSE.includes(kol) || EGENDEF.includes(kol) || kol === 'rm')) || (tiltakSammen && !!kol && TILTAK_SAMLET.includes(kol)) || (eierSammen && !!kol && EIER_SAMLET.includes(kol))
     const erAktiv = p.aktiv?.riskId === r.id && her(p.aktiv.kol) && (k.nivaa === 'risk' || p.aktiv.tiltakId === t?.id)
     const redigeres = p.redigerer?.riskId === r.id && her(p.redigerer.kol) && (k.nivaa === 'risk' || p.redigerer.tiltakId === t?.id)
     const andreHer = p.tilstede.filter((x) => x.kolonne === k.key && (k.nivaa === 'risk' || x.tiltakId === t?.id))
@@ -981,9 +992,16 @@ function RiskRader(p: RaderProps) {
           velg={p.kanSkrive ? (kol, ev) => ev.button === 0 && (ev.stopPropagation(), p.klikk({ ...pos, kol }, ev)) : undefined}
         />
       )
-    if (k.key === 'eier' && p.sammen.includes('eierskap')) innhold = <EierSamlet r={r} doc={p.doc} medEgendef={p.samlet} />
+    if (k.key === 'eier' && p.sammen.includes('eierskap')) innhold = (
+        <EierSamlet
+          r={r}
+          doc={p.doc}
+          aktiv={erAktiv ? p.aktiv?.kol : undefined}
+          velg={p.kanSkrive ? (kol, ev) => ev.button === 0 && (ev.stopPropagation(), p.klikk({ ...pos, kol }, ev)) : undefined}
+        />
+      )
     // Teksten i samlet beskrivelse redigeres der den står, i samme boks, så ingenting rundt flytter seg
-    const redigertKol = (samletBeskrivelse || tiltakSammen) && p.redigerer ? KOL[p.redigerer.kol] : k
+    const redigertKol = (samletBeskrivelse || tiltakSammen || eierSammen) && p.redigerer ? KOL[p.redigerer.kol] : k
     const inlineEditor =
       redigeres && p.redigerer && samletBeskrivelse && BESKRIVELSE.includes(p.redigerer.kol) ? (
         <CelleEditor
@@ -999,12 +1017,28 @@ function RiskRader(p: RaderProps) {
           onAvbryt={p.avbryt}
         />
       ) : null
+    // Egendefinerte felt i risikokortet: lista åpnes under nedtrekksknappen
+    const kortEditor =
+      redigeres && p.redigerer && samletBeskrivelse && EGENDEF.includes(p.redigerer.kol) ? (
+        <CelleEditor
+          kolonne={redigertKol}
+          start={p.redigerer.start}
+          erstatt={p.redigerer.erstatt}
+          valg={redigertKol.valg?.(p.doc) ?? []}
+          bredde={0}
+          onFerdig={p.ferdig}
+          onAvbryt={p.avbryt}
+        />
+      ) : null
+    const kortNode = inlineEditor ?? kortEditor
     if (samletBeskrivelse)
       innhold = (
         <BeskrivelseSamlet
           r={r}
+          doc={p.doc}
+          egendef={p.egendef}
           aktiv={erAktiv ? p.aktiv?.kol : undefined}
-          editor={inlineEditor ? { kol: p.redigerer!.kol, node: inlineEditor } : undefined}
+          editor={kortNode ? { kol: p.redigerer!.kol, node: kortNode } : undefined}
           kanSkrive={p.kanSkrive}
           velg={(kol, ev) => ev.button === 0 && (ev.stopPropagation(), p.klikk({ ...pos, kol }, ev))}
         />
@@ -1044,7 +1078,7 @@ function RiskRader(p: RaderProps) {
             +
           </button>
         )}
-        {redigeres && p.redigerer && !inlineEditor && (
+        {redigeres && p.redigerer && !kortNode && (
           <CelleEditor
             kolonne={redigertKol}
             start={p.redigerer.start}
@@ -1138,18 +1172,29 @@ function TiltakSamlet({
 }
 
 // Moderne utseende med eierskapsgruppen slått sammen: initialer og navn, med kategorien under
-function EierSamlet({ r, doc, medEgendef }: { r: Risk; doc: Register; medEgendef?: boolean }) {
-  const under = [r.kategori, medEgendef ? r.egendef : ''].filter(Boolean).join(' · ')
-  if (!r.eier && !under) return null
+function EierSamlet({ r, doc, aktiv, velg }: { r: Risk; doc: Register; aktiv?: string; velg?: (kol: string, ev: React.MouseEvent) => void }) {
+  // Med redigering kan eier og kategori klikkes hver for seg og åpner lista der de står
+  const felt = (kol: string, tittel: string) => ({
+    className: 'eier-felt' + (aktiv === kol ? ' valgt' : '') + (velg ? ' kan-endre' : ''),
+    title: tittel + (velg ? '. Klikk for å velge.' : ''),
+    onMouseDown: velg ? (ev: React.MouseEvent) => velg(kol, ev) : undefined,
+  })
+  if (!velg && !r.eier && !r.kategori) return null
   return (
     <div className="eier-samlet">
-      {r.eier && (
-        <span className="eier-samlet-navn">
-          <Initialer navn={r.eier} doc={doc} />
-          {r.eier}
+      {(r.eier || velg) && (
+        <span {...felt('eier', r.eier ? `Risikoeier: ${r.eier}` : 'Ingen risikoeier')}>
+          <span className="eier-samlet-navn">
+            {r.eier ? <Initialer navn={r.eier} doc={doc} /> : <span className="initialer tom" aria-hidden>+</span>}
+            {r.eier || <span className="eier-tom">Risikoeier</span>}
+          </span>
         </span>
       )}
-      {under && <span className="eier-samlet-kategori">{under}</span>}
+      {(r.kategori || velg) && (
+        <span {...felt('kategori', r.kategori ? `Kategori: ${r.kategori}` : 'Ingen kategori')}>
+          <span className="eier-samlet-kategori">{r.kategori || <span className="eier-tom">Kategori</span>}</span>
+        </span>
+      )}
     </div>
   )
 }
@@ -1158,12 +1203,16 @@ function EierSamlet({ r, doc, medEgendef }: { r: Risk; doc: Register; medEgendef
 // neste klikk (eller Enter, F2 eller å begynne å skrive) redigerer teksten der den står.
 function BeskrivelseSamlet({
   r,
+  doc,
+  egendef,
   aktiv,
   editor,
   kanSkrive,
   velg,
 }: {
   r: Risk
+  doc: Register
+  egendef: string[]
   aktiv?: string
   editor?: { kol: string; node: React.ReactNode }
   kanSkrive: boolean
@@ -1200,6 +1249,27 @@ function BeskrivelseSamlet({
           {tekst('konsekvenser', r.konsekvenser, 'Legg til konsekvens')}
         </dd>
       </dl>
+      {egendef.length > 0 && (
+        <div className="egendef-rad">
+          {egendef.map((key) => {
+            const navn = key === 'egendef' ? doc.lister.egendefNavn : doc.lister.egendef2Navn
+            const verdi = (key === 'egendef' ? r.egendef : r.egendef2) ?? ''
+            return (
+              <span
+                key={key}
+                className={kl(key, 'egendef-valg') + (kanSkrive ? ' kan-endre' : '')}
+                title={`${navn}: ${verdi || 'ikke satt'}` + (kanSkrive ? '. Klikk for å velge.' : '')}
+                onMouseDown={(ev) => velg(key, ev)}
+              >
+                <span className="egendef-navn">{navn}</span>
+                <span className={'egendef-verdi' + (verdi ? '' : ' tom')}>{verdi || 'Velg'}</span>
+                {kanSkrive && <Pil />}
+                {editor?.kol === key && editor.node}
+              </span>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

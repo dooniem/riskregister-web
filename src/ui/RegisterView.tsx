@@ -261,7 +261,7 @@ export function RegisterView({ okt, tilbake }: Props) {
       </button>
       {kolVelger &&
         (samlet ? (
-          <SamletKolonnevelger visning={visning} setVisning={setVisning} lukk={() => setKolVelger(false)} />
+          <SamletKolonnevelger doc={doc} visning={visning} setVisning={setVisning} lukk={() => setKolVelger(false)} />
         ) : (
           <Kolonnevelger doc={doc} visning={visning} setVisning={setVisning} lukk={() => setKolVelger(false)} />
         ))}
@@ -744,7 +744,7 @@ const SAMLET_KOLONNER: [string, string][] = [
   ['tilSkarisk', 'Til Skarisk'],
 ]
 
-function SamletKolonnevelger({ visning, setVisning, lukk }: { visning: Visning; setVisning: (f: (v: Visning) => Visning) => void; lukk: () => void }) {
+function SamletKolonnevelger({ doc, visning, setVisning, lukk }: { doc: Register; visning: Visning; setVisning: (f: (v: Visning) => Visning) => void; lukk: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const h = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && lukk()
@@ -757,6 +757,27 @@ function SamletKolonnevelger({ visning, setVisning, lukk }: { visning: Visning; 
       <label className="kollabel">
         <input type="checkbox" checked disabled /> Hendelse, årsak og konsekvens
       </label>
+      {/* De egendefinerte feltene vises som nedtrekkslister under konsekvensen i risikokortet */}
+      {(
+        [
+          ['egendef', doc.lister.egendefNavn],
+          ...(doc.lister.egendef2Aktiv ? [['egendef2', doc.lister.egendef2Navn]] : []),
+        ] as [string, string][]
+      ).map(([key, navn]) => (
+        <label key={key} className="kollabel underkol">
+          <input
+            type="checkbox"
+            checked={(visning.samletEgendef ?? []).includes(key)}
+            onChange={(e) =>
+              setVisning((v) => {
+                const naa = (v.samletEgendef ?? []).filter((x) => x !== key)
+                return { ...v, samletEgendef: e.target.checked ? [...naa, key].sort() : naa }
+              })
+            }
+          />{' '}
+          {navn}
+        </label>
+      ))}
       {SAMLET_KOLONNER.map(([key, navn]) => (
         <label key={key} className="kollabel">
           <input
