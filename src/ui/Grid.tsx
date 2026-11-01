@@ -674,7 +674,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                 onClick={(e) => klikkOverskrift(k, e)}
                 title={(KOST_NAVN[k.key] ? KOST_NAVN[k.key] + '. ' : '') + 'Klikk for å sortere. Shift+klikk for å sortere på flere kolonner.'}
               >
-                <span className="kol-tittel">{(samlet && SAMLET_TITTEL[k.key]) || (sammen.includes(k.gruppe) && SAMMEN_TITTEL[k.key]) || k.tittel(doc)}</span>
+                <span className="kol-tittel">{(samlet && k.key === 'eier' && visning.samletUtenKategori && 'Risikoeier') || (samlet && SAMLET_TITTEL[k.key]) || (sammen.includes(k.gruppe) && SAMMEN_TITTEL[k.key]) || k.tittel(doc)}</span>
                 {sortIkon(k.key)}
                 <button
                   className={'filterknapp ' + (harFilter(k.key) ? 'aktiv' : '')}
@@ -737,6 +737,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   moderne={moderne}
                   samlet={samlet}
                   sammen={sammen}
+                  utenKategori={!!visning.samletUtenKategori}
                   egendef={egendefKort}
                   kostSkala={kostSkala}
                   person={visning.person}
@@ -872,6 +873,7 @@ interface RaderProps {
   samlet: boolean
   sammen: string[]
   kostSkala?: Skala
+  utenKategori: boolean
   egendef: string[]
   person?: string
   byttSkarisk: (riskId: string) => void
@@ -1011,6 +1013,7 @@ function RiskRader(p: RaderProps) {
         <EierSamlet
           r={r}
           doc={p.doc}
+          medKategori={!(p.samlet && p.utenKategori)}
           aktiv={erAktiv ? p.aktiv?.kol : undefined}
           velg={p.kanSkrive ? (kol, ev) => ev.button === 0 && (ev.stopPropagation(), p.klikk({ ...pos, kol }, ev)) : undefined}
         />
@@ -1195,14 +1198,14 @@ function TiltakSamlet({
 }
 
 // Moderne utseende med eierskapsgruppen slått sammen: initialer og navn, med kategorien under
-function EierSamlet({ r, doc, aktiv, velg }: { r: Risk; doc: Register; aktiv?: string; velg?: (kol: string, ev: React.MouseEvent) => void }) {
+function EierSamlet({ r, doc, medKategori = true, aktiv, velg }: { r: Risk; doc: Register; medKategori?: boolean; aktiv?: string; velg?: (kol: string, ev: React.MouseEvent) => void }) {
   // Med redigering kan eier og kategori klikkes hver for seg og åpner lista der de står
   const felt = (kol: string, tittel: string) => ({
     className: 'eier-felt' + (aktiv === kol ? ' valgt' : '') + (velg ? ' kan-endre' : ''),
     title: tittel + (velg ? '. Klikk for å velge.' : ''),
     onMouseDown: velg ? (ev: React.MouseEvent) => velg(kol, ev) : undefined,
   })
-  if (!velg && !r.eier && !r.kategori) return null
+  if (!velg && !r.eier && !(medKategori && r.kategori)) return null
   return (
     <div className="eier-samlet">
       {(r.eier || velg) && (
@@ -1213,7 +1216,7 @@ function EierSamlet({ r, doc, aktiv, velg }: { r: Risk; doc: Register; aktiv?: s
           </span>
         </span>
       )}
-      {(r.kategori || velg) && (
+      {medKategori && (r.kategori || velg) && (
         <span {...felt('kategori', r.kategori ? `Kategori: ${r.kategori}` : 'Ingen kategori')}>
           <span className="eier-samlet-kategori">{r.kategori || <span className="eier-tom">Kategori</span>}</span>
         </span>
