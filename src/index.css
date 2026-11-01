@@ -3919,6 +3919,11 @@ td.aktiv .tiltak-samlet-tekst {
   top: 0;
   height: 38px;
   vertical-align: middle;
+  /* Barlow i 13px/500 blir utydelig på Windows-skjermer uten høy oppløsning (prikken i «i» forsvinner) */
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #4a565e;
 }
 .stil-samlet .grid td.k-nr::before {
   display: none;
@@ -4180,4 +4185,47 @@ td.aktiv .tiltak-samlet-tekst {
 }
 .kolonnemeny .meny-valg:hover {
   background: var(--aksent-lys);
+}
+
+/* Sammenslått tiltakscelle: status, eier og frist kan klikkes hver for seg */
+.tiltak-felt {
+  display: flex;
+  justify-content: center;
+  min-height: 22px;
+  border-radius: 4px;
+}
+.tiltak-felt:last-child {
+  justify-content: flex-end;
+}
+.tiltak-samlet.kan-endre .tiltak-felt {
+  cursor: pointer;
+}
+.tiltak-samlet.kan-endre .tiltak-felt:hover,
+.tiltak-felt.valgt {
+  background: var(--aksent-lys);
+  box-shadow: 0 0 0 3px var(--aksent-lys);
+}
+.tiltak-samlet .status-prikk {
+  margin-top: 0.45em;
+}
+.initialer.tom {
+  background: none;
+  border: 1px dashed #b8c0c6;
+  color: #8a959c;
+  font-weight: 500;
+}
+.frist-tom {
+  color: #9aa4ab;
+  font-size: 12px;
+}
+/* Tomme plasser for eier og frist vises bare når musa er over raden eller cellen er valgt */
+.initialer.tom,
+.frist-tom {
+  visibility: hidden;
+}
+tr:hover .initialer.tom,
+tr:hover .frist-tom,
+td.aktiv .initialer.tom,
+td.aktiv .frist-tom {
+  visibility: visible;
 }

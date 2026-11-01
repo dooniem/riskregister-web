@@ -78,6 +78,8 @@ const SAMMEN_TITTEL: Record<string, string> = { tiltak: 'Tiltak, eier og frist',
 const SAMLET_GRUPPER = ['beskrivelse', 'eierskap', 'tiltak']
 // Feltene som vises og redigeres i den sammenslåtte beskrivelsen i samlet utseende
 const BESKRIVELSE = ['hendelse', 'aarsak', 'konsekvenser']
+// Feltene som kan endres rett i den sammenslåtte tiltakscellen: status (prikken), eier og frist
+const TILTAK_SAMLET = ['tiltakstatus', 'tiltakseier', 'frist']
 const BESKRIVELSE_NAVN: Record<string, string> = { hendelse: 'Hendelse', aarsak: 'Årsak', konsekvenser: 'Konsekvens' }
 
 export function synligeKolonner(v: Visning, egendef2Aktiv = false, moderne = false, samlet = false): Kolonne[] {
@@ -196,7 +198,15 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
       setAktiv({ ...aktiv, kol: BESKRIVELSE[bi + (retning === 'ned' ? 1 : -1)] })
       return
     }
-    const ki = kolonner.findIndex((k) => k.key === (samlet && (BESKRIVELSE.includes(aktiv.kol) || aktiv.kol === 'rm') ? 'hendelse' : aktiv.kol))
+    const ki = kolonner.findIndex(
+      (k) =>
+        k.key ===
+        (samlet && (BESKRIVELSE.includes(aktiv.kol) || aktiv.kol === 'rm')
+          ? 'hendelse'
+          : sammen.includes('tiltak') && TILTAK_SAMLET.includes(aktiv.kol)
+            ? 'tiltak'
+            : aktiv.kol),
+    )
     const li = finnLinje(aktiv)
     if (ki < 0 || li < 0) return
     let nyK = ki
@@ -872,7 +882,10 @@ function RiskRader(p: RaderProps) {
     const pos: Posisjon = { riskId: r.id, tiltakId: k.nivaa === 'risk' ? r.tiltak[0]?.id : t?.id, kol: k.key }
     // I samlet utseende står årsak og konsekvens i hendelse-cellen, så de regnes som samme celle
     const samletBeskrivelse = p.samlet && k.key === 'hendelse'
-    const her = (kol?: string) => kol === k.key || (samletBeskrivelse && !!kol && (BESKRIVELSE.includes(kol) || kol === 'rm'))
+    // Status, eier og frist står i tiltakscellen når tiltaksgruppen er slått sammen
+    const tiltakSammen = k.key === 'tiltak' && p.sammen.includes('tiltak')
+    const her = (kol?: string) =>
+      kol === k.key || (samletBeskrivelse && !!kol && (BESKRIVELSE.includes(kol) || kol === 'rm')) || (tiltakSammen && !!kol && TILTAK_SAMLET.includes(kol))
     const erAktiv = p.aktiv?.riskId === r.id && her(p.aktiv.kol) && (k.nivaa === 'risk' || p.aktiv.tiltakId === t?.id)
     const redigeres = p.redigerer?.riskId === r.id && her(p.redigerer.kol) && (k.nivaa === 'risk' || p.redigerer.tiltakId === t?.id)
     const andreHer = p.tilstede.filter((x) => x.kolonne === k.key && (k.nivaa === 'risk' || x.tiltakId === t?.id))
@@ -955,10 +968,18 @@ function RiskRader(p: RaderProps) {
     if (k.key === 'eksponering' && p.moderne) innhold = <VurderingCelle r={r} kanSkrive={p.kanSkrive} />
     if (k.nivaa === 'tiltak' && !t && k.key === 'tiltak' && p.kanSkrive) innhold = <span className="plassholder">+ legg til tiltak</span>
     const samletTiltak = k.key === 'tiltak' && t && p.sammen.includes('tiltak')
-    if (samletTiltak) innhold = <TiltakSamlet t={t} doc={p.doc} />
+    if (samletTiltak)
+      innhold = (
+        <TiltakSamlet
+          t={t}
+          doc={p.doc}
+          aktiv={erAktiv ? p.aktiv?.kol : undefined}
+          velg={p.kanSkrive ? (kol, ev) => ev.button === 0 && (ev.stopPropagation(), p.klikk({ ...pos, kol }, ev)) : undefined}
+        />
+      )
     if (k.key === 'eier' && p.sammen.includes('eierskap')) innhold = <EierSamlet r={r} doc={p.doc} medEgendef={p.samlet} />
     // Teksten i samlet beskrivelse redigeres der den står, i samme boks, så ingenting rundt flytter seg
-    const redigertKol = samletBeskrivelse && p.redigerer ? KOL[p.redigerer.kol] : k
+    const redigertKol = (samletBeskrivelse || tiltakSammen) && p.redigerer ? KOL[p.redigerer.kol] : k
     const inlineEditor =
       redigeres && p.redigerer && samletBeskrivelse && BESKRIVELSE.includes(p.redigerer.kol) ? (
         <CelleEditor
@@ -1073,16 +1094,40 @@ function Initialer({ navn, doc }: { navn: string; doc: Register }) {
 }
 
 // Moderne utseende med tiltaksgruppen slått sammen: status som prikk, teksten, eier og frist i samme celle
-function TiltakSamlet({ t, doc }: { t: Tiltak; doc: Register }) {
+function TiltakSamlet({
+  t,
+  doc,
+  aktiv,
+  velg,
+}: {
+  t: Tiltak
+  doc: Register
+  aktiv?: string
+  velg?: (kol: string, ev: React.MouseEvent) => void
+}) {
   const status = t.status || 'Ikke startet'
   const ferdig = status === 'Utført' || status === 'Utføres ikke'
+  // Status, eier og frist kan klikkes hver for seg og åpner lista eller kalenderen der de står
+  const felt = (kol: string, tittel: string) =>
+    velg
+      ? {
+          className: 'tiltak-felt' + (aktiv === kol ? ' valgt' : ''),
+          title: tittel,
+          onMouseDown: (ev: React.MouseEvent) => velg(kol, ev),
+        }
+      : { className: 'tiltak-felt', title: tittel }
+  const frist = t.frist ? 'Frist ' + formatDato(t.frist) + (forfalt(t) ? ', forfalt' : '') : 'Ingen frist'
   return (
-    <div className={'tiltak-samlet' + (ferdig ? ' ferdig' : '')}>
-      <span className={'status-prikk ts-' + status.replace(/\s/g, '-').toLowerCase()} title={`Status: ${status}`} aria-label={`Status: ${status}`} role="img" />
+    <div className={'tiltak-samlet' + (ferdig ? ' ferdig' : '') + (velg ? ' kan-endre' : '')}>
+      <span {...felt('tiltakstatus', `Status: ${status}${velg ? '. Klikk for å endre' : ''}`)}>
+        <span className={'status-prikk ts-' + status.replace(/\s/g, '-').toLowerCase()} aria-label={`Status: ${status}`} role="img" />
+      </span>
       <span className="tiltak-samlet-tekst">{t.tekst || <span className="plassholder">Uten tekst</span>}</span>
-      {t.eier ? <Initialer navn={t.eier} doc={doc} /> : <span />}
-      <span className={'tiltak-samlet-frist' + (forfalt(t) ? ' forfalt' : '')} title={t.frist ? 'Frist ' + formatDato(t.frist) + (forfalt(t) ? ', forfalt' : '') : 'Ingen frist'}>
-        {t.frist ? kortDato(t.frist) : ''}
+      <span {...felt('tiltakseier', t.eier ? `Tiltakseier: ${t.eier}${velg ? '. Klikk for å endre' : ''}` : velg ? 'Sett tiltakseier' : 'Ingen tiltakseier')}>
+        {t.eier ? <Initialer navn={t.eier} doc={doc} /> : velg ? <span className="initialer tom" aria-hidden>+</span> : null}
+      </span>
+      <span {...felt('frist', frist + (velg ? (t.frist ? '. Klikk for å endre' : '. Klikk for å sette') : ''))}>
+        <span className={'tiltak-samlet-frist' + (forfalt(t) ? ' forfalt' : '')}>{t.frist ? kortDato(t.frist) : velg ? <span className="frist-tom">Frist</span> : ''}</span>
       </span>
     </div>
   )

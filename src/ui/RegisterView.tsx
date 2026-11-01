@@ -745,8 +745,8 @@ function SamletKolonnevelger({ visning, setVisning, lukk }: { visning: Visning; 
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const h = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && lukk()
-    setTimeout(() => window.addEventListener('mousedown', h))
-    return () => window.removeEventListener('mousedown', h)
+    setTimeout(() => window.addEventListener('mousedown', h, true))
+    return () => window.removeEventListener('mousedown', h, true)
   }, [lukk])
   return (
     <div className="nedtrekk kolonnevelger samlet-kolonnevelger" ref={ref}>
@@ -774,8 +774,8 @@ function Kolonnevelger({ doc, visning, setVisning, lukk }: { doc: Register; visn
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const h = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && lukk()
-    setTimeout(() => window.addEventListener('mousedown', h))
-    return () => window.removeEventListener('mousedown', h)
+    setTimeout(() => window.addEventListener('mousedown', h, true))
+    return () => window.removeEventListener('mousedown', h, true)
   }, [lukk])
   const forhånd: [string, string[]][] = [
     ['Alt', []],
