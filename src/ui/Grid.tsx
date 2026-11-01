@@ -191,7 +191,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
       setAktiv({ ...aktiv, kol: BESKRIVELSE[bi + (retning === 'ned' ? 1 : -1)] })
       return
     }
-    const ki = kolonner.findIndex((k) => k.key === (samlet && BESKRIVELSE.includes(aktiv.kol) ? 'hendelse' : aktiv.kol))
+    const ki = kolonner.findIndex((k) => k.key === (samlet && (BESKRIVELSE.includes(aktiv.kol) || aktiv.kol === 'rm') ? 'hendelse' : aktiv.kol))
     const li = finnLinje(aktiv)
     if (ki < 0 || li < 0) return
     let nyK = ki
@@ -516,8 +516,15 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
       const { k, r } = hentCelle(p)
       if (k?.type === 'avkrysning' && r) {
         if (!okt.laastAv(r.id)) lagreVerdi(p, !r.tilSkarisk)
-      } else if (k?.felt || harVindu(k)) startRedigering(p)
+      // Etter musetrykket flytter nettleseren fokus til tabellen. Editoren åpnes etterpå, ellers mister den fokus og lukkes med en gang.
+      } else if (k?.felt || harVindu(k)) setTimeout(() => startRedigering(p), 0)
       else if (k?.key === 'nr') aapneDetalj(p.riskId)
+      return
+    }
+    // Samlet beskrivelse: andre klikk på en linje som allerede er valgt, åpner teksten for redigering
+    const valgtFraFor = aktiv?.riskId === p.riskId && aktiv.kol === p.kol
+    if (samlet && BESKRIVELSE.includes(p.kol) && valgtFraFor && kanSkrive && !redigerer && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+      setTimeout(() => startRedigering(p), 0)
       return
     }
     setAktiv(p)
@@ -844,7 +851,7 @@ function RiskRader(p: RaderProps) {
     const pos: Posisjon = { riskId: r.id, tiltakId: k.nivaa === 'risk' ? r.tiltak[0]?.id : t?.id, kol: k.key }
     // I samlet utseende står årsak og konsekvens i hendelse-cellen, så de regnes som samme celle
     const samletBeskrivelse = p.samlet && k.key === 'hendelse'
-    const her = (kol?: string) => kol === k.key || (samletBeskrivelse && !!kol && BESKRIVELSE.includes(kol))
+    const her = (kol?: string) => kol === k.key || (samletBeskrivelse && !!kol && (BESKRIVELSE.includes(kol) || kol === 'rm'))
     const erAktiv = p.aktiv?.riskId === r.id && her(p.aktiv.kol) && (k.nivaa === 'risk' || p.aktiv.tiltakId === t?.id)
     const redigeres = p.redigerer?.riskId === r.id && her(p.redigerer.kol) && (k.nivaa === 'risk' || p.redigerer.tiltakId === t?.id)
     const andreHer = p.tilstede.filter((x) => x.kolonne === k.key && (k.nivaa === 'risk' || x.tiltakId === t?.id))
@@ -929,7 +936,32 @@ function RiskRader(p: RaderProps) {
     const samletTiltak = k.key === 'tiltak' && t && p.sammen.includes('tiltak')
     if (samletTiltak) innhold = <TiltakSamlet t={t} doc={p.doc} />
     if (k.key === 'eier' && p.sammen.includes('eierskap')) innhold = <EierSamlet r={r} doc={p.doc} medEgendef={p.samlet} />
-    if (samletBeskrivelse) innhold = <BeskrivelseSamlet r={r} aktiv={erAktiv ? p.aktiv?.kol : undefined} velg={(kol, ev) => ev.button === 0 && (ev.stopPropagation(), p.klikk({ ...pos, kol }, ev))} />
+    // Teksten i samlet beskrivelse redigeres der den står, i samme boks, så ingenting rundt flytter seg
+    const redigertKol = samletBeskrivelse && p.redigerer ? KOL[p.redigerer.kol] : k
+    const inlineEditor =
+      redigeres && p.redigerer && samletBeskrivelse && BESKRIVELSE.includes(p.redigerer.kol) ? (
+        <CelleEditor
+          inline
+          kolonne={redigertKol}
+          etikett={BESKRIVELSE_NAVN[p.redigerer.kol]}
+          start={p.redigerer.start}
+          erstatt={p.redigerer.erstatt}
+          valg={[]}
+          bredde={p.bredde(k)}
+          onFerdig={p.ferdig}
+          onAvbryt={p.avbryt}
+        />
+      ) : null
+    if (samletBeskrivelse)
+      innhold = (
+        <BeskrivelseSamlet
+          r={r}
+          aktiv={erAktiv ? p.aktiv?.kol : undefined}
+          editor={inlineEditor ? { kol: p.redigerer!.kol, node: inlineEditor } : undefined}
+          kanSkrive={p.kanSkrive}
+          velg={(kol, ev) => ev.button === 0 && (ev.stopPropagation(), p.klikk({ ...pos, kol }, ev))}
+        />
+      )
     if (k.key === 'fv') innhold = p.moderne ? <KostCelle r={r} maks={p.kostMaks} /> : formatTall(fv(r))
     // Tomme celler får et usynlig tegn, så en ny tiltakslinje er like høy som en med én linje tekst
     if (innhold === '' || innhold == null) innhold = '\u200b'
@@ -965,14 +997,13 @@ function RiskRader(p: RaderProps) {
             +
           </button>
         )}
-        {redigeres && p.redigerer && (
+        {redigeres && p.redigerer && !inlineEditor && (
           <CelleEditor
-            kolonne={samletBeskrivelse ? KOL[p.redigerer.kol] : k}
-            etikett={samletBeskrivelse ? BESKRIVELSE_NAVN[p.redigerer.kol] : undefined}
+            kolonne={redigertKol}
             start={p.redigerer.start}
             erstatt={p.redigerer.erstatt}
-            valg={k.valg?.(p.doc) ?? []}
-            bredde={p.bredde(k)}
+            valg={redigertKol.valg?.(p.doc) ?? []}
+            bredde={samletBeskrivelse ? 0 : p.bredde(k)}
             onFerdig={p.ferdig}
             onAvbryt={p.avbryt}
           />
@@ -1052,20 +1083,51 @@ function EierSamlet({ r, doc, medEgendef }: { r: Risk; doc: Register; medEgendef
   )
 }
 
-// Samlet utseende: hendelsen med årsak og konsekvens under. Hver linje redigeres for seg, med ett klikk på linjen.
-function BeskrivelseSamlet({ r, aktiv, velg }: { r: Risk; aktiv?: string; velg: (kol: string, ev: React.MouseEvent) => void }) {
-  const kl = (kol: string) => (aktiv === kol ? 'valgt' : undefined)
+// Samlet utseende: R/M-merket og hendelsen, med årsak og konsekvens under. Første klikk velger en linje,
+// neste klikk (eller Enter, F2 eller å begynne å skrive) redigerer teksten der den står.
+function BeskrivelseSamlet({
+  r,
+  aktiv,
+  editor,
+  kanSkrive,
+  velg,
+}: {
+  r: Risk
+  aktiv?: string
+  editor?: { kol: string; node: React.ReactNode }
+  kanSkrive: boolean
+  velg: (kol: string, ev: React.MouseEvent) => void
+}) {
+  const kl = (kol: string, ekstra = '') => [ekstra, aktiv === kol ? 'valgt' : '', editor?.kol === kol ? 'redigeres' : ''].filter(Boolean).join(' ') || undefined
+  const tekst = (kol: string, verdi: string, tom: string) => (editor?.kol === kol ? editor.node : verdi || <span className="plassholder">{tom}</span>)
+  const rmNavn = r.rm === 'R' ? 'Risiko' : r.rm === 'M' ? 'Mulighet' : 'Ikke satt'
   return (
     <div className="beskrivelse-samlet">
-      <div className={'beskrivelse-hendelse ' + (kl('hendelse') ?? '')} onMouseDown={(ev) => velg('hendelse', ev)}>
-        {r.hendelse || <span className="plassholder">Uten hendelse</span>}
-        {r.rm === 'M' && <span className="mulighet-merke">Mulighet</span>}
+      <div className="beskrivelse-hendelse">
+        <span
+          className={'rm-merke rm-' + (r.rm === 'R' || r.rm === 'M' ? r.rm : 'tom') + (aktiv === 'rm' ? ' valgt' : '')}
+          title={rmNavn + (kanSkrive ? '. Klikk for å endre.' : '')}
+          onMouseDown={(ev) => velg('rm', ev)}
+        >
+          {r.rm === 'R' || r.rm === 'M' ? r.rm : '–'}
+        </span>
+        <span className={kl('hendelse', 'linje')} onMouseDown={(ev) => velg('hendelse', ev)}>
+          {tekst('hendelse', r.hendelse, 'Uten hendelse')}
+        </span>
       </div>
       <dl>
-        <dt className={kl('aarsak')} onMouseDown={(ev) => velg('aarsak', ev)}>Årsak</dt>
-        <dd className={kl('aarsak')} onMouseDown={(ev) => velg('aarsak', ev)}>{r.aarsak || <span className="plassholder">Legg til årsak</span>}</dd>
-        <dt className={kl('konsekvenser')} onMouseDown={(ev) => velg('konsekvenser', ev)}>Konsekvens</dt>
-        <dd className={kl('konsekvenser')} onMouseDown={(ev) => velg('konsekvenser', ev)}>{r.konsekvenser || <span className="plassholder">Legg til konsekvens</span>}</dd>
+        <dt className={kl('aarsak')} onMouseDown={(ev) => velg('aarsak', ev)}>
+          Årsak
+        </dt>
+        <dd className={kl('aarsak', 'linje')} onMouseDown={(ev) => velg('aarsak', ev)}>
+          {tekst('aarsak', r.aarsak, 'Legg til årsak')}
+        </dd>
+        <dt className={kl('konsekvenser')} onMouseDown={(ev) => velg('konsekvenser', ev)}>
+          Konsekvens
+        </dt>
+        <dd className={kl('konsekvenser', 'linje')} onMouseDown={(ev) => velg('konsekvenser', ev)}>
+          {tekst('konsekvenser', r.konsekvenser, 'Legg til konsekvens')}
+        </dd>
       </dl>
     </div>
   )
