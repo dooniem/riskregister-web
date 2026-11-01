@@ -67,10 +67,16 @@ function PersonListe({ alle, meg, valgt, velg, lukk }: { alle: string[]; meg?: s
 
   const tast = (e: React.KeyboardEvent) => {
     e.stopPropagation()
-    if (e.key === 'ArrowDown') (e.preventDefault(), setMarkert(Math.min(valg.length - 1, m + 1)))
-    else if (e.key === 'ArrowUp') (e.preventDefault(), setMarkert(Math.max(0, m - 1)))
-    else if (e.key === 'Enter' && valg[m]) (e.preventDefault(), velg(valg[m].navn))
-    else if (e.key === 'Escape') lukk()
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setMarkert(Math.min(valg.length - 1, m + 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setMarkert(Math.max(0, m - 1))
+    } else if (e.key === 'Enter' && valg[m]) {
+      e.preventDefault()
+      velg(valg[m].navn)
+    } else if (e.key === 'Escape') lukk()
   }
 
   return (
