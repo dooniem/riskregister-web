@@ -33,6 +33,7 @@ import { PersonKontekst, deltakerOp, type Personer } from './Personer'
 import { DemoKatalog, GraphKatalog } from '../store/katalog'
 import type { SnapshotInfo } from '../store/backend'
 import type { Risk } from '../model'
+import skanskaLogo from '../skanska-logo.svg'
 
 interface Props {
   okt: Okt
@@ -295,6 +296,7 @@ export function RegisterView({ okt, tilbake }: Props) {
           <button className="ikonknapp hjem" onClick={tilbake} title="Til startsiden">
             <Pil retning="venstre" str={18} />
           </button>
+          {moderne && <img className="toppfelt-logo" src={skanskaLogo} alt="Skanska" />}
           <div className="tittel">
             <h1>{tittel}</h1>
             <div className="undertittel">
@@ -565,7 +567,7 @@ export function RegisterView({ okt, tilbake }: Props) {
               {visning.fane !== 'skarisk' && !mobil && kolonneKnapp}
               {oversiktKnapp}
               {b.kanSkrive && visning.fane !== 'skarisk' && !mobil && (
-                <button className="knapp primær" onClick={() => setNyRiskTeller((n) => n + 1)}>
+                <button className="knapp primær ny-risk" onClick={() => setNyRiskTeller((n) => n + 1)}>
                   <Pluss /> Ny risk
                 </button>
               )}
@@ -580,7 +582,7 @@ export function RegisterView({ okt, tilbake }: Props) {
             <div className="mobilflate">
               {b.kanSkrive && (
                 <button
-                  className="knapp primær ny-risk-mobil"
+                  className="knapp primær ny-risk ny-risk-mobil"
                   onClick={() => {
                     const r = nyRisk(0)
                     r.fag = fagForNyRisk(doc, visning)

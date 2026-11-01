@@ -2813,18 +2813,18 @@ td .valgpil.synlig {
    Samme oppbygning og funksjoner som det klassiske, men lysere topplinje, én lav oversikt,
    tynnere linjer i tabellen og merker i stedet for fylte celler. Slås på under Mer > Utseende. */
 .stil-moderne {
-  --bg: #eceee9;
+  --bg: #ececec;
   --flate: #ffffff;
-  --flate-2: #f6f7f4;
-  --tekst: #1d2830;
-  --dempet: #56636c;
-  --linje: rgba(29, 40, 48, 0.11);
-  --linje-sterk: rgba(29, 40, 48, 0.2);
-  --hode: #f6f7f4;
+  --flate-2: #f5f5f5;
+  --tekst: #333333;
+  --dempet: #5c5c5c;
+  --linje: rgba(0, 0, 0, 0.11);
+  --linje-sterk: rgba(0, 0, 0, 0.2);
+  --hode: #f5f5f5;
   --hode-gruppe: #ffffff;
-  --aksent: #1c4e80;
-  --aksent-lys: #e3ecf5;
-  --skygge: 0 1px 3px rgba(29, 40, 48, 0.06);
+  --aksent: #143275;
+  --aksent-lys: #dce0ea;
+  --skygge: 0 1px 3px rgba(0, 0, 0, 0.06);
   --kondensert: 'Barlow Semi Condensed', 'Barlow', 'Segoe UI', system-ui, sans-serif;
   font-family: 'Barlow', 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
   font-size: 14px;
@@ -2832,13 +2832,96 @@ td .valgpil.synlig {
   background: var(--bg);
   color: var(--tekst);
 }
+/* Skanska-profilen: Skanska Blue som kjerne, Skanska Gray og gråskalaen som flater,
+   Skanska Active Green bare for handlingen vi vil trekke blikket mot (Ny risk og valgt side).
+   Eksponering og fag bruker tertiærfargene, som profilen setter av til grafer og illustrasjoner. */
+.stil-moderne {
+  --skanska-blaa: #143275;
+  --skanska-gronn: #3ece7b;
+  --r: #af3149;
+  --m: #143275;
+  /* Risiko: Skanska Green, Yellow 60 %, Yellow, Orange og Red */
+  --eks-r-0: #aeddbc;
+  --eks-r-1: #f8ebb1;
+  --eks-r-2: #f4dd7d;
+  --eks-r-3: #eda977;
+  --eks-r-4: #af3149;
+  --eks-r-0-tekst: #1a1a1a;
+  --eks-r-1-tekst: #1a1a1a;
+  --eks-r-2-tekst: #1a1a1a;
+  --eks-r-3-tekst: #1a1a1a;
+  --eks-r-4-tekst: #ffffff;
+  /* Mulighet: tinter av Skanska Blue (15, 30, 45, 80 og 100 %) */
+  --eks-m-0: #dce0ea;
+  --eks-m-1: #b9c2d6;
+  --eks-m-2: #95a3c1;
+  --eks-m-3: #435b91;
+  --eks-m-4: #143275;
+  --eks-m-0-tekst: #143275;
+  --eks-m-1-tekst: #143275;
+  --eks-m-2-tekst: #143275;
+  --eks-m-3-tekst: #ffffff;
+  --eks-m-4-tekst: #ffffff;
+  /* Fag: samme navn som før, men hentet fra Skanskas palett */
+  --fag-0: #143275; /* Blå: Skanska Blue */
+  --fag-0-tekst: #ffffff;
+  --fag-1: #af3149; /* Rød: Skanska Red */
+  --fag-1-tekst: #ffffff;
+  --fag-2: #aeddbc; /* Grønn: Skanska Green */
+  --fag-2-tekst: #143275;
+  --fag-3: #eda977; /* Oransje: Skanska Orange */
+  --fag-3-tekst: #143275;
+  --fag-4: #824a8e; /* Lilla: Skanska Purple */
+  --fag-4-tekst: #ffffff;
+  --fag-5: #4b9fa3; /* Turkis: Skanska Teal */
+  --fag-5-tekst: #000000;
+  --fag-6: #b493bc; /* Rosa: Skanska Purple 60 % */
+  --fag-6-tekst: #143275;
+  --fag-7: #ddd6c0; /* Brun: Skanska Beige */
+  --fag-7-tekst: #143275;
+  --fag-8: #f4dd7d; /* Gul: Skanska Yellow */
+  --fag-8-tekst: #143275;
+  --fag-9: #333333; /* Grå: Skanska Dim Black */
+  --fag-9-tekst: #ffffff;
+}
+.stil-moderne ::selection {
+  background: #b9c2d6;
+  color: #000;
+}
+/* Overskrifter i Skanska Blue på lys bakgrunn, brødtekst i mørk grå */
+.stil-moderne h1,
+.stil-moderne h2,
+.stil-moderne h3 {
+  color: var(--skanska-blaa);
+}
+/* Logoen i topplinjen, med luft rundt som profilen krever */
+.toppfelt-logo {
+  display: block;
+  height: 14px;
+  width: auto;
+  margin: 0 20px 0 4px;
+  flex: none;
+}
+/* Ny risk er den ene handlingen som får Skanska Active Green, med blå tekst og pilleform som i profilen */
+.stil-moderne .knapp.ny-risk {
+  background: var(--skanska-gronn);
+  border-color: var(--skanska-gronn);
+  color: var(--skanska-blaa);
+  font-weight: 600;
+  border-radius: 999px;
+  padding-inline: 16px 18px;
+}
+.stil-moderne .knapp.ny-risk:hover {
+  background: #35b86c;
+  border-color: #35b86c;
+}
 .stil-moderne .knapp {
   border-radius: 6px;
   font-weight: 500;
   min-height: 34px;
 }
 .stil-moderne .knapp.primær:hover {
-  background: #163f68;
+  background: #0e2457;
 }
 
 /* Topplinje: hvit i stedet for mørk blå */
@@ -2937,12 +3020,12 @@ td .valgpil.synlig {
   border-radius: 10px;
 }
 .stil-moderne .rm-merke.rm-R {
-  background: #fdecea;
-  color: #b42318 !important;
+  background: #f3e0e4;
+  color: #af3149 !important;
 }
 .stil-moderne .rm-merke.rm-M {
-  background: #e3ecf5;
-  color: #1c4e80 !important;
+  background: #dce0ea;
+  color: #143275 !important;
 }
 .stil-moderne .rute {
   width: 22px;
@@ -2964,7 +3047,7 @@ td .valgpil.synlig {
   padding: 14px 20px 10px;
 }
 .stil-moderne .faner {
-  background: #e1e4de;
+  background: #e3e3e3;
 }
 .stil-moderne .faner button {
   font-weight: 500;
@@ -2994,7 +3077,7 @@ td .valgpil.synlig {
 }
 .stil-moderne .grid th,
 .stil-moderne .grid td {
-  border-right-color: rgba(29, 40, 48, 0.06);
+  border-right-color: rgba(0, 0, 0, 0.06);
   border-bottom-color: var(--linje);
   padding: 8px 10px;
 }
@@ -3022,7 +3105,7 @@ td .valgpil.synlig {
   border-bottom: 1px solid var(--linje-sterk);
 }
 .stil-moderne .grid .kol-rad th:hover {
-  background: #eef0eb;
+  background: #ececec;
   color: var(--tekst);
 }
 .stil-moderne .grid tbody.risk tr:last-child td,
@@ -3030,10 +3113,10 @@ td .valgpil.synlig {
   border-bottom-color: var(--linje-sterk);
 }
 .stil-moderne .grid td.tiltak-fortsatt {
-  border-top-color: rgba(29, 40, 48, 0.06);
+  border-top-color: rgba(0, 0, 0, 0.06);
 }
 .stil-moderne .grid tbody.risk:hover td {
-  background: #fafbf8;
+  background: #fafafa;
 }
 .stil-moderne .grid td.k-hendelse {
   font-weight: 500;
@@ -3043,7 +3126,7 @@ td .valgpil.synlig {
   color: var(--dempet);
 }
 .stil-moderne .grid tbody.lukket td {
-  color: #7d8992;
+  color: #767676;
 }
 /* Fag som en farget kant til venstre på raden */
 .stil-moderne .grid td.k-nr::before {
@@ -3088,29 +3171,30 @@ td .valgpil.synlig {
   background: transparent;
 }
 .stil-moderne .grid td.ts-ikke-startet::before {
-  box-shadow: inset 0 0 0 1.5px #7d8992;
+  box-shadow: inset 0 0 0 1.5px #767676;
 }
 .stil-moderne .grid td.ts-pågår::before {
-  background: #e0a400;
+  background: #f58713;
 }
 .stil-moderne .grid td.ts-utført::before {
-  background: #2b7a4b;
+  background: #3ece7b;
 }
 .stil-moderne .grid td.ts-utføres-ikke::before {
-  background: #c4ccd4;
+  background: #d6d6d6;
 }
 .stil-moderne .grid td.forfalt {
-  color: #b42318;
+  color: #af3149;
 }
 
-/* Kost: forventet verdi med spennet fra best til verst. Dempet grønn, gul og rød for best, mest sannsynlig og verst. */
+/* Kost: forventet verdi med spennet fra best til verst. Grønn, gul og rød fra Skanskas tertiærfarger for best, mest sannsynlig og verst. */
 :root {
-  --kost-bc: #7fbf95;
-  --kost-bc-lys: #f1f8f3;
-  --kost-ml: #e3c25a;
-  --kost-ml-lys: #fdf8e8;
-  --kost-wc: #e3958c;
-  --kost-wc-lys: #fcf1ef;
+  /* Skanska Green, Skanska Yellow og Skanska Red 60 %, med 15 %-tinter som bakgrunn */
+  --kost-bc: #aeddbc;
+  --kost-bc-lys: #f3faf6;
+  --kost-ml: #f4dd7d;
+  --kost-ml-lys: #fdfaeb;
+  --kost-wc: #cf8392;
+  --kost-wc-lys: #f3e0e4;
 }
 .stil-moderne table.summer .k-bc,
 .stil-moderne table.summer .k-ml,
@@ -3140,17 +3224,17 @@ td .valgpil.synlig {
   width: 100%;
   height: 4px;
   border-radius: 2px;
-  background: #eef0eb;
+  background: #ececec;
 }
 .kost-spenn i {
   position: absolute;
   top: 0;
   bottom: 0;
   border-radius: 2px;
-  background: #f0b8b1;
+  background: #e7c1c8;
 }
 .kost-spenn.m i {
-  background: #b3d3f5;
+  background: #b9c2d6;
 }
 .kost-spenn b {
   position: absolute;
@@ -3158,7 +3242,7 @@ td .valgpil.synlig {
   width: 2px;
   height: 8px;
   margin-left: -1px;
-  background: #1d2830;
+  background: #333333;
 }
 .kost-spenn.stor {
   height: 8px;
@@ -3178,7 +3262,7 @@ td .valgpil.synlig {
   width: 2px;
   top: -3px;
   height: 14px;
-  background: #7d8992;
+  background: #767676;
 }
 .kost-fra-til {
   font-size: 12px;
@@ -3194,7 +3278,7 @@ td .valgpil.synlig {
   color: var(--tekst);
   border: 1px solid var(--linje-sterk);
   border-radius: 10px;
-  box-shadow: 0 8px 28px rgba(29, 40, 48, 0.07), 0 1px 3px rgba(29, 40, 48, 0.06);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.06);
   padding: 16px 18px;
   text-align: left;
 }
@@ -3292,7 +3376,7 @@ td .valgpil.synlig {
   height: 22px;
   border-radius: 11px;
   border: 1px solid var(--linje-sterk);
-  background: #eef0eb;
+  background: #ececec;
   position: relative;
   padding: 0;
   cursor: pointer;
@@ -3306,7 +3390,7 @@ td .valgpil.synlig {
   height: 16px;
   border-radius: 50%;
   background: #fff;
-  box-shadow: 0 1px 2px rgba(29, 40, 48, 0.25);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
   transition: left 0.12s ease-out;
 }
 .bryter.paa {
@@ -3340,7 +3424,7 @@ td .valgpil.synlig {
   gap: 8px;
 }
 .vurd-celle .eksp-merke.tom {
-  background: #eef0eb;
+  background: #ececec;
   color: var(--dempet);
 }
 .vurd-sk {
@@ -3367,7 +3451,7 @@ td.k-eksponering:hover .vurd-celle.tom {
   color: var(--tekst);
   border: 1px solid var(--linje-sterk);
   border-radius: 10px;
-  box-shadow: 0 8px 28px rgba(29, 40, 48, 0.07), 0 1px 3px rgba(29, 40, 48, 0.06);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.06);
   padding: 16px 18px;
   text-align: left;
 }
@@ -3412,7 +3496,7 @@ td.k-eksponering:hover .vurd-celle.tom {
   -webkit-print-color-adjust: exact;
 }
 .vurd-flis.tom {
-  background: repeating-linear-gradient(135deg, #fff 0 6px, #f3f4f1 6px 12px);
+  background: repeating-linear-gradient(135deg, #fff 0 6px, #f2f2f2 6px 12px);
   color: var(--dempet);
 }
 .vurd-flis-navn {
@@ -3486,7 +3570,7 @@ td.k-eksponering:hover .vurd-celle.tom {
 }
 .vurd-matrise button.var {
   opacity: 0.9;
-  box-shadow: inset 0 0 0 2px rgba(29, 40, 48, 0.35);
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.35);
 }
 .vurd-matrise button.her {
   opacity: 1;
@@ -3636,7 +3720,7 @@ td.aktiv .tiltak-samlet-tekst {
   max-height: none;
 }
 .tiltak-samlet.ferdig .tiltak-samlet-tekst {
-  color: #8a969f;
+  color: #767676;
 }
 .tiltak-samlet-frist {
   /* Fristen er det man ser etter i tiltakslista: full tekstfarge, halvfet og tall med lik bredde.
@@ -3656,11 +3740,11 @@ td.aktiv .tiltak-samlet-tekst {
   color: #b54708;
 }
 .tiltak-samlet-frist.forfalt {
-  color: #b42318;
-  background: #fdecea;
+  color: #af3149;
+  background: #f3e0e4;
 }
 .tiltak-samlet-frist.avsluttet {
-  color: #8a969f;
+  color: #767676;
   font-weight: 500;
 }
 .status-prikk {
@@ -3672,16 +3756,16 @@ td.aktiv .tiltak-samlet-tekst {
   -webkit-print-color-adjust: exact;
 }
 .status-prikk.ts-ikke-startet {
-  box-shadow: inset 0 0 0 1.5px #7d8992;
+  box-shadow: inset 0 0 0 1.5px #767676;
 }
 .status-prikk.ts-pågår {
-  background: #e0a400;
+  background: #f58713;
 }
 .status-prikk.ts-utført {
-  background: #2b7a4b;
+  background: #3ece7b;
 }
 .status-prikk.ts-utføres-ikke {
-  background: #c4ccd4;
+  background: #d6d6d6;
 }
 .initialer {
   display: inline-grid;
@@ -3689,7 +3773,7 @@ td.aktiv .tiltak-samlet-tekst {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: #eef0eb;
+  background: #ececec;
   color: var(--tekst);
   font-size: 11px;
   font-weight: 600;
@@ -3719,13 +3803,13 @@ td.aktiv .tiltak-samlet-tekst {
   font-size: 12.5px;
   line-height: 1.3;
   color: var(--tekst);
-  background: #eef0eb;
+  background: #ececec;
   border-radius: 4px;
   padding: 2px 7px;
 }
 .eier-samlet-kategori:has(.eier-tom) {
   background: none;
-  border: 1px dashed #b8c0c6;
+  border: 1px dashed #bdbdbd;
 }
 
 /* Nr. og R&M øverst i raden, med nummeret over fagmerket */
@@ -3779,8 +3863,8 @@ td.aktiv .tiltak-samlet-tekst {
   color: var(--tekst);
 }
 .sidevalg button.valgt {
-  color: var(--tekst);
-  border-bottom-color: var(--aksent);
+  color: var(--aksent);
+  border-bottom-color: var(--skanska-gronn);
 }
 .stil-moderne .toppfelt .tittel {
   flex: 0 1 auto;
@@ -3888,7 +3972,7 @@ td.aktiv .tiltak-samlet-tekst {
   background: var(--flate);
   border: 1px solid var(--linje-sterk);
   border-radius: 10px;
-  box-shadow: 0 8px 28px rgba(29, 40, 48, 0.12);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
   z-index: 5;
 }
 @media (max-width: 760px) {
@@ -3941,7 +4025,7 @@ td.aktiv .tiltak-samlet-tekst {
   color: var(--dempet);
 }
 .rb-delta.verre {
-  color: #b42318;
+  color: #af3149;
 }
 .rb-delta.bedre {
   color: #2b7a4b;
@@ -4043,7 +4127,7 @@ td.aktiv .tiltak-samlet-tekst {
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.01em;
-  color: #4a565e;
+  color: #4d4d4d;
 }
 .stil-samlet .grid td.k-nr::before {
   display: none;
@@ -4079,7 +4163,7 @@ td.aktiv .tiltak-samlet-tekst {
   transform: translateY(-1px);
 }
 .beskrivelse-hendelse .rm-merke.rm-tom {
-  background: #eef0eb;
+  background: #ececec;
   color: var(--dempet) !important;
 }
 .beskrivelse-hendelse .rm-merke.valgt {
@@ -4095,7 +4179,7 @@ td.aktiv .tiltak-samlet-tekst {
   color: var(--dempet);
 }
 .beskrivelse-samlet dt {
-  color: #7d8890;
+  color: #767676;
   cursor: default;
 }
 .beskrivelse-samlet dd {
@@ -4111,7 +4195,7 @@ td.aktiv .tiltak-samlet-tekst {
   cursor: text;
 }
 .beskrivelse-samlet .linje:hover {
-  background: rgba(29, 40, 48, 0.045);
+  background: rgba(0, 0, 0, 0.045);
 }
 .beskrivelse-samlet .linje.valgt {
   background: var(--aksent-lys);
@@ -4126,7 +4210,7 @@ td.aktiv .tiltak-samlet-tekst {
   box-shadow: 0 0 0 2px var(--aksent);
 }
 .beskrivelse-samlet .plassholder {
-  color: #9aa4ab;
+  color: #858585;
   font-weight: 400;
 }
 /* Editoren inne i linjen: arver skrift og linjehøyde, ingen egen ramme eller polstring */
@@ -4155,7 +4239,7 @@ td.aktiv .tiltak-samlet-tekst {
   border: 1px solid var(--linje-sterk);
   border-radius: 5px;
   background: var(--flate);
-  box-shadow: 0 4px 12px rgba(29, 40, 48, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   font-size: 11.5px;
   font-weight: 400;
   white-space: nowrap;
@@ -4211,7 +4295,7 @@ td.aktiv .tiltak-samlet-tekst {
   grid-column: 1 / -1;
   width: 220px;
   margin-top: 8px;
-  background: #e2e3dc;
+  background: #e3e3e3;
 }
 .nokkel-rad {
   display: grid;
@@ -4249,7 +4333,7 @@ td.aktiv .tiltak-samlet-tekst {
   top: -1px;
   height: 6px;
   width: 2px;
-  background: #8a959c;
+  background: #858585;
 }
 .kost-spenn s {
   position: absolute;
@@ -4257,7 +4341,7 @@ td.aktiv .tiltak-samlet-tekst {
   bottom: -3px;
   width: 1px;
   margin-left: -0.5px;
-  background: rgba(29, 40, 48, 0.35);
+  background: rgba(0, 0, 0, 0.35);
 }
 
 /* Samlet: visningsvalg og Ny risk til høyre i verktøylinjen */
@@ -4330,12 +4414,12 @@ td.aktiv .tiltak-samlet-tekst {
 }
 .initialer.tom {
   background: none;
-  border: 1px dashed #b8c0c6;
-  color: #8a959c;
+  border: 1px dashed #bdbdbd;
+  color: #858585;
   font-weight: 500;
 }
 .frist-tom {
-  color: #9aa4ab;
+  color: #858585;
   font-size: 12px;
 }
 /* Tomme plasser for eier og frist vises bare når musa er over raden eller cellen er valgt */
@@ -4430,7 +4514,7 @@ td.aktiv .frist-tom {
   cursor: pointer;
 }
 .egendef-valg.kan-endre:hover {
-  border-color: #b8c0c6;
+  border-color: #bdbdbd;
 }
 .egendef-valg.valgt,
 .egendef-valg.redigeres {
@@ -4438,7 +4522,7 @@ td.aktiv .frist-tom {
   background: var(--aksent-lys);
 }
 .egendef-navn {
-  color: #7d8890;
+  color: #767676;
 }
 .egendef-verdi {
   color: var(--tekst);
@@ -4448,11 +4532,11 @@ td.aktiv .frist-tom {
   white-space: nowrap;
 }
 .egendef-verdi.tom {
-  color: #9aa4ab;
+  color: #858585;
   font-weight: 400;
 }
 .egendef-valg .ikon {
-  color: #8a959c;
+  color: #858585;
   flex: none;
 }
 .egendef-valg .editor-ramme {
@@ -4479,7 +4563,7 @@ td.aktiv .frist-tom {
   background: var(--aksent-lys);
 }
 .eier-tom {
-  color: #9aa4ab;
+  color: #858585;
 }
 .eier-felt .initialer.tom,
 .eier-felt .eier-tom {
@@ -4532,7 +4616,7 @@ td.aktiv .eier-felt .eier-tom {
   cursor: pointer;
 }
 .kolonnemeny .felt-valg button:hover {
-  border-color: #b8c0c6;
+  border-color: #bdbdbd;
 }
 .kolonnemeny .felt-valg button.valgt {
   border-color: var(--aksent);
