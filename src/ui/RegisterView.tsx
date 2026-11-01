@@ -9,7 +9,7 @@ import type { Konflikt, Op } from '../ops'
 import { SimulertKollega } from '../sim'
 import type { Okt } from '../sync'
 import type { Stil, Visning } from '../view'
-import { GRUPPERINGER, STANDARD_VISNING, filtrer, lagreStil, lesStil } from '../view'
+import { GRUPPERINGER, STANDARD_VISNING, STILER, filtrer, lagreStil, lesStil } from '../view'
 import { DemoFiler, type FilKilde } from '../store/filer'
 import { GraphFiler } from '../store/graphFiler'
 import { GraphLister, omraadeLenke } from '../store/lister/graphLister'
@@ -20,7 +20,7 @@ import { Filvelger } from './Filvelger'
 import { ImportDialog } from './ImportDialog'
 import { Grid } from './Grid'
 import { Kortliste } from './Kortliste'
-import { Laas } from './Ikoner'
+import { Laas, Meny, Pil } from './Ikoner'
 import { HentOppsett } from './HentOppsett'
 import { Oversikt } from './Oversikt'
 import { Prosjektpanel } from './Prosjektpanel'
@@ -119,10 +119,11 @@ export function RegisterView({ okt, tilbake }: Props) {
   const manglende = b.snapshot ? [] : (b.lager?.manglendeKolonner?.() ?? [])
   const angreStabel = useRef<Op[][]>([])
   const mobil = useMobil()
-  const kompakt = mobil || !!visning.kompakt
   const [stil, setStilRaw] = useState<Stil>(lesStil)
   const setStil = (s: Stil) => (setStilRaw(s), lagreStil(s))
-  const moderne = stil === 'moderne'
+  // Samlet er moderne med flere kolonner slått sammen, så alt som gjelder moderne gjelder også samlet
+  const moderne = stil !== 'klassisk'
+  const samlet = stil === 'samlet'
   // Moderne visning har to sider: registeret og risikobildet
   const [side, setSide] = useState<{ navn: 'register' | 'risikobilde'; rm: 'R' | 'M' }>({ navn: 'register', rm: 'R' })
   const paaRisikobilde = moderne && side.navn === 'risikobilde'
@@ -228,10 +229,10 @@ export function RegisterView({ okt, tilbake }: Props) {
 
   return (
     <PersonKontekst.Provider value={personer}>
-      <div className={'app' + (visning.skjulFag ? ' skjul-fag' : '') + (moderne ? ' stil-moderne' : '')}>
+      <div className={'app' + (visning.skjulFag ? ' skjul-fag' : '') + (moderne ? ' stil-moderne' : '') + (samlet ? ' stil-samlet' : '')}>
         <header className="toppfelt">
           <button className="ikonknapp hjem" onClick={tilbake} title="Til startsiden">
-            ◂
+            <Pil retning="venstre" str={18} />
           </button>
           <div className="tittel">
             <h1>{tittel}</h1>
@@ -292,9 +293,9 @@ export function RegisterView({ okt, tilbake }: Props) {
           <div className="meny-holder">
             <button className={'knapp mer-knapp' + (meny ? ' aapen' : '')} onClick={() => setMeny(!meny)} title="Import, eksport, utskrift, lister og mer">
               <span className="mer-ikon" aria-hidden>
-                ☰
+                <Meny />
               </span>
-              Mer ▾
+              Mer <Pil />
             </button>
             {meny && (
               <div className="nedtrekk" onClick={() => setMeny(false)}>
@@ -311,28 +312,12 @@ export function RegisterView({ okt, tilbake }: Props) {
                 <hr />
                 <div className="meny-gruppe" role="group" aria-label="Utseende">
                   <span className="meny-gruppe-tittel">Utseende</span>
-                  {(['klassisk', 'moderne'] as const).map((s) => (
-                    <button key={s} aria-pressed={stil === s} className={'meny-valg' + (stil === s ? ' valgt' : '')} onClick={() => setStil(s)}>
+                  {STILER.map(({ key, navn }) => (
+                    <button key={key} aria-pressed={stil === key} className={'meny-valg' + (stil === key ? ' valgt' : '')} onClick={() => setStil(key)}>
                       <span className="radio" aria-hidden />
-                      {s === 'klassisk' ? 'Klassisk' : 'Moderne'}
+                      {navn}
                     </button>
                   ))}
-                  {!mobil && (
-                    <button
-                      aria-pressed={!!visning.kompakt}
-                      className={'meny-valg avkrysning' + (visning.kompakt ? ' valgt' : '')}
-                      title="Vis riskene som kort, som på mobil. Gjelder både klassisk og moderne."
-                      onClick={() => {
-                        // Lukk sidepanelet når visningen byttes. Feltet som redigeres mister fokus først, så teksten blir lagret.
-                        if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
-                        setDetalj(null)
-                        setVisning((v) => ({ ...v, kompakt: !v.kompakt }))
-                      }}
-                    >
-                      <span className="boks" aria-hidden />
-                      Kompakt (kort i stedet for tabell)
-                    </button>
-                  )}
                 </div>
                 <hr />
                 <button onClick={() => setProsjekt('lister')}>Lister og valg…</button>
@@ -477,7 +462,7 @@ export function RegisterView({ okt, tilbake }: Props) {
           />
         ) : (
         <>
-        {visning.visOversikt && <Oversikt doc={doc} visning={visning} setVisning={setVisning} mot={mot?.doc} aapneMatrise={aapneMatrise} moderne={moderne} />}
+        {visning.visOversikt && <Oversikt doc={doc} visning={visning} setVisning={setVisning} mot={mot?.doc} aapneMatrise={aapneMatrise} moderne={moderne} samlet={samlet} />}
 
         <div className="verktoylinje">
           <nav className="faner">
@@ -508,10 +493,11 @@ export function RegisterView({ okt, tilbake }: Props) {
               </select>
             </label>
             <FagMeny doc={doc} visning={visning} setVisning={setVisning} endre={endre} kanSkrive={b.kanSkrive} />
-            {!kompakt && (
+            {/* I samlet utseende er kolonnene faste: beskrivelse, eierskap og tiltak er alltid slått sammen */}
+            {!mobil && !samlet && (
               <div className="meny-holder">
                 <button className="knapp" onClick={() => setKolVelger(!kolVelger)}>
-                  Kolonner ▾
+                  Kolonner <Pil />
                 </button>
                 {kolVelger && <Kolonnevelger doc={doc} visning={visning} setVisning={setVisning} lukk={() => setKolVelger(false)} />}
               </div>
@@ -534,8 +520,8 @@ export function RegisterView({ okt, tilbake }: Props) {
         <div className="hovedflate">
           {visning.fane === 'skarisk' ? (
             <SkariskVisning doc={doc} aapneDetalj={setDetalj} melding={melding} />
-          ) : kompakt ? (
-            <div className={'mobilflate' + (mobil ? '' : ' kompaktflate')}>
+          ) : mobil ? (
+            <div className="mobilflate">
               {b.kanSkrive && (
                 <button
                   className="knapp primær ny-risk-mobil"
@@ -549,7 +535,7 @@ export function RegisterView({ okt, tilbake }: Props) {
                   + Ny risk
                 </button>
               )}
-              <Kortliste okt={okt} doc={doc} andre={andre} visning={visning} aapne={setDetalj} endre={endre} kanSkrive={b.kanSkrive} melding={melding} pc={!mobil} />
+              <Kortliste okt={okt} doc={doc} andre={andre} visning={visning} aapne={setDetalj} endre={endre} kanSkrive={b.kanSkrive} melding={melding} />
             </div>
           ) : (
           <Grid
@@ -565,6 +551,7 @@ export function RegisterView({ okt, tilbake }: Props) {
             kanSkrive={b.kanSkrive}
             mot={motRisker}
             moderne={moderne}
+            samlet={samlet}
           />
           )}
           {detalj && <Detaljpanel okt={okt} doc={doc} riskId={detalj} endre={endre} lukk={() => setDetalj(null)} kanSkrive={b.kanSkrive} />}

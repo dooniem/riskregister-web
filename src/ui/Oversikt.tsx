@@ -2,6 +2,7 @@ import { formatEndring, formatTall } from '../columns'
 import type { Register, Risk } from '../model'
 import { eksponeringFarge } from '../model'
 import type { Visning } from '../view'
+import { Utvid } from './Ikoner'
 import { filtrer, iFane, summer } from '../view'
 
 interface Props {
@@ -11,10 +12,11 @@ interface Props {
   mot?: Register // snapshot det sammenlignes med
   aapneMatrise?: (rm: 'R' | 'M') => void
   moderne?: boolean // alt i ett lavt kort, så tabellen får mer plass
+  samlet?: boolean // nøkkeltallene som en lav stripe uten kort
 }
 
 // Summer for risiko og mulighet (som M:/R:-radene øverst i Excel) og en klikkbar risikomatrise
-export function Oversikt({ doc, visning, setVisning, mot, aapneMatrise, moderne }: Props) {
+export function Oversikt({ doc, visning, setVisning, mot, aapneMatrise, moderne, samlet }: Props) {
   const grunnlagFor = (d: Register): Risk[] => (visning.kunFiltrerteSummer ? filtrer(d, visning) : d.risker.filter((r) => iFane(r, visning.fane)))
   const grunnlag = grunnlagFor(doc)
   const r = summer(grunnlag, 'R')
@@ -91,6 +93,49 @@ export function Oversikt({ doc, visning, setVisning, mot, aapneMatrise, moderne 
     />
   ))
 
+  // Samlet: forventet kost og spennet for risiko og mulighet, med matrisene til høyre
+  const nokkel = (rm: 'R' | 'M', s: ReturnType<typeof summer>) => {
+    const d = gammel ? s.fv - gammel[rm].fv : 0
+    const tekst = formatEndring(d)
+    const bra = rm === 'M' ? d > 0 : d < 0
+    const maks = Math.max(1, r.wc, m.wc)
+    const pst = (x: number) => (x / maks) * 100 + '%'
+    return (
+      <div className={'nokkel nokkel-' + rm}>
+        <span className="nokkel-tittel">
+          <b>
+            {s.antall} {rm === 'R' ? (s.antall === 1 ? 'risiko' : 'risikoer') : s.antall === 1 ? 'mulighet' : 'muligheter'}
+          </b>{' '}
+          · forventet {rm === 'R' ? 'kost' : 'gevinst'} i 1000 kr
+        </span>
+        <span className="nokkel-fv">
+          {formatTall(s.fv)}
+          {gammel && tekst && <span className={'delta ' + (bra ? 'bedre' : 'verre')}>{tekst}</span>}
+        </span>
+        <span className="nokkel-spenn" title={`Best ${formatTall(s.bc)}, mest sannsynlig ${formatTall(s.ml)}, verst ${formatTall(s.wc)}`}>
+          {formatTall(s.bc)} – {formatTall(s.wc)}
+        </span>
+        <span className={'kost-spenn' + (rm === 'M' ? ' m' : '')} aria-hidden>
+          <i style={{ left: pst(s.bc), width: pst(s.wc - s.bc) }} />
+          <b style={{ left: pst(s.fv) }} />
+        </span>
+      </div>
+    )
+  }
+  if (samlet)
+    return (
+      <div className="oversikt oversikt-samlet">
+        <div className="nokkel-rad">
+          {nokkel('R', r)}
+          {nokkel('M', m)}
+          <label className="liten nokkel-valg">
+            <input type="checkbox" checked={visning.kunFiltrerteSummer} onChange={(e) => setVisning((v) => ({ ...v, kunFiltrerteSummer: e.target.checked }))} /> summer bare det
+            som vises
+          </label>
+        </div>
+        <div className="nokkel-matriser">{matriser}</div>
+      </div>
+    )
   if (moderne)
     return (
       <div className="oversikt">
@@ -131,7 +176,7 @@ function Matrise({
       <div className="kort-tittel">
         {forstorr ? (
           <button className="lenkeknapp matrise-tittel" onClick={() => forstorr(rm)} title="Åpne stor matrise der riskene kan flyttes">
-            {tittel} ⤢
+            {tittel} <Utvid />
           </button>
         ) : (
           tittel

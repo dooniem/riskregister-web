@@ -1817,22 +1817,6 @@ td .valgpil.synlig {
   margin-top: 3px;
 }
 
-/* Kompakt visning på PC: ett kort i bredden, som på mobil */
-.kompaktflate {
-  overflow: auto;
-  padding: 12px 16px;
-}
-.kompaktflate .ny-risk-mobil {
-  width: auto;
-}
-.kortliste-pc section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.kortliste-pc .riskkort:hover {
-  border-color: var(--linje-sterk);
-}
 /* Langt trykk på berøringsskjerm skal åpne menyen, ikke markere tekst */
 @media (hover: none) {
   .riskkort {
@@ -3912,4 +3896,164 @@ td.aktiv .tiltak-samlet-tekst {
   .sidevalg {
     margin-left: 8px;
   }
+}
+
+/* Tegnede ikoner (Ikoner.tsx) i stedet for tegn som ▾ og ☰ */
+.ikon {
+  display: inline-block;
+  flex: none;
+  vertical-align: -2px;
+}
+.filterknapp {
+  display: inline-grid;
+  place-items: center;
+}
+
+/* ---- Samlet utseende ----
+   Bygger på moderne. Beskrivelse, eierskap og tiltak er slått sammen til én kolonne hver, så hele risken
+   får plass i bredden. Ingen gruppelinje over kolonnene og ingen farget fagkant, oversikten er en lav stripe. */
+.stil-samlet .grid .gruppe-rad {
+  display: none;
+}
+.stil-samlet .grid .kol-rad th {
+  top: 0;
+  height: 38px;
+  vertical-align: middle;
+}
+.stil-samlet .grid td.k-nr::before {
+  display: none;
+}
+.stil-samlet .grid td {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.beskrivelse-samlet {
+  display: grid;
+  gap: 6px;
+  white-space: normal;
+  word-break: break-word;
+}
+.beskrivelse-hendelse {
+  font-weight: 600;
+  font-size: 14.5px;
+  line-height: 1.35;
+  text-wrap: pretty;
+}
+.beskrivelse-samlet dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 2px 10px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--dempet);
+}
+.beskrivelse-samlet dt {
+  color: #7d8890;
+}
+.beskrivelse-samlet dd {
+  margin: 0;
+}
+.beskrivelse-samlet .valgt {
+  color: var(--tekst);
+}
+.beskrivelse-samlet dd.valgt,
+.beskrivelse-hendelse.valgt {
+  text-decoration: underline;
+  text-decoration-color: var(--aksent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+.beskrivelse-samlet .plassholder {
+  color: #9aa4ab;
+  font-weight: 400;
+}
+.mulighet-merke {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: #e3ecf5;
+  color: #1c4e80;
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: 2px;
+}
+
+/* Oversikten som en lav stripe: forventet kost med spenn, og matrisene til høyre */
+.oversikt-samlet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: 12px;
+  padding: 18px 20px 2px;
+}
+.nokkel {
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: start;
+  column-gap: 14px;
+  align-items: baseline;
+  padding-right: 32px;
+  margin-right: 32px;
+  border-right: 1px solid var(--linje-sterk);
+}
+.nokkel-M {
+  border-right: 0;
+  margin-right: 24px;
+}
+.nokkel-tittel {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  color: var(--dempet);
+}
+.nokkel-tittel b {
+  color: var(--tekst);
+  font-weight: 600;
+}
+.nokkel-fv {
+  font-family: var(--kondensert);
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+.nokkel-fv .delta {
+  font-size: 13px;
+  margin-left: 6px;
+}
+.nokkel-spenn {
+  font-size: 13px;
+  color: var(--dempet);
+}
+.nokkel .kost-spenn {
+  grid-column: 1 / -1;
+  width: 220px;
+  margin-top: 8px;
+  background: #e2e3dc;
+}
+.nokkel-rad {
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: start;
+}
+.nokkel-valg {
+  grid-column: 1 / -1;
+  margin-top: 10px;
+}
+.nokkel-matriser {
+  margin-left: auto;
+  display: flex;
+  gap: 24px;
+}
+.oversikt-samlet .oversikt-matrise {
+  border-left: 0;
+  padding: 0;
+}
+.oversikt-samlet .rute {
+  width: 20px;
+  height: 14px;
+  font-size: 11px;
+}
+.oversikt-samlet .mlabel.x {
+  width: 20px;
 }

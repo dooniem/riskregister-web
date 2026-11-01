@@ -31,7 +31,6 @@ export interface Visning {
   kunFiltrerteSummer: boolean
   visOversikt: boolean
   fag?: string[] // valgte fag-id-er, UTEN_FAG for risker uten fag. Tom = alle
-  kompakt?: boolean // kortvisning i stedet for tabell på PC (mobil viser alltid kort)
   skjulFag?: boolean // skjul fagmerkene i Nr.-kolonnen og på kortene (også i utskrift)
 }
 
@@ -51,12 +50,19 @@ export const STANDARD_VISNING: Visning = {
 export const UTEN_FAG = '_uten'
 
 // Utseende på registeret. Gjelder for brukeren i alle registre, så det lagres utenfor visningen til hvert register.
-export type Stil = 'klassisk' | 'moderne'
+// Samlet bygger på moderne, men slår sammen beskrivelse, eierskap og tiltak til hver sin kolonne.
+export type Stil = 'klassisk' | 'moderne' | 'samlet'
+export const STILER: { key: Stil; navn: string }[] = [
+  { key: 'klassisk', navn: 'Klassisk' },
+  { key: 'moderne', navn: 'Moderne' },
+  { key: 'samlet', navn: 'Samlet' },
+]
 const STIL_KEY = 'rr-stil'
 
 export function lesStil(): Stil {
   try {
-    return localStorage.getItem(STIL_KEY) === 'moderne' ? 'moderne' : 'klassisk'
+    const s = localStorage.getItem(STIL_KEY)
+    return s === 'moderne' || s === 'samlet' ? s : 'klassisk'
   } catch {
     return 'klassisk'
   }
