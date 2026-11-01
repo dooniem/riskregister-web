@@ -20,9 +20,47 @@ export interface Nylig {
   tid: number
 }
 
+// Samme register skal stå én gang i listen, uansett hvilke andre parametre adressen hadde
+// (for eksempel ?profil=, &ny=1 eller ulik skrivemåte av områdeadressen)
+function nokkel(url: string): string {
+  try {
+    const p = new URL(url).searchParams
+    const site = p.get('site')
+    if (site) return 'site:' + decodeURIComponent(site).trim().replace(/\/+$/, '').toLowerCase()
+    const demo = p.get('demo')
+    if (demo) return 'demo:' + demo
+  } catch {
+    /* ugyldig adresse: bruk den som den er */
+  }
+  return url
+}
+
+// Adressen som lagres: bare det som peker ut registeret
+function renAdresse(url: string): string {
+  try {
+    const u = new URL(url)
+    const ren = new URL(u.origin + u.pathname)
+    for (const k of ['site', 'demo']) {
+      const v = u.searchParams.get(k)
+      if (v) ren.searchParams.set(k, v)
+    }
+    return ren.searchParams.size ? ren.toString() : url
+  } catch {
+    return url
+  }
+}
+
 export function lesNylige(): Nylig[] {
   try {
-    return JSON.parse(localStorage.getItem('rr-nylig') || '[]')
+    const liste = JSON.parse(localStorage.getItem('rr-nylig') || '[]') as Nylig[]
+    // Eldre lister kan ha samme register flere ganger: behold det nyeste
+    const sett = new Set<string>()
+    return liste.filter((n) => {
+      const k = nokkel(n.url)
+      if (sett.has(k)) return false
+      sett.add(k)
+      return true
+    })
   } catch {
     return []
   }
@@ -30,8 +68,9 @@ export function lesNylige(): Nylig[] {
 
 export function husk(tittel: string) {
   try {
-    const url = window.location.href
-    const liste = [{ tittel, url, tid: Date.now() }, ...lesNylige().filter((n) => n.url !== url)].slice(0, 12)
+    const url = renAdresse(window.location.href)
+    const k = nokkel(url)
+    const liste = [{ tittel, url, tid: Date.now() }, ...lesNylige().filter((n) => nokkel(n.url) !== k)].slice(0, 12)
     localStorage.setItem('rr-nylig', JSON.stringify(liste))
   } catch {
     /* ignorer */
