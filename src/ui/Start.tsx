@@ -26,13 +26,18 @@ function nokkel(url: string): string {
   try {
     const p = new URL(url).searchParams
     const site = p.get('site')
-    if (site) return 'site:' + decodeURIComponent(site).trim().replace(/\/+$/, '').toLowerCase()
+    if (site) return 'site:' + renSite(site).replace(/\/+$/, '').toLowerCase()
     const demo = p.get('demo')
     if (demo) return 'demo:' + demo
   } catch {
     /* ugyldig adresse: bruk den som den er */
   }
   return url
+}
+
+// Områdeadressen uten det som har hengt seg på bak (for eksempel «?profil=ingen» skrevet med ? i stedet for &)
+function renSite(site: string): string {
+  return site.trim().split(/[?#]/)[0]
 }
 
 // Adressen som lagres: bare det som peker ut registeret
@@ -42,7 +47,7 @@ function renAdresse(url: string): string {
     const ren = new URL(u.origin + u.pathname)
     for (const k of ['site', 'demo']) {
       const v = u.searchParams.get(k)
-      if (v) ren.searchParams.set(k, v)
+      if (v) ren.searchParams.set(k, k === 'site' ? renSite(v) : v)
     }
     return ren.searchParams.size ? ren.toString() : url
   } catch {
