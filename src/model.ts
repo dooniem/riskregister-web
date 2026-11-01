@@ -22,7 +22,7 @@ export interface Fag {
 }
 
 // Ti farger som skiller seg godt fra hverandre og er lesbare med tekst oppå.
-// Fargene går gjennom CSS-variabler (--fag-0 … --fag-9), så moderne og samlet visning kan bytte til Skanskas palett.
+// Fargene går gjennom CSS-variabler (--fag-0 … --fag-9), så moderne og samlet visning kan bruke fargene til en bedriftsprofil (src/profil).
 const fagFarger: [string, string, string][] = [
   ['Blå', '#1d4ed8', '#fff'],
   ['Rød', '#b91c1c', '#fff'],
@@ -268,7 +268,7 @@ export function fv(r: Risk): number {
 export function eksponeringFarge(rm: RM, e: number): { bg: string; fg: string } | null {
   if (!e || rm === '-') return null
   const trinn = e < 5 ? 0 : e < 9 ? 1 : e < 15 ? 2 : e < 20 ? 3 : 4
-  // Fargene går gjennom CSS-variabler (--eks-r-0 … --eks-m-4), så moderne og samlet visning kan bruke Skanskas palett
+  // Fargene går gjennom CSS-variabler (--eks-r-0 … --eks-m-4), så moderne og samlet visning kan bruke fargene til en bedriftsprofil
   if (rm === 'R') {
     // Samme trinn som i Excel, men dusere farger så de ikke skriker i tabellen og matrisene
     const bg = ['#6cbf8a', '#b5d98a', '#f3dc6b', '#f2b45c', '#e06a5f'][trinn]
