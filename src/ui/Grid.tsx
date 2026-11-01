@@ -127,7 +127,8 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   )
 
   const risker = useMemo(() => sorter(filtrer(doc, visning), visning.sortering), [doc, visning])
-  // Felles skala for kostspennet i moderne utseende, så spennene kan sammenlignes mellom riskene
+  // Felles skala for kostspennet når brukeren har valgt det i FV-kolonnen, ellers egen skala per risk
+  const kostSkala = useMemo(() => (visning.kostSkala === 'prosjekt' ? prosjektSkala(doc.risker) : undefined), [doc.risker, visning.kostSkala])
   const grupperte: Gruppe[] = useMemo(() => grupper(doc, risker, visning.gruppering), [doc, risker, visning.gruppering])
 
   // Alle synlige linjer i rekkefølge. En risk tar like mange linjer som den har tiltak (minst én).
@@ -704,6 +705,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   moderne={moderne}
                   samlet={samlet}
                   sammen={sammen}
+                  kostSkala={kostSkala}
                   byttSkarisk={byttSkarisk}
                 />
               ))}
@@ -734,6 +736,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
           doc={doc}
           visning={visning}
           setVisning={setVisning}
+          moderne={moderne}
           x={meny.x}
           y={meny.y}
           lukk={() => setMeny(null)}
@@ -833,6 +836,7 @@ interface RaderProps {
   moderne: boolean
   samlet: boolean
   sammen: string[]
+  kostSkala?: Skala
   byttSkarisk: (riskId: string) => void
 }
 
@@ -980,7 +984,7 @@ function RiskRader(p: RaderProps) {
           velg={(kol, ev) => ev.button === 0 && (ev.stopPropagation(), p.klikk({ ...pos, kol }, ev))}
         />
       )
-    if (k.key === 'fv') innhold = p.moderne ? <KostCelle r={r} /> : formatTall(fv(r))
+    if (k.key === 'fv') innhold = p.moderne ? <KostCelle r={r} skala={p.kostSkala} /> : formatTall(fv(r))
     // Tomme celler får et usynlig tegn, så en ny tiltakslinje er like høy som en med én linje tekst
     if (innhold === '' || innhold == null) innhold = '\u200b'
 
@@ -1204,23 +1208,47 @@ function tegnVedKlikk(e: React.MouseEvent): number | undefined {
   return undefined
 }
 
-// Kostspennet med egen skala per risk: streken går fra best til verst, med mest sannsynlig (grå) og forventet
-// verdi (svart) inne i spennet. Den viser skjevheten i spennet; størrelsen leses av tallet over.
-// En felles skala gjorde små spenn til prikker når andre risker var store, og negative tall stjal halve bredden.
-function KostCelle({ r }: { r: Risk }) {
+interface Skala {
+  lo: number
+  hi: number
+}
+
+// Felles skala for hele prosjektet: fra laveste til høyeste verdi blant alle riskene, med null der den faller.
+// Viser hvor mye hver risk betyr for prosjektet som helhet; små spenn blir korte.
+function prosjektSkala(risker: Risk[]): Skala {
+  let lo = 0
+  let hi = 0
+  for (const r of risker) {
+    lo = Math.min(lo, r.bc, r.ml, r.wc)
+    hi = Math.max(hi, r.bc, r.ml, r.wc)
+  }
+  return hi > lo ? { lo, hi } : { lo: 0, hi: 1 }
+}
+
+// Kostspennet. Med egen skala per risk (standard) går streken fra best til verst over hele cellen, med mest
+// sannsynlig (grå) og forventet verdi (svart) inne i spennet; den viser skjevheten, og størrelsen leses av tallet.
+// Med prosjektskala står alle riskene på samme akse, så lengden viser hvor mye risken betyr for prosjektet.
+function KostCelle({ r, skala }: { r: Risk; skala?: Skala }) {
   const tom = !r.bc && !r.ml && !r.wc
   const lo = Math.min(r.bc, r.ml, r.wc)
   const hi = Math.max(r.bc, r.ml, r.wc)
   // Litt luft i hver ende, så endemerkene ikke havner utenfor
-  const p = (v: number) => (hi > lo ? `${4 + ((v - lo) / (hi - lo)) * 92}%` : '50%')
+  const akse = skala ?? { lo, hi }
+  const pst = (v: number) => (akse.hi > akse.lo ? 4 + ((v - akse.lo) / (akse.hi - akse.lo)) * 92 : 50)
+  const p = (v: number) => `${pst(v)}%`
+  const nullStrek = skala ? skala.lo < 0 && skala.hi > 0 : lo < 0 && hi > 0
+  const strek =
+    hi > lo
+      ? { left: p(lo), width: `max(3px, ${pst(hi) - pst(lo)}%)` }
+      : { left: `calc(${p(lo)} - 2px)`, width: '4px' }
   return (
     <div className="kost-celle" title={`Best ${formatTall(r.bc)}, mest sannsynlig ${formatTall(r.ml)}, verst ${formatTall(r.wc)} (i 1000 kr)`}>
       <span className="kost-fv">{tom ? '-' : formatTall(fv(r))}</span>
       {!tom && (
         <>
           <span className={'kost-spenn egen' + (r.rm === 'M' ? ' m' : '')} aria-hidden>
-            <i style={hi > lo ? { left: '4%', right: '4%' } : { left: 'calc(50% - 2px)', width: '4px' }} />
-            {lo < 0 && hi > 0 && <s style={{ left: p(0) }} />}
+            {nullStrek && <s style={{ left: p(0) }} />}
+            <i style={strek} />
             {hi > lo && <b className="ml" style={{ left: p(r.ml) }} />}
             <b style={{ left: p(fv(r)) }} />
           </span>
@@ -1238,6 +1266,7 @@ function KolonneMeny({
   doc,
   visning,
   setVisning,
+  moderne,
   x,
   y,
   lukk,
@@ -1246,6 +1275,7 @@ function KolonneMeny({
   doc: Register
   visning: Visning
   setVisning: (f: (v: Visning) => Visning) => void
+  moderne: boolean
   x: number
   y: number
   lukk: () => void
@@ -1279,6 +1309,18 @@ function KolonneMeny({
       <button onClick={() => sorter(true)}>Sorter stigende (A–Å, 1–9)</button>
       <button onClick={() => sorter(false)}>Sorter synkende (Å–A, 9–1)</button>
       {visning.sortering.length > 0 && <button onClick={() => (setVisning((v) => ({ ...v, sortering: [] })), lukk())}>Fjern sortering (tilbake til Nr.)</button>}
+      {moderne && k.key === 'fv' && (
+        <>
+          <hr />
+          <div className="meny-tittel">Skala for kostspennet</div>
+          <label className="meny-valg">
+            <input type="radio" name="kostskala" checked={visning.kostSkala !== 'prosjekt'} onChange={() => setVisning((v) => ({ ...v, kostSkala: undefined }))} /> Egen per risk
+          </label>
+          <label className="meny-valg">
+            <input type="radio" name="kostskala" checked={visning.kostSkala === 'prosjekt'} onChange={() => setVisning((v) => ({ ...v, kostSkala: 'prosjekt' }))} /> Felles for prosjektet
+          </label>
+        </>
+      )}
       <hr />
       {brukVerdier ? (
         <>

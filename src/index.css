@@ -4168,3 +4168,16 @@ td.aktiv .tiltak-samlet-tekst {
   gap: 8px;
   padding: 4px 0;
 }
+
+/* Valg av skala for kostspennet i menyen på FV-kolonnen */
+.kolonnemeny .meny-valg {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.kolonnemeny .meny-valg:hover {
+  background: var(--aksent-lys);
+}

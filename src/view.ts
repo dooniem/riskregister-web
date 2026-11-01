@@ -32,6 +32,7 @@ export interface Visning {
   visOversikt: boolean
   fag?: string[] // valgte fag-id-er, UTEN_FAG for risker uten fag. Tom = alle
   skjulFag?: boolean // skjul fagmerkene i Nr.-kolonnen og på kortene (også i utskrift)
+  kostSkala?: 'prosjekt' // kostspennet i moderne utseende: egen skala per risk (standard) eller felles skala for prosjektet
 }
 
 export const STANDARD_VISNING: Visning = {
