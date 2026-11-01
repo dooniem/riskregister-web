@@ -33,7 +33,7 @@ import { PersonKontekst, deltakerOp, type Personer } from './Personer'
 import { DemoKatalog, GraphKatalog } from '../store/katalog'
 import type { SnapshotInfo } from '../store/backend'
 import type { Risk } from '../model'
-import skanskaLogo from '../skanska-logo.svg'
+import { useProfil } from '../profil'
 
 interface Props {
   okt: Okt
@@ -140,6 +140,7 @@ export function RegisterView({ okt, tilbake }: Props) {
   const setStil = (s: Stil) => (setStilRaw(s), lagreStil(s))
   // Samlet er moderne med flere kolonner slått sammen, så alt som gjelder moderne gjelder også samlet
   const moderne = stil !== 'klassisk'
+  const profil = useProfil()
   const samlet = stil === 'samlet'
   // Moderne visning har to sider: registeret og risikobildet
   const [side, setSide] = useState<{ navn: 'register' | 'risikobilde'; rm: 'R' | 'M' }>({ navn: 'register', rm: 'R' })
@@ -296,7 +297,7 @@ export function RegisterView({ okt, tilbake }: Props) {
           <button className="ikonknapp hjem" onClick={tilbake} title="Til startsiden">
             <Pil retning="venstre" str={18} />
           </button>
-          {moderne && <img className="toppfelt-logo" src={skanskaLogo} alt="Skanska" />}
+          {moderne && profil?.logo && <img className="toppfelt-logo" src={profil.logo} alt={profil.navn} />}
           <div className="tittel">
             <h1>{tittel}</h1>
             <div className="undertittel">
