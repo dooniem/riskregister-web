@@ -100,7 +100,7 @@ const KOST_NAVN: Record<string, string> = { bc: 'Best case', ml: 'Most likely', 
 
 export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapneDetalj, melding, kanSkrive, mot, moderne = false, samlet = false, nyRiskTeller = 0 }: Props) {
   const [aktiv, setAktiv] = useState<Posisjon | null>(null)
-  const [redigerer, setRedigerer] = useState<(Posisjon & { start: string; erstatt: boolean }) | null>(null)
+  const [redigerer, setRedigerer] = useState<(Posisjon & { start: string; erstatt: boolean; markor?: number }) | null>(null)
   const [meny, setMeny] = useState<{ kol: string; x: number; y: number } | null>(null)
   const [kontekst, setKontekst] = useState<{ x: number; y: number; pos: Posisjon } | null>(null)
   const [fagVelger, setFagVelger] = useState<{ riskId: string; x: number; y: number } | null>(null)
@@ -236,7 +236,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   const erVurdering = (k?: Kolonne) => moderne && k?.key === 'eksponering'
   const harVindu = (k?: Kolonne) => erKost(k) || erVurdering(k)
 
-  const startRedigering = (p: Posisjon, start?: string) => {
+  const startRedigering = (p: Posisjon, start?: string, markor?: number) => {
     if (!kanSkrive) return melding('Du har bare lesetilgang til dette registeret.')
     const { r, k, t } = hentCelle(p)
     if (r && harVindu(k)) {
@@ -251,7 +251,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
     if (!r || !k || !k.felt) return
     const av = okt.laas(r.id)
     if (av) return melding(`Risk ${r.nr} redigeres av ${av} akkurat nå. Prøv igjen når de er ferdige.`)
-    setRedigerer({ ...p, start: start ?? editorTekst(k, r, t), erstatt: start !== undefined })
+    setRedigerer({ ...p, start: start ?? editorTekst(k, r, t), erstatt: start !== undefined, markor })
   }
 
   const lagreVerdi = (p: Posisjon, verdi: unknown) => {
@@ -532,14 +532,19 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
       if (k?.type === 'avkrysning' && r) {
         if (!okt.laastAv(r.id)) lagreVerdi(p, !r.tilSkarisk)
       // Etter musetrykket flytter nettleseren fokus til tabellen. Editoren åpnes etterpå, ellers mister den fokus og lukkes med en gang.
-      } else if (k?.felt || harVindu(k)) setTimeout(() => startRedigering(p), 0)
+      } else if (k?.felt || harVindu(k)) {
+        const markor = samlet && BESKRIVELSE.includes(p.kol) ? tegnVedKlikk(e) : undefined
+        setTimeout(() => startRedigering(p, undefined, markor), 0)
+      }
       else if (k?.key === 'nr') aapneDetalj(p.riskId)
       return
     }
     // Samlet beskrivelse: andre klikk på en linje som allerede er valgt, åpner teksten for redigering
     const valgtFraFor = aktiv?.riskId === p.riskId && aktiv.kol === p.kol
     if (samlet && BESKRIVELSE.includes(p.kol) && valgtFraFor && kanSkrive && !redigerer && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
-      setTimeout(() => startRedigering(p), 0)
+      // Markøren havner der det ble klikket, siden editoren står nøyaktig der teksten sto
+      const markor = tegnVedKlikk(e)
+      setTimeout(() => startRedigering(p, undefined, markor), 0)
       return
     }
     setAktiv(p)
@@ -814,7 +819,7 @@ interface RaderProps {
   kolonner: Kolonne[]
   frossenVenstre: Record<string, number>
   aktiv: Posisjon | null
-  redigerer: (Posisjon & { start: string; erstatt: boolean }) | null
+  redigerer: (Posisjon & { start: string; erstatt: boolean; markor?: number }) | null
   tilstede: Tilstede[]
   laastAv?: string
   minLaas: boolean
@@ -959,6 +964,7 @@ function RiskRader(p: RaderProps) {
           inline
           kolonne={redigertKol}
           etikett={BESKRIVELSE_NAVN[p.redigerer.kol]}
+          markorStart={p.redigerer.markor}
           start={p.redigerer.start}
           erstatt={p.redigerer.erstatt}
           valg={[]}
@@ -1179,6 +1185,28 @@ function VurderingCelle({ r, kanSkrive }: { r: Risk; kanSkrive: boolean }) {
 }
 
 // Moderne utseende: forventet verdi med spennet fra best til verst under
+// Hvilket tegn i tekstlinjen et klikk traff, talt fra starten av linjen. Undefined når det ikke kan avgjøres
+// (da havner markøren bakerst, som før).
+function tegnVedKlikk(e: React.MouseEvent): number | undefined {
+  const linje = (e.target as HTMLElement).closest?.('.linje')
+  if (!linje || linje.querySelector('.plassholder')) return undefined
+  const d = document as Document & {
+    caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null
+  }
+  const pos = d.caretPositionFromPoint?.(e.clientX, e.clientY)
+  const range = pos ? null : document.caretRangeFromPoint?.(e.clientX, e.clientY)
+  const node = pos?.offsetNode ?? range?.startContainer
+  const offset = pos?.offset ?? range?.startOffset
+  if (!node || offset == null || !linje.contains(node)) return undefined
+  let antall = 0
+  const gaa = document.createTreeWalker(linje, NodeFilter.SHOW_TEXT)
+  for (let n = gaa.nextNode(); n; n = gaa.nextNode()) {
+    if (n === node) return antall + offset
+    antall += n.textContent?.length ?? 0
+  }
+  return undefined
+}
+
 export interface Skala {
   lo: number
   hi: number
