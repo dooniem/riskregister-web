@@ -21,19 +21,25 @@ export interface Fag {
   farge: number // indeks i FAG_FARGER
 }
 
-// Ti farger som skiller seg godt fra hverandre og er lesbare med tekst oppå
-export const FAG_FARGER: { navn: string; bg: string; fg: string }[] = [
-  { navn: 'Blå', bg: '#1d4ed8', fg: '#fff' },
-  { navn: 'Rød', bg: '#b91c1c', fg: '#fff' },
-  { navn: 'Grønn', bg: '#15803d', fg: '#fff' },
-  { navn: 'Oransje', bg: '#c2410c', fg: '#fff' },
-  { navn: 'Lilla', bg: '#7e22ce', fg: '#fff' },
-  { navn: 'Turkis', bg: '#0e7490', fg: '#fff' },
-  { navn: 'Rosa', bg: '#db2777', fg: '#fff' },
-  { navn: 'Brun', bg: '#78350f', fg: '#fff' },
-  { navn: 'Gul', bg: '#facc15', fg: '#1d2733' },
-  { navn: 'Grå', bg: '#475569', fg: '#fff' },
+// Ti farger som skiller seg godt fra hverandre og er lesbare med tekst oppå.
+// Fargene går gjennom CSS-variabler (--fag-0 … --fag-9), så moderne og samlet visning kan bytte til Skanskas palett.
+const fagFarger: [string, string, string][] = [
+  ['Blå', '#1d4ed8', '#fff'],
+  ['Rød', '#b91c1c', '#fff'],
+  ['Grønn', '#15803d', '#fff'],
+  ['Oransje', '#c2410c', '#fff'],
+  ['Lilla', '#7e22ce', '#fff'],
+  ['Turkis', '#0e7490', '#fff'],
+  ['Rosa', '#db2777', '#fff'],
+  ['Brun', '#78350f', '#fff'],
+  ['Gul', '#facc15', '#1d2733'],
+  ['Grå', '#475569', '#fff'],
 ]
+export const FAG_FARGER: { navn: string; bg: string; fg: string }[] = fagFarger.map(([navn, bg, fg], i) => ({
+  navn,
+  bg: `var(--fag-${i}, ${bg})`,
+  fg: `var(--fag-${i}-tekst, ${fg})`,
+}))
 
 export const fagFarge = (f: Fag) => FAG_FARGER[f.farge % FAG_FARGER.length]
 export const kortFag = (navn: string) => navn.replace(/[^\p{L}\p{N}]/gu, '').slice(0, 3).toUpperCase()
@@ -262,13 +268,14 @@ export function fv(r: Risk): number {
 export function eksponeringFarge(rm: RM, e: number): { bg: string; fg: string } | null {
   if (!e || rm === '-') return null
   const trinn = e < 5 ? 0 : e < 9 ? 1 : e < 15 ? 2 : e < 20 ? 3 : 4
+  // Fargene går gjennom CSS-variabler (--eks-r-0 … --eks-m-4), så moderne og samlet visning kan bruke Skanskas palett
   if (rm === 'R') {
     // Samme trinn som i Excel, men dusere farger så de ikke skriker i tabellen og matrisene
     const bg = ['#6cbf8a', '#b5d98a', '#f3dc6b', '#f2b45c', '#e06a5f'][trinn]
-    return { bg, fg: trinn === 4 ? '#fff' : '#1d2830' }
+    return { bg: `var(--eks-r-${trinn}, ${bg})`, fg: `var(--eks-r-${trinn}-tekst, ${trinn === 4 ? '#fff' : '#1d2830'})` }
   }
   const bg = ['#dbe9f8', '#b9d4f1', '#8ab6e6', '#4f86c6', '#2f5f99'][trinn]
-  return { bg, fg: trinn >= 3 ? '#fff' : '#1d2830' }
+  return { bg: `var(--eks-m-${trinn}, ${bg})`, fg: `var(--eks-m-${trinn}-tekst, ${trinn >= 3 ? '#fff' : '#1d2830'})` }
 }
 
 export function eksponeringNivaa(e: number): string {

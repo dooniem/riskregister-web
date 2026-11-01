@@ -2813,24 +2813,73 @@ td .valgpil.synlig {
    Samme oppbygning og funksjoner som det klassiske, men lysere topplinje, én lav oversikt,
    tynnere linjer i tabellen og merker i stedet for fylte celler. Slås på under Mer > Utseende. */
 .stil-moderne {
+  /* Nøytral grunnprofil. En bedriftsprofil (src/profil/) endrer utseendet ved å overstyre disse variablene. */
   --bg: #eceee9;
   --flate: #ffffff;
   --flate-2: #f6f7f4;
+  --flate-dempet: #eef0eb;
+  --flate-lys: #fafbf8;
+  --flate-mork: #e1e4de;
+  --flate-stripe: #f3f4f1;
+  --blekk: 29 40 48; /* RGB-verdier til linjer og skygger */
   --tekst: #1d2830;
+  --tekst-2: #4a565e;
   --dempet: #56636c;
-  --linje: rgba(29, 40, 48, 0.11);
-  --linje-sterk: rgba(29, 40, 48, 0.2);
+  --dempet-2: #7d8992;
+  --dempet-3: #9aa4ab;
+  --linje: rgb(var(--blekk) / 0.11);
+  --linje-sterk: rgb(var(--blekk) / 0.2);
+  --linje-stiplet: #b8c0c6;
   --hode: #f6f7f4;
   --hode-gruppe: #ffffff;
+  --overskrift: var(--tekst);
   --aksent: #1c4e80;
   --aksent-lys: #e3ecf5;
-  --skygge: 0 1px 3px rgba(29, 40, 48, 0.06);
+  --aksent-hover: #163f68;
+  --fane-strek: var(--aksent);
+  /* Hovedhandlingen (Ny risk). Lik vanlig primærknapp til en profil gir den egen farge. */
+  --cta-bg: var(--aksent);
+  --cta-bg-hover: var(--aksent-hover);
+  --cta-tekst: #ffffff;
+  --cta-radius: 6px;
+  --fare-tekst: #b42318;
+  --fare-lys: #fdecea;
+  --status-pagar: #e0a400;
+  --status-utfort: #2b7a4b;
+  --status-utfores-ikke: #c4ccd4;
+  --kost-spenn-r: #f0b8b1;
+  --kost-spenn-m: #b3d3f5;
+  --skygge: 0 1px 3px rgb(var(--blekk) / 0.06);
   --kondensert: 'Barlow Semi Condensed', 'Barlow', 'Segoe UI', system-ui, sans-serif;
-  font-family: 'Barlow', 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --brodtekst: 'Barlow', 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+  font-family: var(--brodtekst);
   font-size: 14px;
   font-variant-numeric: tabular-nums;
   background: var(--bg);
   color: var(--tekst);
+}
+.stil-moderne h1,
+.stil-moderne h2,
+.stil-moderne h3 {
+  color: var(--overskrift);
+}
+/* Logoen til profilen i topplinjen (vises bare når en profil har logo) */
+.toppfelt-logo {
+  display: block;
+  height: 14px;
+  width: auto;
+  margin: 0 20px 0 4px;
+  flex: none;
+}
+.stil-moderne .knapp.ny-risk {
+  background: var(--cta-bg);
+  border-color: var(--cta-bg);
+  color: var(--cta-tekst);
+  border-radius: var(--cta-radius);
+}
+.stil-moderne .knapp.ny-risk:hover {
+  background: var(--cta-bg-hover);
+  border-color: var(--cta-bg-hover);
 }
 .stil-moderne .knapp {
   border-radius: 6px;
@@ -2838,7 +2887,7 @@ td .valgpil.synlig {
   min-height: 34px;
 }
 .stil-moderne .knapp.primær:hover {
-  background: #163f68;
+  background: var(--aksent-hover);
 }
 
 /* Topplinje: hvit i stedet for mørk blå */
@@ -2909,7 +2958,7 @@ td .valgpil.synlig {
   justify-content: flex-start;
 }
 .stil-moderne .oversikt .kort-tittel label {
-  font-family: 'Barlow', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--brodtekst, 'Barlow', 'Segoe UI', system-ui, sans-serif);
   font-size: 13px;
   margin-left: 12px;
 }
@@ -2937,12 +2986,12 @@ td .valgpil.synlig {
   border-radius: 10px;
 }
 .stil-moderne .rm-merke.rm-R {
-  background: #fdecea;
-  color: #b42318 !important;
+  background: var(--fare-lys);
+  color: var(--fare-tekst) !important;
 }
 .stil-moderne .rm-merke.rm-M {
-  background: #e3ecf5;
-  color: #1c4e80 !important;
+  background: var(--aksent-lys);
+  color: var(--aksent) !important;
 }
 .stil-moderne .rute {
   width: 22px;
@@ -2964,7 +3013,7 @@ td .valgpil.synlig {
   padding: 14px 20px 10px;
 }
 .stil-moderne .faner {
-  background: #e1e4de;
+  background: var(--flate-mork);
 }
 .stil-moderne .faner button {
   font-weight: 500;
@@ -2994,7 +3043,7 @@ td .valgpil.synlig {
 }
 .stil-moderne .grid th,
 .stil-moderne .grid td {
-  border-right-color: rgba(29, 40, 48, 0.06);
+  border-right-color: rgb(var(--blekk) / 0.06);
   border-bottom-color: var(--linje);
   padding: 8px 10px;
 }
@@ -3022,7 +3071,7 @@ td .valgpil.synlig {
   border-bottom: 1px solid var(--linje-sterk);
 }
 .stil-moderne .grid .kol-rad th:hover {
-  background: #eef0eb;
+  background: var(--flate-dempet);
   color: var(--tekst);
 }
 .stil-moderne .grid tbody.risk tr:last-child td,
@@ -3030,10 +3079,10 @@ td .valgpil.synlig {
   border-bottom-color: var(--linje-sterk);
 }
 .stil-moderne .grid td.tiltak-fortsatt {
-  border-top-color: rgba(29, 40, 48, 0.06);
+  border-top-color: rgb(var(--blekk) / 0.06);
 }
 .stil-moderne .grid tbody.risk:hover td {
-  background: #fafbf8;
+  background: var(--flate-lys);
 }
 .stil-moderne .grid td.k-hendelse {
   font-weight: 500;
@@ -3043,7 +3092,7 @@ td .valgpil.synlig {
   color: var(--dempet);
 }
 .stil-moderne .grid tbody.lukket td {
-  color: #7d8992;
+  color: var(--dempet-2);
 }
 /* Fag som en farget kant til venstre på raden */
 .stil-moderne .grid td.k-nr::before {
@@ -3088,19 +3137,19 @@ td .valgpil.synlig {
   background: transparent;
 }
 .stil-moderne .grid td.ts-ikke-startet::before {
-  box-shadow: inset 0 0 0 1.5px #7d8992;
+  box-shadow: inset 0 0 0 1.5px var(--dempet-2);
 }
 .stil-moderne .grid td.ts-pågår::before {
-  background: #e0a400;
+  background: var(--status-pagar);
 }
 .stil-moderne .grid td.ts-utført::before {
-  background: #2b7a4b;
+  background: var(--status-utfort);
 }
 .stil-moderne .grid td.ts-utføres-ikke::before {
-  background: #c4ccd4;
+  background: var(--status-utfores-ikke);
 }
 .stil-moderne .grid td.forfalt {
-  color: #b42318;
+  color: var(--fare-tekst);
 }
 
 /* Kost: forventet verdi med spennet fra best til verst. Dempet grønn, gul og rød for best, mest sannsynlig og verst. */
@@ -3140,17 +3189,17 @@ td .valgpil.synlig {
   width: 100%;
   height: 4px;
   border-radius: 2px;
-  background: #eef0eb;
+  background: var(--flate-dempet);
 }
 .kost-spenn i {
   position: absolute;
   top: 0;
   bottom: 0;
   border-radius: 2px;
-  background: #f0b8b1;
+  background: var(--kost-spenn-r);
 }
 .kost-spenn.m i {
-  background: #b3d3f5;
+  background: var(--kost-spenn-m);
 }
 .kost-spenn b {
   position: absolute;
@@ -3158,7 +3207,7 @@ td .valgpil.synlig {
   width: 2px;
   height: 8px;
   margin-left: -1px;
-  background: #1d2830;
+  background: var(--tekst);
 }
 .kost-spenn.stor {
   height: 8px;
@@ -3178,7 +3227,7 @@ td .valgpil.synlig {
   width: 2px;
   top: -3px;
   height: 14px;
-  background: #7d8992;
+  background: var(--dempet-2);
 }
 .kost-fra-til {
   font-size: 12px;
@@ -3194,7 +3243,7 @@ td .valgpil.synlig {
   color: var(--tekst);
   border: 1px solid var(--linje-sterk);
   border-radius: 10px;
-  box-shadow: 0 8px 28px rgba(29, 40, 48, 0.07), 0 1px 3px rgba(29, 40, 48, 0.06);
+  box-shadow: 0 8px 28px rgb(var(--blekk) / 0.07), 0 1px 3px rgb(var(--blekk) / 0.06);
   padding: 16px 18px;
   text-align: left;
 }
@@ -3292,7 +3341,7 @@ td .valgpil.synlig {
   height: 22px;
   border-radius: 11px;
   border: 1px solid var(--linje-sterk);
-  background: #eef0eb;
+  background: var(--flate-dempet);
   position: relative;
   padding: 0;
   cursor: pointer;
@@ -3306,7 +3355,7 @@ td .valgpil.synlig {
   height: 16px;
   border-radius: 50%;
   background: #fff;
-  box-shadow: 0 1px 2px rgba(29, 40, 48, 0.25);
+  box-shadow: 0 1px 2px rgb(var(--blekk) / 0.25);
   transition: left 0.12s ease-out;
 }
 .bryter.paa {
@@ -3340,7 +3389,7 @@ td .valgpil.synlig {
   gap: 8px;
 }
 .vurd-celle .eksp-merke.tom {
-  background: #eef0eb;
+  background: var(--flate-dempet);
   color: var(--dempet);
 }
 .vurd-sk {
@@ -3367,7 +3416,7 @@ td.k-eksponering:hover .vurd-celle.tom {
   color: var(--tekst);
   border: 1px solid var(--linje-sterk);
   border-radius: 10px;
-  box-shadow: 0 8px 28px rgba(29, 40, 48, 0.07), 0 1px 3px rgba(29, 40, 48, 0.06);
+  box-shadow: 0 8px 28px rgb(var(--blekk) / 0.07), 0 1px 3px rgb(var(--blekk) / 0.06);
   padding: 16px 18px;
   text-align: left;
 }
@@ -3412,7 +3461,7 @@ td.k-eksponering:hover .vurd-celle.tom {
   -webkit-print-color-adjust: exact;
 }
 .vurd-flis.tom {
-  background: repeating-linear-gradient(135deg, #fff 0 6px, #f3f4f1 6px 12px);
+  background: repeating-linear-gradient(135deg, #fff 0 6px, var(--flate-stripe) 6px 12px);
   color: var(--dempet);
 }
 .vurd-flis-navn {
@@ -3486,7 +3535,7 @@ td.k-eksponering:hover .vurd-celle.tom {
 }
 .vurd-matrise button.var {
   opacity: 0.9;
-  box-shadow: inset 0 0 0 2px rgba(29, 40, 48, 0.35);
+  box-shadow: inset 0 0 0 2px rgb(var(--blekk) / 0.35);
 }
 .vurd-matrise button.her {
   opacity: 1;
@@ -3636,7 +3685,7 @@ td.aktiv .tiltak-samlet-tekst {
   max-height: none;
 }
 .tiltak-samlet.ferdig .tiltak-samlet-tekst {
-  color: #8a969f;
+  color: var(--dempet-2);
 }
 .tiltak-samlet-frist {
   /* Fristen er det man ser etter i tiltakslista: full tekstfarge, halvfet og tall med lik bredde.
@@ -3656,11 +3705,11 @@ td.aktiv .tiltak-samlet-tekst {
   color: #b54708;
 }
 .tiltak-samlet-frist.forfalt {
-  color: #b42318;
-  background: #fdecea;
+  color: var(--fare-tekst);
+  background: var(--fare-lys);
 }
 .tiltak-samlet-frist.avsluttet {
-  color: #8a969f;
+  color: var(--dempet-2);
   font-weight: 500;
 }
 .status-prikk {
@@ -3672,16 +3721,16 @@ td.aktiv .tiltak-samlet-tekst {
   -webkit-print-color-adjust: exact;
 }
 .status-prikk.ts-ikke-startet {
-  box-shadow: inset 0 0 0 1.5px #7d8992;
+  box-shadow: inset 0 0 0 1.5px var(--dempet-2);
 }
 .status-prikk.ts-pågår {
-  background: #e0a400;
+  background: var(--status-pagar);
 }
 .status-prikk.ts-utført {
-  background: #2b7a4b;
+  background: var(--status-utfort);
 }
 .status-prikk.ts-utføres-ikke {
-  background: #c4ccd4;
+  background: var(--status-utfores-ikke);
 }
 .initialer {
   display: inline-grid;
@@ -3689,7 +3738,7 @@ td.aktiv .tiltak-samlet-tekst {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: #eef0eb;
+  background: var(--flate-dempet);
   color: var(--tekst);
   font-size: 11px;
   font-weight: 600;
@@ -3719,13 +3768,13 @@ td.aktiv .tiltak-samlet-tekst {
   font-size: 12.5px;
   line-height: 1.3;
   color: var(--tekst);
-  background: #eef0eb;
+  background: var(--flate-dempet);
   border-radius: 4px;
   padding: 2px 7px;
 }
 .eier-samlet-kategori:has(.eier-tom) {
   background: none;
-  border: 1px dashed #b8c0c6;
+  border: 1px dashed var(--linje-stiplet);
 }
 
 /* Nr. og R&M øverst i raden, med nummeret over fagmerket */
@@ -3779,8 +3828,8 @@ td.aktiv .tiltak-samlet-tekst {
   color: var(--tekst);
 }
 .sidevalg button.valgt {
-  color: var(--tekst);
-  border-bottom-color: var(--aksent);
+  color: var(--fane-tekst, var(--tekst));
+  border-bottom-color: var(--fane-strek, var(--aksent));
 }
 .stil-moderne .toppfelt .tittel {
   flex: 0 1 auto;
@@ -3888,7 +3937,7 @@ td.aktiv .tiltak-samlet-tekst {
   background: var(--flate);
   border: 1px solid var(--linje-sterk);
   border-radius: 10px;
-  box-shadow: 0 8px 28px rgba(29, 40, 48, 0.12);
+  box-shadow: 0 8px 28px rgb(var(--blekk) / 0.12);
   z-index: 5;
 }
 @media (max-width: 760px) {
@@ -3941,7 +3990,7 @@ td.aktiv .tiltak-samlet-tekst {
   color: var(--dempet);
 }
 .rb-delta.verre {
-  color: #b42318;
+  color: var(--fare-tekst);
 }
 .rb-delta.bedre {
   color: #2b7a4b;
@@ -4043,7 +4092,7 @@ td.aktiv .tiltak-samlet-tekst {
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.01em;
-  color: #4a565e;
+  color: var(--tekst-2);
 }
 .stil-samlet .grid td.k-nr::before {
   display: none;
@@ -4079,7 +4128,7 @@ td.aktiv .tiltak-samlet-tekst {
   transform: translateY(-1px);
 }
 .beskrivelse-hendelse .rm-merke.rm-tom {
-  background: #eef0eb;
+  background: var(--flate-dempet);
   color: var(--dempet) !important;
 }
 .beskrivelse-hendelse .rm-merke.valgt {
@@ -4095,7 +4144,7 @@ td.aktiv .tiltak-samlet-tekst {
   color: var(--dempet);
 }
 .beskrivelse-samlet dt {
-  color: #7d8890;
+  color: var(--dempet-2);
   cursor: default;
 }
 .beskrivelse-samlet dd {
@@ -4111,7 +4160,7 @@ td.aktiv .tiltak-samlet-tekst {
   cursor: text;
 }
 .beskrivelse-samlet .linje:hover {
-  background: rgba(29, 40, 48, 0.045);
+  background: rgb(var(--blekk) / 0.045);
 }
 .beskrivelse-samlet .linje.valgt {
   background: var(--aksent-lys);
@@ -4126,7 +4175,7 @@ td.aktiv .tiltak-samlet-tekst {
   box-shadow: 0 0 0 2px var(--aksent);
 }
 .beskrivelse-samlet .plassholder {
-  color: #9aa4ab;
+  color: var(--dempet-3);
   font-weight: 400;
 }
 /* Editoren inne i linjen: arver skrift og linjehøyde, ingen egen ramme eller polstring */
@@ -4155,7 +4204,7 @@ td.aktiv .tiltak-samlet-tekst {
   border: 1px solid var(--linje-sterk);
   border-radius: 5px;
   background: var(--flate);
-  box-shadow: 0 4px 12px rgba(29, 40, 48, 0.1);
+  box-shadow: 0 4px 12px rgb(var(--blekk) / 0.1);
   font-size: 11.5px;
   font-weight: 400;
   white-space: nowrap;
@@ -4211,7 +4260,7 @@ td.aktiv .tiltak-samlet-tekst {
   grid-column: 1 / -1;
   width: 220px;
   margin-top: 8px;
-  background: #e2e3dc;
+  background: var(--flate-mork);
 }
 .nokkel-rad {
   display: grid;
@@ -4249,7 +4298,7 @@ td.aktiv .tiltak-samlet-tekst {
   top: -1px;
   height: 6px;
   width: 2px;
-  background: #8a959c;
+  background: var(--dempet-3);
 }
 .kost-spenn s {
   position: absolute;
@@ -4257,7 +4306,7 @@ td.aktiv .tiltak-samlet-tekst {
   bottom: -3px;
   width: 1px;
   margin-left: -0.5px;
-  background: rgba(29, 40, 48, 0.35);
+  background: rgb(var(--blekk) / 0.35);
 }
 
 /* Samlet: visningsvalg og Ny risk til høyre i verktøylinjen */
@@ -4330,12 +4379,12 @@ td.aktiv .tiltak-samlet-tekst {
 }
 .initialer.tom {
   background: none;
-  border: 1px dashed #b8c0c6;
-  color: #8a959c;
+  border: 1px dashed var(--linje-stiplet);
+  color: var(--dempet-3);
   font-weight: 500;
 }
 .frist-tom {
-  color: #9aa4ab;
+  color: var(--dempet-3);
   font-size: 12px;
 }
 /* Tomme plasser for eier og frist vises bare når musa er over raden eller cellen er valgt */
@@ -4430,7 +4479,7 @@ td.aktiv .frist-tom {
   cursor: pointer;
 }
 .egendef-valg.kan-endre:hover {
-  border-color: #b8c0c6;
+  border-color: var(--linje-stiplet);
 }
 .egendef-valg.valgt,
 .egendef-valg.redigeres {
@@ -4438,7 +4487,7 @@ td.aktiv .frist-tom {
   background: var(--aksent-lys);
 }
 .egendef-navn {
-  color: #7d8890;
+  color: var(--dempet-2);
 }
 .egendef-verdi {
   color: var(--tekst);
@@ -4448,11 +4497,11 @@ td.aktiv .frist-tom {
   white-space: nowrap;
 }
 .egendef-verdi.tom {
-  color: #9aa4ab;
+  color: var(--dempet-3);
   font-weight: 400;
 }
 .egendef-valg .ikon {
-  color: #8a959c;
+  color: var(--dempet-3);
   flex: none;
 }
 .egendef-valg .editor-ramme {
@@ -4479,7 +4528,7 @@ td.aktiv .frist-tom {
   background: var(--aksent-lys);
 }
 .eier-tom {
-  color: #9aa4ab;
+  color: var(--dempet-3);
 }
 .eier-felt .initialer.tom,
 .eier-felt .eier-tom {
@@ -4532,7 +4581,7 @@ td.aktiv .eier-felt .eier-tom {
   cursor: pointer;
 }
 .kolonnemeny .felt-valg button:hover {
-  border-color: #b8c0c6;
+  border-color: var(--linje-stiplet);
 }
 .kolonnemeny .felt-valg button.valgt {
   border-color: var(--aksent);

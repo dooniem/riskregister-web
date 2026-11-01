@@ -33,6 +33,7 @@ import { PersonKontekst, deltakerOp, type Personer } from './Personer'
 import { DemoKatalog, GraphKatalog } from '../store/katalog'
 import type { SnapshotInfo } from '../store/backend'
 import type { Risk } from '../model'
+import { useProfil } from '../profil'
 
 interface Props {
   okt: Okt
@@ -139,6 +140,7 @@ export function RegisterView({ okt, tilbake }: Props) {
   const setStil = (s: Stil) => (setStilRaw(s), lagreStil(s))
   // Samlet er moderne med flere kolonner slått sammen, så alt som gjelder moderne gjelder også samlet
   const moderne = stil !== 'klassisk'
+  const profil = useProfil()
   const samlet = stil === 'samlet'
   // Moderne visning har to sider: registeret og risikobildet
   const [side, setSide] = useState<{ navn: 'register' | 'risikobilde'; rm: 'R' | 'M' }>({ navn: 'register', rm: 'R' })
@@ -295,6 +297,7 @@ export function RegisterView({ okt, tilbake }: Props) {
           <button className="ikonknapp hjem" onClick={tilbake} title="Til startsiden">
             <Pil retning="venstre" str={18} />
           </button>
+          {moderne && profil?.logo && <img className="toppfelt-logo" src={profil.logo} alt={profil.navn} />}
           <div className="tittel">
             <h1>{tittel}</h1>
             <div className="undertittel">
@@ -565,7 +568,7 @@ export function RegisterView({ okt, tilbake }: Props) {
               {visning.fane !== 'skarisk' && !mobil && kolonneKnapp}
               {oversiktKnapp}
               {b.kanSkrive && visning.fane !== 'skarisk' && !mobil && (
-                <button className="knapp primær" onClick={() => setNyRiskTeller((n) => n + 1)}>
+                <button className="knapp primær ny-risk" onClick={() => setNyRiskTeller((n) => n + 1)}>
                   <Pluss /> Ny risk
                 </button>
               )}
@@ -580,7 +583,7 @@ export function RegisterView({ okt, tilbake }: Props) {
             <div className="mobilflate">
               {b.kanSkrive && (
                 <button
-                  className="knapp primær ny-risk-mobil"
+                  className="knapp primær ny-risk ny-risk-mobil"
                   onClick={() => {
                     const r = nyRisk(0)
                     r.fag = fagForNyRisk(doc, visning)
