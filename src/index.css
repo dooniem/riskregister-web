@@ -4287,3 +4287,112 @@ td.aktiv .frist-tom {
   padding: 7px 10px;
   color: var(--dempet);
 }
+
+/* Samlet: egendefinerte felt som nedtrekkslister i risikokortet, under konsekvensen */
+.egendef-rad {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.egendef-valg {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 3px 8px;
+  border: 1px solid var(--linje);
+  border-radius: 6px;
+  background: var(--flate);
+  font-size: 12.5px;
+  line-height: 1.3;
+}
+.egendef-valg.kan-endre {
+  cursor: pointer;
+}
+.egendef-valg.kan-endre:hover {
+  border-color: #b8c0c6;
+}
+.egendef-valg.valgt,
+.egendef-valg.redigeres {
+  border-color: var(--aksent);
+  background: var(--aksent-lys);
+}
+.egendef-navn {
+  color: #7d8890;
+}
+.egendef-verdi {
+  color: var(--tekst);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.egendef-verdi.tom {
+  color: #9aa4ab;
+  font-weight: 400;
+}
+.egendef-valg .ikon {
+  color: #8a959c;
+  flex: none;
+}
+.egendef-valg .editor-ramme {
+  top: calc(100% + 4px);
+  left: -1px;
+  font-size: 13px;
+}
+.samlet-kolonnevelger .underkol {
+  padding-left: 24px;
+}
+
+/* Samlet: risikoeier og kategori kan klikkes hver for seg */
+.eier-felt {
+  display: block;
+  border-radius: 4px;
+  padding: 1px 4px;
+  margin: -1px -4px;
+}
+.eier-felt.kan-endre {
+  cursor: pointer;
+}
+.eier-felt.kan-endre:hover,
+.eier-felt.valgt {
+  background: var(--aksent-lys);
+}
+.eier-tom {
+  color: #9aa4ab;
+}
+.eier-felt .initialer.tom,
+.eier-felt .eier-tom {
+  visibility: hidden;
+}
+tr:hover .eier-felt .initialer.tom,
+tr:hover .eier-felt .eier-tom,
+td.aktiv .eier-felt .initialer.tom,
+td.aktiv .eier-felt .eier-tom {
+  visibility: visible;
+}
+/* En åpen nedtrekksliste i en frossen celle må ligge over de frosne cellene i radene under */
+.grid td.frosset.aktiv:has(.egendef-valg .editor-ramme) {
+  z-index: 3 !important;
+}
+
+/* Kolonnevelger: gruppeavhukingen velger alle kolonnene, sammenslåing er et eget valg til høyre */
+.kolgruppe .gruppelabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.kolgruppe .sammen-knapp {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.kolgruppe .sammen-info {
+  color: var(--dempet);
+  padding: 0 0 2px 22px;
+}
+.kolgruppe.sammen .kollabel {
+  opacity: 0.6;
+}
