@@ -3777,15 +3777,14 @@ td.aktiv .tiltak-samlet-tekst {
   border: 1px dashed var(--linje-stiplet);
 }
 
-/* Nr. og R&M øverst i raden, med nummeret over fagmerket */
+/* Nr. og R&M øverst i raden, med nummeret over fagmerket, begge midtstilt i kolonnen */
 .stil-moderne .grid td.nr-td,
 .stil-moderne .grid td.k-rm {
   vertical-align: top;
 }
 .stil-moderne .grid td.nr-td .nr-celle {
-  align-items: flex-start;
+  align-items: center;
   justify-content: flex-start;
-  padding-left: 8px;
 }
 .stil-moderne .grid td.nr-td .nr-tall {
   order: -1;
