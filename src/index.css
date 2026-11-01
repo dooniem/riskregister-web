@@ -3777,15 +3777,15 @@ td.aktiv .tiltak-samlet-tekst {
   border: 1px dashed var(--linje-stiplet);
 }
 
-/* Nr. og R&M øverst i raden, med nummeret over fagmerket */
+/* Nr. og R&M øverst i raden, med nummeret over fagmerket, begge midtstilt i kolonnen */
 .stil-moderne .grid td.nr-td,
 .stil-moderne .grid td.k-rm {
   vertical-align: top;
 }
 .stil-moderne .grid td.nr-td .nr-celle {
-  align-items: flex-start;
+  align-items: center;
   justify-content: flex-start;
-  padding-left: 8px;
+  gap: 27px; /* fagmerket på linje med kategorien under risikoeieren */
 }
 .stil-moderne .grid td.nr-td .nr-tall {
   order: -1;
@@ -4103,7 +4103,7 @@ td.aktiv .tiltak-samlet-tekst {
 }
 .beskrivelse-samlet {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   /* Linjeskift (Alt+Enter) vises som i Excel */
   white-space: pre-wrap;
   word-break: break-word;
@@ -4137,7 +4137,7 @@ td.aktiv .tiltak-samlet-tekst {
 .beskrivelse-samlet dl {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
-  gap: 2px 10px;
+  gap: 6px 10px;
   margin: 0;
   font-size: 13px;
   line-height: 1.4;
