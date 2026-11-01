@@ -9,7 +9,7 @@ import type { Konflikt, Op } from '../ops'
 import { SimulertKollega } from '../sim'
 import type { Okt } from '../sync'
 import type { Stil, Visning } from '../view'
-import { GRUPPERINGER, STANDARD_VISNING, STILER, filtrer, lagreStil, lesStil } from '../view'
+import { STANDARD_VISNING, grupperinger, STILER, filtrer, lagreStil, lesStil } from '../view'
 import { DemoFiler, type FilKilde } from '../store/filer'
 import { GraphFiler } from '../store/graphFiler'
 import { GraphLister, omraadeLenke } from '../store/lister/graphLister'
@@ -244,9 +244,9 @@ export function RegisterView({ okt, tilbake }: Props) {
   const grupperValg = samlet ? (
     // Ser ut som en knapp («Grupper: Ingen»), men er en vanlig nedtrekksliste under, så tastatur og skjermleser virker som før
     <label className="knapp grupper-knapp">
-      Grupper: {visning.gruppering ? GRUPPERINGER.find((g) => g.key === visning.gruppering)?.tittel : 'Ingen'} <Pil />
+      Grupper: {visning.gruppering ? grupperinger(doc).find((g) => g.key === visning.gruppering)?.tittel : 'Ingen'} <Pil />
       <select aria-label="Grupper etter" value={visning.gruppering} onChange={(e) => setVisning((v) => ({ ...v, gruppering: e.target.value }))}>
-        {GRUPPERINGER.map((g) => (
+        {grupperinger(doc).map((g) => (
           <option key={g.key} value={g.key}>
             {g.tittel}
           </option>
@@ -257,7 +257,7 @@ export function RegisterView({ okt, tilbake }: Props) {
     <label className="velg">
       Grupper etter
       <select value={visning.gruppering} onChange={(e) => setVisning((v) => ({ ...v, gruppering: e.target.value }))}>
-        {GRUPPERINGER.map((g) => (
+        {grupperinger(doc).map((g) => (
           <option key={g.key} value={g.key}>
             {g.tittel}
           </option>

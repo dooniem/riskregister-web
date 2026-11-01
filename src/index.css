@@ -3596,7 +3596,9 @@ td.aktiv .tiltak-samlet-tekst {
 /* Eierskapsgruppen slått sammen: initialer og navn, kategorien under */
 .eier-samlet {
   display: grid;
-  gap: 2px;
+  /* Eier og kategori er to ulike felt, ikke navn med undertittel: luft mellom, og kategorien som eget merke */
+  gap: 10px;
+  justify-items: start;
 }
 .eier-samlet-navn {
   display: flex;
@@ -3605,9 +3607,17 @@ td.aktiv .tiltak-samlet-tekst {
   margin-top: -3px;
 }
 .eier-samlet-kategori {
-  font-size: 13px;
-  color: var(--dempet);
-  padding-left: 34px;
+  display: inline-block;
+  font-size: 12.5px;
+  line-height: 1.3;
+  color: var(--tekst);
+  background: #eef0eb;
+  border-radius: 4px;
+  padding: 2px 7px;
+}
+.eier-samlet-kategori:has(.eier-tom) {
+  background: none;
+  border: 1px dashed #b8c0c6;
 }
 
 /* Nr. og R&M øverst i raden, med nummeret over fagmerket */
@@ -4395,4 +4405,41 @@ td.aktiv .eier-felt .eier-tom {
 }
 .kolgruppe.sammen .kollabel {
   opacity: 0.6;
+}
+
+/* Kolonnemeny for sammenslåtte kolonner: velg feltet det sorteres og filtreres på */
+.kolonnemeny .felt-valg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 6px 6px;
+}
+.kolonnemeny .felt-valg button {
+  border: 1px solid var(--linje);
+  background: var(--flate);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.kolonnemeny .felt-valg button:hover {
+  border-color: #b8c0c6;
+}
+.kolonnemeny .felt-valg button.valgt {
+  border-color: var(--aksent);
+  background: var(--aksent-lys);
+  color: var(--aksent);
+  font-weight: 600;
+}
+/* Et felt som har filter, får en prikk */
+.kolonnemeny .felt-valg button.filtrert::after {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: var(--aksent);
 }
