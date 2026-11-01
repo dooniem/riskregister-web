@@ -33,15 +33,6 @@ Tilkobling til Entra ID settes på én av disse måtene (første som finnes bruk
 2. Miljøvariablene `VITE_AZURE_CLIENT_ID` og `VITE_AZURE_TENANT_ID` ved bygging
 3. `config.json` ved siden av `index.html`
 
-## Bedriftsprofil
-
-Moderne og samlet visning kan få farger, skrift og logo fra en bedriftsprofil. Uten profil er appen nøytral.
-
-- Velg profil i `config.json`: `"profil": "skanska"`. Fjern linjen for nøytralt utseende.
-- Overstyr i adressen med `?profil=skanska` eller `?profil=ingen` (huskes i fanen), for eksempel for å vise appen frem nøytralt.
-- Alt Skanska-spesifikt ligger i `src/profil/` (`skanska.css`, logoen og fanesymbolet). En ny bedrift legges til med en egen CSS-fil som overstyrer variablene i `.stil-moderne`, og en linje i `PROFILER` i `src/profil/index.ts`.
-- Skanska-skriften Shape Sans brukes bare når den er installert på maskinen. Skriftfilene skal ikke inn i repoet, fordi repoet og nettsiden er offentlige.
-
 ## Kode
 
 | Fil | Innhold |
