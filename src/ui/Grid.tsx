@@ -614,7 +614,17 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
     window.addEventListener('mouseup', slipp)
   }
 
-  const harFilter = (key: string) => (visning.filter.verdier[key]?.length ?? 0) > 0 || !!visning.filter.tekst[key]
+  // Feltene en kolonnemeny kan sortere og filtrere på. En sammenslått kolonne viser flere felt, og alle kan velges.
+  function menyFelter(key: string): Kolonne[] {
+    const kol = KOL[key]
+    if (!kol) return []
+    const medEgendef2 = (x: Kolonne) => x.key !== 'egendef2' || doc.lister.egendef2Aktiv
+    if (samlet && key === 'hendelse') return [...BESKRIVELSE, 'rm', ...EGENDEF].map((x) => KOL[x]).filter(medEgendef2)
+    if (sammen.includes(kol.gruppe) && GRUPPER.find((g) => g.key === kol.gruppe)?.hoved === key)
+      return KOLONNER.filter((x) => x.gruppe === kol.gruppe && medEgendef2(x) && !(samlet && kol.gruppe === 'eierskap' && EGENDEF.includes(x.key)))
+    return [kol]
+  }
+  const harFilter = (key: string) => menyFelter(key).some((f) => (visning.filter.verdier[f.key]?.length ?? 0) > 0 || !!visning.filter.tekst[f.key])
 
   const totalBredde = kolonner.reduce((s, k) => s + bredde(k), 0)
   const fyllBredde = samlet && kolonner.some((k) => k.key === 'hendelse') && visning.bredder.hendelse == null
@@ -753,6 +763,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
       {meny && (
         <KolonneMeny
           kolonne={KOLONNER.find((k) => k.key === meny.kol)!}
+          felter={menyFelter(meny.kol)}
           doc={doc}
           visning={visning}
           setVisning={setVisning}
@@ -1381,7 +1392,8 @@ function KostCelle({ r, skala }: { r: Risk; skala?: Skala }) {
 }
 
 function KolonneMeny({
-  kolonne: k,
+  kolonne: hode,
+  felter,
   doc,
   visning,
   setVisning,
@@ -1391,6 +1403,7 @@ function KolonneMeny({
   lukk,
 }: {
   kolonne: Kolonne
+  felter: Kolonne[]
   doc: Register
   visning: Visning
   setVisning: (f: (v: Visning) => Visning) => void
@@ -1399,7 +1412,21 @@ function KolonneMeny({
   y: number
   lukk: () => void
 }) {
+  // Sammenslåtte kolonner: velg hvilket felt det sorteres og filtreres på. Starter på feltet som allerede har filter, om noen.
+  const harFilterPaa = (f: Kolonne) => (visning.filter.verdier[f.key]?.length ?? 0) > 0 || !!visning.filter.tekst[f.key]
+  const [feltKey, setFeltKey] = useState(() => (felter.find(harFilterPaa) ?? felter[0] ?? hode).key)
+  const k = felter.find((f) => f.key === feltKey) ?? hode
   const brukVerdier = k.type !== 'langtekst' && k.type !== 'tekst'
+  const sortertPaa = visning.sortering[0] && KOL[visning.sortering[0].key]
+  const filterHer = harFilterPaa(k)
+  const fjernFilter = () =>
+    setVisning((v) => {
+      const verdier = { ...v.filter.verdier }
+      const tekst = { ...v.filter.tekst }
+      delete verdier[k.key]
+      delete tekst[k.key]
+      return { ...v, filter: { ...v.filter, verdier, tekst } }
+    })
   const tilgjengelig = useMemo(() => {
     const s = new Set<string>()
     for (const r of filtrer(doc, visning, k.key)) filterVerdier(k, r).forEach((v) => s.add(v))
@@ -1424,10 +1451,20 @@ function KolonneMeny({
   const left = Math.min(x, window.innerWidth - 280)
   return (
     <div className="kolonnemeny" style={{ left, top: y }} onClick={(e) => e.stopPropagation()}>
-      <div className="meny-tittel">{k.tittel(doc)}</div>
+      <div className="meny-tittel">{felter.length > 1 ? 'Sorter og filtrer på' : k.tittel(doc)}</div>
+      {felter.length > 1 && (
+        <div className="felt-valg" role="radiogroup" aria-label="Felt">
+          {felter.map((f) => (
+            <button key={f.key} role="radio" aria-checked={f.key === k.key} className={(f.key === k.key ? 'valgt' : '') + (harFilterPaa(f) ? ' filtrert' : '')} onClick={() => setFeltKey(f.key)}>
+              {f.tittel(doc)}
+            </button>
+          ))}
+        </div>
+      )}
       <button onClick={() => sorter(true)}>Sorter stigende (A–Å, 1–9)</button>
       <button onClick={() => sorter(false)}>Sorter synkende (Å–A, 9–1)</button>
-      {visning.sortering.length > 0 && <button onClick={() => (setVisning((v) => ({ ...v, sortering: [] })), lukk())}>Fjern sortering (tilbake til Nr.)</button>}
+      {sortertPaa && <button onClick={() => (setVisning((v) => ({ ...v, sortering: [] })), lukk())}>Fjern sortering på {sortertPaa.tittel(doc)}</button>}
+      {filterHer && <button onClick={fjernFilter}>Fjern filter på {k.tittel(doc)}</button>}
       {moderne && k.key === 'fv' && (
         <>
           <hr />
@@ -1475,8 +1512,8 @@ function KolonneMeny({
         />
       )}
       <hr />
-      {!k.frosset && (
-        <button onClick={() => (setVisning((v) => ({ ...v, skjulteKolonner: [...v.skjulteKolonner, k.key] })), lukk())}>Skjul kolonnen</button>
+      {!hode.frosset && (
+        <button onClick={() => (setVisning((v) => ({ ...v, skjulteKolonner: [...v.skjulteKolonner, hode.key] })), lukk())}>Skjul kolonnen</button>
       )}
       <button onClick={lukk}>Lukk</button>
     </div>

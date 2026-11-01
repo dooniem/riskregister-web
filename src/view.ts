@@ -91,9 +91,17 @@ export const GRUPPERINGER: { key: string; tittel: string; verdi: (r: Risk, doc: 
   { key: 'rm', tittel: 'Risiko / mulighet', verdi: (r) => (r.rm === 'R' ? 'Risiko' : r.rm === 'M' ? 'Mulighet' : '(ikke angitt)') },
   { key: 'nivaa', tittel: 'Eksponeringsnivå', verdi: (r) => eksponeringNivaa(eksponering(r)) },
   { key: 'egendef', tittel: 'Egendefinert', verdi: (r) => r.egendef || '(tom)' },
+  { key: 'egendef2', tittel: 'Egendefinert 2', verdi: (r) => r.egendef2 || '(tom)' },
   { key: 'status', tittel: 'Status risk', verdi: (r) => r.status || '(tom)' },
   { key: 'tiltakstatus', tittel: 'Status på tiltak', verdi: (r) => tiltakOppsummering(r) },
 ]
+
+// Grupperingene som kan velges i registeret: de egendefinerte får navnet fra prosjektet, og felt 2 er bare med når det er aktivert
+export function grupperinger(doc: Register) {
+  return GRUPPERINGER.filter((g) => g.key !== 'egendef2' || doc.lister.egendef2Aktiv).map((g) =>
+    g.key === 'egendef' ? { ...g, tittel: doc.lister.egendefNavn || g.tittel } : g.key === 'egendef2' ? { ...g, tittel: doc.lister.egendef2Navn || g.tittel } : g,
+  )
+}
 
 function tiltakOppsummering(r: Risk): string {
   const st = r.tiltak.filter((t) => t.tekst || t.status).map((t) => t.status)
