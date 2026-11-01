@@ -4113,3 +4113,59 @@ td.aktiv .tiltak-samlet-tekst {
 .oversikt-samlet .mlabel.x {
   width: 20px;
 }
+
+/* Kostspennet: nullstrek når skalaen går under null, og tonet ende når spennet går forbi skalaen */
+.kost-spenn s {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  margin-left: -0.5px;
+  background: rgba(29, 40, 48, 0.28);
+}
+.kost-spenn.over i {
+  -webkit-mask-image: linear-gradient(to right, #000 70%, transparent);
+  mask-image: linear-gradient(to right, #000 70%, transparent);
+}
+.kost-spenn.under i {
+  -webkit-mask-image: linear-gradient(to left, #000 70%, transparent);
+  mask-image: linear-gradient(to left, #000 70%, transparent);
+}
+.kost-spenn.over.under i {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 20%, #000 80%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 20%, #000 80%, transparent);
+}
+
+/* Samlet: visningsvalg og Ny risk til høyre i verktøylinjen */
+.verktoy-hoyre {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.grupper-knapp {
+  position: relative;
+}
+.grupper-knapp select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.grupper-knapp:has(select:focus-visible) {
+  outline: 2px solid var(--aksent);
+  outline-offset: 2px;
+}
+.samlet-kolonnevelger {
+  left: auto;
+  right: 0;
+  width: 260px;
+  padding: 6px 10px 10px;
+}
+.samlet-kolonnevelger .kollabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
