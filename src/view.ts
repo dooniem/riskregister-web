@@ -33,6 +33,7 @@ export interface Visning {
   fag?: string[] // valgte fag-id-er, UTEN_FAG for risker uten fag. Tom = alle
   skjulFag?: boolean // skjul fagmerkene i Nr.-kolonnen og på kortene (også i utskrift)
   person?: string // vis bare risker der personen er risikoeier eller tiltakseier
+  samletUtenKategori?: boolean // skjul kategorien under risikoeieren i samlet utseende (egen innstilling, så Klassisk ikke påvirkes)
   samletEgendef?: string[] // egendefinerte felt som vises i risikokortet i samlet utseende ('egendef', 'egendef2'). Tom = ingen
   kostSkala?: 'prosjekt' // kostspennet i moderne utseende: egen skala per risk (standard) eller felles skala for prosjektet
 }

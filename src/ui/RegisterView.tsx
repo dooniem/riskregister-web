@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { GRUPPER, KOLONNER } from '../columns'
 import { excelFil, lastNed, lesExcel } from '../excel'
 import { SkariskVisning } from './Skarisk'
@@ -750,7 +750,7 @@ function Meldinger({ antall, children }: { antall: number; children: React.React
 
 // Samlet utseende: kolonnene er faste og slått sammen, så her kan de bare vises eller skjules
 const SAMLET_KOLONNER: [string, string][] = [
-  ['eier', 'Risikoeier og kategori'],
+  ['eier', 'Risikoeier'],
   ['eksponering', 'Eksponering'],
   ['fv', 'Forventet kost'],
   ['tiltak', 'Tiltak, eier og frist'],
@@ -801,16 +801,28 @@ function SamletKolonnevelger({ doc, visning, setVisning, lukk }: { doc: Register
         </label>
       ))}
       {SAMLET_KOLONNER.map(([key, navn]) => (
-        <label key={key} className="kollabel">
-          <input
-            type="checkbox"
-            checked={!visning.skjulteKolonner.includes(key)}
-            onChange={(e) =>
-              setVisning((v) => ({ ...v, skjulteKolonner: e.target.checked ? v.skjulteKolonner.filter((x) => x !== key) : [...v.skjulteKolonner, key] }))
-            }
-          />{' '}
-          {navn}
-        </label>
+        <Fragment key={key}>
+          <label className="kollabel">
+            <input
+              type="checkbox"
+              checked={!visning.skjulteKolonner.includes(key)}
+              onChange={(e) =>
+                setVisning((v) => ({ ...v, skjulteKolonner: e.target.checked ? v.skjulteKolonner.filter((x) => x !== key) : [...v.skjulteKolonner, key] }))
+              }
+            />{' '}
+            {navn}
+          </label>
+          {key === 'eier' && !visning.skjulteKolonner.includes('eier') && (
+            <label className="kollabel underkol">
+              <input
+                type="checkbox"
+                checked={!visning.samletUtenKategori}
+                onChange={(e) => setVisning((v) => ({ ...v, samletUtenKategori: e.target.checked ? undefined : true }))}
+              />{' '}
+              Kategori
+            </label>
+          )}
+        </Fragment>
       ))}
     </div>
   )
