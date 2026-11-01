@@ -2922,6 +2922,8 @@ td .valgpil.synlig {
 }
 .stil-moderne .grid .kol-rad th {
   top: 28px;
+  /* Plass til filterpila til høyre, også når teksten er høyrejustert (Forventet kost) */
+  padding-right: 26px;
   font-weight: 500;
   font-size: 13px;
   color: var(--dempet);
@@ -4244,4 +4246,44 @@ td.aktiv .frist-tom {
 }
 .grid td.annen-eier:not(.aktiv) > * {
   opacity: 0.45;
+}
+
+/* Personvelger med søk */
+.personmeny {
+  width: 260px;
+  max-height: min(420px, 70vh);
+}
+.personmeny input {
+  margin: 2px 2px 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--linje);
+  border-radius: 6px;
+  font: inherit;
+}
+.personmeny .person-liste {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.personmeny .person-liste > button {
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 7px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.personmeny .person-liste > button:hover,
+.personmeny .person-liste > button.markert {
+  background: var(--aksent-lys);
+}
+.personmeny .person-liste > button.valgt {
+  font-weight: 600;
+  color: var(--aksent);
+}
+.personmeny .tomt-sok {
+  padding: 7px 10px;
+  color: var(--dempet);
 }
