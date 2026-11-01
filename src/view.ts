@@ -57,18 +57,19 @@ export const UTEN_FAG = '_uten'
 // Samlet bygger på moderne, men slår sammen beskrivelse, eierskap og tiltak til hver sin kolonne.
 export type Stil = 'klassisk' | 'moderne' | 'samlet'
 export const STILER: { key: Stil; navn: string }[] = [
-  { key: 'klassisk', navn: 'Klassisk' },
-  { key: 'moderne', navn: 'Moderne' },
   { key: 'samlet', navn: 'Samlet' },
+  { key: 'moderne', navn: 'Moderne' },
+  { key: 'klassisk', navn: 'Klassisk' },
 ]
 const STIL_KEY = 'rr-stil'
 
 export function lesStil(): Stil {
   try {
     const s = localStorage.getItem(STIL_KEY)
-    return s === 'moderne' || s === 'samlet' ? s : 'klassisk'
+    // Samlet er standard for nye brukere; den som har valgt noe selv, beholder valget
+    return s === 'moderne' || s === 'klassisk' ? s : 'samlet'
   } catch {
-    return 'klassisk'
+    return 'samlet'
   }
 }
 
