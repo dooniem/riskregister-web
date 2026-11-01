@@ -3785,6 +3785,7 @@ td.aktiv .tiltak-samlet-tekst {
 .stil-moderne .grid td.nr-td .nr-celle {
   align-items: center;
   justify-content: flex-start;
+  gap: 27px; /* fagmerket på linje med kategorien under risikoeieren */
 }
 .stil-moderne .grid td.nr-td .nr-tall {
   order: -1;
