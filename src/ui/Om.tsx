@@ -33,7 +33,7 @@ export function OmDialog({ demo, lukk }: { demo: boolean; lukk: () => void }) {
             {VERSJONER.slice(1).map((v) => (
               <section key={v.versjon}>
                 <h4>
-                  Versjon {v.versjon} <span>{dato(v.dato)}</span>
+                  Versjon {v.versjon} {v.dato && <span>{dato(v.dato)}</span>}
                 </h4>
                 <VersjonInnhold v={v} />
               </section>
@@ -70,7 +70,7 @@ export function OmDialog({ demo, lukk }: { demo: boolean; lukk: () => void }) {
         </ul>
       </div>
       <footer className="om-fot">
-        Riskregister {GJELDENDE.versjon} · {dato(GJELDENDE.dato)} · Laget av Magnus Petersen
+        Riskregister {GJELDENDE.versjon} · Laget av Magnus Petersen
       </footer>
     </Modal>
   )
