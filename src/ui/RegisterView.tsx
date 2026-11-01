@@ -26,6 +26,7 @@ import { HentOppsett } from './HentOppsett'
 import { Oversikt } from './Oversikt'
 import { Prosjektpanel } from './Prosjektpanel'
 import { RaadataDialog } from './Raadata'
+import { OmDialog } from './Om'
 import { SnapshotDialog } from './Snapshots'
 import { StorMatrise } from './StorMatrise'
 import { Risikobilde } from './Risikobilde'
@@ -131,6 +132,7 @@ export function RegisterView({ okt, tilbake }: Props) {
   const [mot, setMot] = useState<{ info: SnapshotInfo; doc: Register } | null>(null)
   const motRisker = useMemo(() => (mot ? new Map<string, Risk>(mot.doc.risker.map((r) => [r.id, r])) : undefined), [mot])
   const [raadata, setRaadata] = useState(false)
+  const [om, setOm] = useState(false)
   const [kolonneFeil, setKolonneFeil] = useState<string | null>(null)
   const [lagerKolonner, setLagerKolonner] = useState(false)
   const manglende = b.snapshot ? [] : (b.lager?.manglendeKolonner?.() ?? [])
@@ -431,6 +433,8 @@ export function RegisterView({ okt, tilbake }: Props) {
                     <button onClick={() => window.open(window.location.href + '&ny=1', '_blank')}>Åpne registeret i ny fane (ny bruker)</button>
                   </>
                 )}
+                <hr />
+                <button onClick={() => setOm(true)}>Om Riskregister…</button>
               </div>
             )}
           </div>
@@ -646,6 +650,7 @@ export function RegisterView({ okt, tilbake }: Props) {
           />
         )}
         {raadata && b.lager && <RaadataDialog lager={b.lager} lukk={() => setRaadata(false)} />}
+        {om && <OmDialog demo={b.type === 'demo'} lukk={() => setOm(false)} />}
         {prosjekt && (
           <Prosjektpanel
             doc={doc}
