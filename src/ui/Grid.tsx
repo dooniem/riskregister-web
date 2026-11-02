@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Kolonne } from '../columns'
 import { GRUPPER, KOL, KOLONNER, editorTekst, formatDato, formatEndring, formatTall, tolkInput, visTekst } from '../columns'
 import type { Register, Risk, Tiltak } from '../model'
@@ -15,6 +15,7 @@ import { KostEditor } from './KostEditor'
 import { VurderingEditor } from './VurderingEditor'
 import { Laas, Pil } from './Ikoner'
 import { RiskInfo } from './RiskInfo'
+import { HistorikkKontekst } from './Historikk'
 import { initialer, likNavn } from './Personer'
 import { LeggTilVedlegg, VedleggMeny } from './Vedlegg'
 import type { FilKilde } from '../store/filer'
@@ -112,6 +113,7 @@ export function synligeKolonner(v: Visning, egendef2Aktiv = false, moderne = fal
 const KOST_NAVN: Record<string, string> = { bc: 'Best case', ml: 'Most likely', wc: 'Worst case', eksponering: 'Sannsynlighet × konsekvens' }
 
 export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapneDetalj, aapneVedlegg, filer, melding, kanSkrive, mot, moderne = false, samlet = false, nyRiskTeller = 0, forsteTreffTeller = 0 }: Props) {
+  const visHistorikk = useContext(HistorikkKontekst)
   const [aktiv, setAktiv] = useState<Posisjon | null>(null)
   const [redigerer, setRedigerer] = useState<(Posisjon & { start: string; erstatt: boolean; markor?: number }) | null>(null)
   const [meny, setMeny] = useState<{ kol: string; x: number; y: number } | null>(null)
@@ -1016,6 +1018,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
             return r && <RiskInfo r={r} />
           })()}
           <button onClick={() => (aapneDetalj(kontekst.pos.riskId), setKontekst(null))}>Åpne risk i eget panel</button>
+          {visHistorikk && <button onClick={() => (visHistorikk(kontekst.pos.riskId), setKontekst(null))}>Vis historikk…</button>}
           {(() => {
             const r = doc.risker.find((x) => x.id === kontekst.pos.riskId)
             const kanVedlegg = kanSkrive && !!filer

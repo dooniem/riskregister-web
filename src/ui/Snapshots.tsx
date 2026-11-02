@@ -34,6 +34,9 @@ export function SnapshotDialog({ snapshots, doc, kanSkrive, lukk, melding, aapne
   const [kommentar, setKommentar] = useState('')
   const [jobber, setJobber] = useState('')
   const [feil, setFeil] = useState('')
+  // Mens et snapshot lagres: hvor mange risker som er skrevet. Dialogen kan ikke lukkes så lenge.
+  const [tar, setTar] = useState<{ ferdig: number; totalt: number } | null>(null)
+  const [nyId, setNyId] = useState('') // snapshotet som nettopp ble tatt, markeres i listen
   const [valgt, setValgt] = useState<{ info: SnapshotInfo; doc: Register } | null>(start ?? null)
 
   const jobb = async (tekst: string, f: () => Promise<void>) => {
@@ -53,11 +56,22 @@ export function SnapshotDialog({ snapshots, doc, kanSkrive, lukk, melding, aapne
     void hentListe()
   }, [snapshots])
 
+  // Advarer hvis fanen lukkes eller lastes på nytt mens snapshotet lagres
+  const lagrer = !!tar
+  useEffect(() => {
+    if (!lagrer) return
+    const f = (e: BeforeUnloadEvent) => e.preventDefault()
+    window.addEventListener('beforeunload', f)
+    return () => window.removeEventListener('beforeunload', f)
+  }, [lagrer])
+
+  const lukkHvisLov = lagrer ? undefined : lukk
+
   return (
-    <Modal className="bred" lukk={lukk}>
+    <Modal className="bred" lukk={lukkHvisLov}>
       <header>
         <ModalTittel>{valgt ? `Endringer siden «${valgt.info.navn}»` : 'Snapshots'}</ModalTittel>
-        <button className="ikonknapp" onClick={lukk} aria-label="Lukk" title="Lukk">
+        <button className="ikonknapp" onClick={lukk} disabled={!!tar} aria-label="Lukk" title={tar ? 'Vent til snapshotet er lagret' : 'Lukk'}>
           ✕
         </button>
       </header>
@@ -76,17 +90,25 @@ export function SnapshotDialog({ snapshots, doc, kanSkrive, lukk, melding, aapne
               se endringer i BC, ML, WC og FV i tabellen og oversikten, og piler i risikomatrisen. Snapshotene ligger i listene «Riskregister Snapshots» og «Riskregister
               Snapshotdata».
             </p>
-            {kanSkrive && (
+            {kanSkrive && tar && <SnapshotFremdrift navn={navn} {...tar} />}
+            {kanSkrive && !tar && (
               <form
                 className="snapshot-ny"
                 onSubmit={(e) => {
                   e.preventDefault()
+                  setNyId('')
+                  setTar({ ferdig: 0, totalt: doc.risker.length })
                   void jobb('Tar snapshot…', async () => {
-                    const s = await snapshots.ta(navn.trim() || dagensNavn(), kommentar.trim(), doc)
-                    melding(`Snapshot «${s.navn}» er lagret med ${s.antallRisker} risker.`)
-                    setNavn(dagensNavn())
-                    setKommentar('')
-                    setListe(await snapshots.liste())
+                    try {
+                      const s = await snapshots.ta(navn.trim() || dagensNavn(), kommentar.trim(), doc, (ferdig, totalt) => setTar({ ferdig, totalt }))
+                      melding(`Snapshot «${s.navn}» er lagret med ${s.antallRisker} risker.`)
+                      setNavn(dagensNavn())
+                      setKommentar('')
+                      setNyId(s.id)
+                      setListe(await snapshots.liste())
+                    } finally {
+                      setTar(null)
+                    }
                   })
                 }}
               >
@@ -103,7 +125,7 @@ export function SnapshotDialog({ snapshots, doc, kanSkrive, lukk, melding, aapne
                 </button>
               </form>
             )}
-            {jobber && <p className="liten">{jobber}</p>}
+            {jobber && !tar && <p className="liten">{jobber}</p>}
             {feil && <div className="banner feil">{feil}</div>}
             {liste && liste.length === 0 && <p>Ingen snapshots ennå.</p>}
             {liste && liste.length > 0 && (
@@ -119,9 +141,10 @@ export function SnapshotDialog({ snapshots, doc, kanSkrive, lukk, melding, aapne
                 </thead>
                 <tbody>
                   {liste.map((s) => (
-                    <tr key={s.id}>
+                    <tr key={s.id} className={s.id === nyId ? 'snapshot-nytt' : undefined}>
                       <td>
                         <b>{s.navn}</b>
+                        {s.id === nyId && <span className="snapshot-merke">✓ Nettopp lagret</span>}
                         {s.kommentar && <div className="liten">{s.kommentar}</div>}
                       </td>
                       <td>{tid(s.tidspunkt)}</td>
@@ -171,6 +194,24 @@ export function SnapshotDialog({ snapshots, doc, kanSkrive, lukk, melding, aapne
         )}
       </div>
     </Modal>
+  )
+}
+
+// Vises i stedet for skjemaet mens snapshotet lagres
+function SnapshotFremdrift({ navn, ferdig, totalt }: { navn: string; ferdig: number; totalt: number }) {
+  const sist = ferdig >= totalt // riskene er lagret, bare snapshot-raden gjenstår
+  return (
+    <div className="snapshot-fremdrift" role="status" aria-live="polite">
+      <div className="snapshot-fremdrift-topp">
+        <span className="spinner" aria-hidden="true" />
+        <div>
+          <b>Tar snapshot «{navn.trim() || dagensNavn()}»…</b>
+          <div className="liten">{sist ? 'Gjør ferdig snapshotet…' : `Lagrer riskene … ${ferdig} av ${totalt}`}</div>
+        </div>
+      </div>
+      <progress max={totalt + 1} value={sist ? totalt + 1 : ferdig} aria-label="Fremdrift" />
+      <p className="liten">Dette kan ta litt tid for store registre. Ikke lukk vinduet før snapshotet er lagret.</p>
+    </div>
   )
 }
 

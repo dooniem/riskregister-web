@@ -1,7 +1,7 @@
 // Liksom-SharePoint-lister i nettleserens localStorage for demomodus. Oppfører seg som listene i SharePoint:
 // hver rad har id og etag, og en endring med utdatert etag avvises. Delt mellom faner, så flere faner kan
 // opptre som ulike brukere i samme register.
-import type { Element, Endring, ListeLager, Resultat } from './lager'
+import type { Element, Endring, ListeLager, RadVersjon, Resultat } from './lager'
 import type { ListeNavn } from './skjema'
 import { LISTER } from './skjema'
 
@@ -84,6 +84,32 @@ export class DemoLister implements ListeLager {
     skriv(demoNokkel(this.navn, liste), JSON.stringify({ ...l, endret: etag() }))
   }
 
+  // Versjonshistorikk som i SharePoint, bare for risker og tiltak
+  private versjonNokkel(liste: ListeNavn) {
+    return `${PREFIX}${this.navn}:v:${liste}`
+  }
+  private lagreVersjon(liste: ListeNavn, el: Element) {
+    if (liste !== 'risker' && liste !== 'tiltak') return
+    const k = this.versjonNokkel(liste)
+    let alle: Record<string, RadVersjon[]> = {}
+    try {
+      alle = JSON.parse(les(k) ?? '{}')
+    } catch {
+      alle = {}
+    }
+    alle[el.id] = [...(alle[el.id] ?? []), { tid: el.endret ?? new Date().toISOString(), av: el.endretAv, felt: el.felt, forste: !alle[el.id]?.length }].slice(-100)
+    skriv(k, JSON.stringify(alle))
+  }
+
+  async versjoner(liste: ListeNavn, id: string): Promise<RadVersjon[]> {
+    await this.vent()
+    try {
+      return (JSON.parse(les(this.versjonNokkel(liste)) ?? '{}') as Record<string, RadVersjon[]>)[id] ?? []
+    } catch {
+      return []
+    }
+  }
+
   har(_liste: ListeNavn) {
     return true
   }
@@ -107,6 +133,7 @@ export class DemoLister implements ListeLager {
         const el: Element = { id: String(l.neste++), etag: etag(), felt: { ...e.felt }, opprettet: naa, opprettetAv: this.brukernavn, endret: naa, endretAv: this.brukernavn }
         l.el.push(el)
         this.skrivListe(e.liste, l)
+        this.lagreVersjon(e.liste, el)
         return { ok: true, element: el }
       }
       const i = l.el.findIndex((x) => x.id === e.id)
@@ -118,6 +145,7 @@ export class DemoLister implements ListeLager {
       if (i < 0 || (e.etag && l.el[i].etag !== e.etag)) return { ok: false, konflikt: true }
       l.el[i] = { ...l.el[i], etag: etag(), felt: { ...l.el[i].felt, ...e.felt }, endret: naa, endretAv: this.brukernavn }
       this.skrivListe(e.liste, l)
+      this.lagreVersjon(e.liste, l.el[i])
       return { ok: true, etag: l.el[i].etag }
     })
     this.kanal?.postMessage({ navn: this.navn })

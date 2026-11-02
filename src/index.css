@@ -2198,6 +2198,73 @@ td .valgpil.synlig {
   flex: 1;
   min-width: 200px;
 }
+.snapshot-fremdrift {
+  margin: 8px 0 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--linje);
+  border-left: 4px solid #4dabf7;
+  border-radius: 6px;
+  background: color-mix(in srgb, #4dabf7 8%, transparent);
+}
+.snapshot-fremdrift-topp {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.snapshot-fremdrift progress {
+  display: block;
+  width: 100%;
+  height: 8px;
+  margin: 10px 0 6px;
+  appearance: none;
+  border: none;
+  border-radius: 4px;
+  overflow: hidden;
+  background: color-mix(in srgb, #339af0 18%, transparent);
+}
+.snapshot-fremdrift progress::-webkit-progress-bar {
+  background: transparent;
+}
+.snapshot-fremdrift progress::-webkit-progress-value {
+  background: #339af0;
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+.snapshot-fremdrift progress::-moz-progress-bar {
+  background: #339af0;
+  border-radius: 4px;
+}
+.snapshot-fremdrift p {
+  margin: 0;
+}
+.spinner {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 3px solid color-mix(in srgb, #339af0 25%, transparent);
+  border-top-color: #339af0;
+  border-radius: 50%;
+  animation: spinn 0.8s linear infinite;
+}
+@keyframes spinn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2.4s;
+  }
+}
+.snapshotliste tr.snapshot-nytt td {
+  background: color-mix(in srgb, #51cf66 12%, transparent);
+}
+.snapshot-merke {
+  margin-left: 8px;
+  font-size: 12px;
+  color: #2b8a3e;
+  font-weight: 600;
+}
 .snapshotliste,
 .endringer {
   width: 100%;
@@ -5206,4 +5273,109 @@ td.aktiv .eier-felt .eier-tom {
 }
 .undermeny.flytende::before {
   display: none;
+}
+
+/* Historikk for en risk og tiltakene dens */
+.historikk-risk {
+  margin: 0 0 10px;
+  font-weight: 600;
+}
+.historikk-laster {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.spinner.liten {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+}
+.historikk-liste {
+  list-style: none;
+  margin: 10px 0;
+  padding: 0;
+}
+.historikk-post {
+  position: relative;
+  padding: 8px 0 10px 18px;
+  border-left: 2px solid var(--linje);
+  margin-left: 6px;
+}
+.historikk-post::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 13px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #74c0fc;
+  border: 2px solid var(--flate, #fff);
+}
+.historikk-post.tiltak::before {
+  background: #8ce99a;
+}
+.historikk-topp {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.historikk-merke {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, #339af0 15%, transparent);
+  color: #1864ab;
+}
+.historikk-merke.tiltak {
+  background: color-mix(in srgb, #40c057 15%, transparent);
+  color: #2b8a3e;
+}
+.historikk-tiltak {
+  margin-top: 2px;
+  font-style: italic;
+}
+.historikk-endringer {
+  margin: 6px 0 0;
+  display: grid;
+  gap: 4px;
+}
+.historikk-endringer > div {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 8px;
+}
+.historikk-endringer dt {
+  color: var(--dempet, #666);
+  font-size: 13px;
+}
+.historikk-endringer dd {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.historikk-endringer del {
+  color: #c92a2a;
+  background: color-mix(in srgb, #fa5252 10%, transparent);
+}
+.historikk-endringer ins {
+  color: #2b8a3e;
+  text-decoration: none;
+  background: color-mix(in srgb, #40c057 12%, transparent);
+}
+.historikk-endringer .pil {
+  margin: 0 6px;
+  color: var(--dempet, #888);
+}
+.historikk-endringer .tom {
+  font-style: italic;
+  color: var(--dempet, #888);
+}
+@media (max-width: 600px) {
+  .historikk-endringer > div {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
 }

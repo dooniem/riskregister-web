@@ -29,6 +29,7 @@ import { RaadataDialog } from './Raadata'
 import { OmDialog } from './Om'
 import { SnarveierDialog } from './Snarveier'
 import { SnapshotDialog } from './Snapshots'
+import { HistorikkDialog, HistorikkKontekst } from './Historikk'
 import { StorMatrise } from './StorMatrise'
 import { Risikobilde } from './Risikobilde'
 import { PersonKontekst, deltakerOp, type Personer } from './Personer'
@@ -129,6 +130,8 @@ export function RegisterView({ okt, tilbake }: Props) {
   const [importert, setImportert] = useState<{ reg: Register; filnavn: string } | null>(null)
   const [meldinger, setMeldinger] = useState<Melding[]>([])
   const [sim, setSim] = useState<SimulertKollega | null>(null)
+  const [historikkFor, setHistorikkFor] = useState<string | null>(null)
+  const hentHistorikk = useCallback((id: string) => b.historikk?.(id) ?? Promise.resolve([]), [b])
   const [snapshots, setSnapshots] = useState<false | 'liste' | 'endringer'>(false)
   const [storMatrise, setStorMatrise] = useState<'R' | 'M' | null>(null)
   // Snapshotet registeret sammenlignes med akkurat nå
@@ -335,6 +338,7 @@ export function RegisterView({ okt, tilbake }: Props) {
 
   return (
     <PersonKontekst.Provider value={personer}>
+    <HistorikkKontekst.Provider value={b.historikk && !b.snapshot ? setHistorikkFor : null}>
       <div className={'app' + (visning.skjulFag ? ' skjul-fag' : '') + (moderne ? ' stil-moderne' : '') + (samlet ? ' stil-samlet' : '')}>
         <header className="toppfelt">
           <button className="ikonknapp hjem" onClick={tilbake} title="Til startsiden">
@@ -709,6 +713,7 @@ export function RegisterView({ okt, tilbake }: Props) {
         </>
         )}
 
+        {historikkFor && b.historikk && <HistorikkDialog riskId={historikkFor} doc={doc} hent={hentHistorikk} lukk={() => setHistorikkFor(null)} />}
         {snapshots && b.snapshots && (
           <SnapshotDialog
             snapshots={b.snapshots}
@@ -814,6 +819,7 @@ export function RegisterView({ okt, tilbake }: Props) {
           ))}
         </Meldinger>
       </div>
+    </HistorikkKontekst.Provider>
     </PersonKontekst.Provider>
   )
 }

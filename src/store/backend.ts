@@ -1,6 +1,6 @@
 import type { Register, Risk, Tiltak } from '../model'
 import type { Bruker } from '../ops'
-import type { ListeLager } from './lister/lager'
+import type { ListeLager, RadVersjon } from './lister/lager'
 
 export interface Versjon {
   doc: Register
@@ -30,7 +30,8 @@ export interface SnapshotInfo {
 
 export interface Snapshots {
   liste(): Promise<SnapshotInfo[]>
-  ta(navn: string, kommentar: string, doc: Register): Promise<SnapshotInfo>
+  // fremdrift: kalles etter hver bolk med hvor mange risker som er lagret
+  ta(navn: string, kommentar: string, doc: Register, fremdrift?: (ferdig: number, totalt: number) => void): Promise<SnapshotInfo>
   hent(id: string): Promise<{ info: SnapshotInfo; doc: Register }>
   slett(id: string): Promise<void>
 }
@@ -45,6 +46,11 @@ export interface Avvik {
   doble: { riskId: string; nr: number; tittel: string; kopier: { radId: string; risk: Risk }[] }[] // kopier: radene som ikke brukes
   // Tiltak som peker på en risk som ikke finnes (slettet i SharePoint)
   forelderlose: { riskId: string; tiltak: Tiltak[] }[]
+}
+
+export interface RadHistorikk {
+  liste: 'risker' | 'tiltak'
+  versjoner: RadVersjon[]
 }
 
 export interface Backend {
@@ -70,6 +76,8 @@ export interface Backend {
   // Listene registeret ligger i (for rådatavisningen)
   readonly lager?: ListeLager
   readonly snapshots?: Snapshots
+  // Versjonshistorikken til en risk og tiltakene den har nå, eldste først per rad
+  historikk?(riskId: string): Promise<RadHistorikk[]>
   // Satt når det som vises er et snapshot og ikke registeret slik det er nå
   readonly snapshot?: SnapshotInfo
 }

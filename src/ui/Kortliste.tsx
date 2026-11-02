@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useContext, useMemo, useRef, useState } from 'react'
 import { formatDato, formatTall } from '../columns'
 import type { Register } from '../model'
 import { eksponering, eksponeringFarge, fv } from '../model'
@@ -10,6 +10,7 @@ import { filtrer, grupper, sorter } from '../view'
 import { FagMerke, FagVelger } from './Fag'
 import { Laas } from './Ikoner'
 import { RiskInfo } from './RiskInfo'
+import { HistorikkKontekst } from './Historikk'
 
 type Props = {
   okt: Okt
@@ -27,6 +28,7 @@ const LANGT_TRYKK_MS = 500
 // Kortvisning: ett kort per risk. Brukes på mobil i alle utseender.
 // Trykk åpner risken i panelet. Høyreklikk eller langt trykk åpner en meny med info og handlinger.
 export function Kortliste({ okt, doc, andre, visning, aapne, endre, kanSkrive, melding }: Props) {
+  const visHistorikk = useContext(HistorikkKontekst)
   const grupperte = useMemo(() => grupper(doc, sorter(filtrer(doc, visning), visning.sortering), visning.gruppering), [doc, visning])
   const idag = new Date().toISOString().slice(0, 10)
   const [meny, setMeny] = useState<{ riskId: string; x: number; y: number } | null>(null)
@@ -145,6 +147,7 @@ export function Kortliste({ okt, doc, andre, visning, aapne, endre, kanSkrive, m
           <div className="kontekstmeny" style={{ left: Math.max(8, Math.min(meny.x, window.innerWidth - 270)), top: Math.max(8, Math.min(meny.y, window.innerHeight - 280)) }}>
             <RiskInfo r={menyRisk} />
             <button onClick={() => (aapne(menyRisk.id), setMeny(null))}>Åpne risken</button>
+            {visHistorikk && <button onClick={() => (visHistorikk(menyRisk.id), setMeny(null))}>Vis historikk…</button>}
             {kanSkrive && (
               <>
                 <button onClick={() => (sjekkLaas(menyRisk.id) && setFagVelger({ ...meny }), setMeny(null))}>Sett fag…</button>

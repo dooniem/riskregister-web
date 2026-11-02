@@ -7,7 +7,7 @@
 import type { Register } from '../model'
 import { migrer, uid } from '../model'
 import type { Bruker } from '../ops'
-import type { Avvik, Backend, LagreSvar, SnapshotInfo, Snapshots, Tilstede, Versjon } from './backend'
+import type { Avvik, Backend, LagreSvar, RadHistorikk, SnapshotInfo, Snapshots, Tilstede, Versjon } from './backend'
 import { GraphFeil } from './graph'
 import type { Element, Endring, ListeLager } from './lister/lager'
 import type { Felt } from './lister/skjema'
@@ -133,6 +133,22 @@ export class ListeBackend implements Backend {
     }
     this.avvik = { innstillinger: odelagt, doble: [...doble.values()], forelderlose: [...forelderlose.values()] }
     return { doc: byggRegister(innst, risker, tiltak), etag: this.etagFra(tid) }
+  }
+
+  // Radene til risken og tiltakene den har nå. Tiltak som er slettet, er ikke med.
+  async historikk(riskId: string): Promise<RadHistorikk[]> {
+    const lager = this.lager
+    if (!lager.versjoner) return []
+    const rad = this.risker.get(riskId)
+    const tiltak = [...this.tiltak.values()].filter((t) => {
+      try {
+        return JSON.parse(t.verdi).RiskId === riskId
+      } catch {
+        return false
+      }
+    })
+    const rader: [RadHistorikk['liste'], string][] = [...(rad ? [['risker', rad.id] as [RadHistorikk['liste'], string]] : []), ...tiltak.map((t): [RadHistorikk['liste'], string] => ['tiltak', t.id])]
+    return Promise.all(rader.map(async ([liste, id]) => ({ liste, versjoner: await lager.versjoner!(liste, id) })))
   }
 
   // Skriver verdien som vises (standardverdien) over innstillinger som ikke kan leses
@@ -318,11 +334,17 @@ class ListeSnapshots implements Snapshots {
   }
 
   // Riskene skrives først og snapshot-raden til slutt, så et snapshot som ble avbrutt underveis, aldri vises
-  async ta(navn: string, kommentar: string, doc: Register) {
+  async ta(navn: string, kommentar: string, doc: Register, fremdrift?: (ferdig: number, totalt: number) => void) {
     const id = uid()
-    const res = await this.lager.skriv(doc.risker.map((r) => ({ type: 'ny', liste: 'snapshotdata', felt: riskTilSnapshotFelt(r, id) })))
-    const feil = res.find((r) => !r.ok)
-    if (feil) throw 'feil' in feil ? feil.feil : new Error('Klarte ikke å lagre snapshotet.')
+    // I bolker på 20 (det samme som én Graph-batch), så brukeren ser hvor langt det har kommet
+    const totalt = doc.risker.length
+    fremdrift?.(0, totalt)
+    for (let i = 0; i < totalt; i += 20) {
+      const res = await this.lager.skriv(doc.risker.slice(i, i + 20).map((r) => ({ type: 'ny', liste: 'snapshotdata', felt: riskTilSnapshotFelt(r, id) })))
+      const feil = res.find((r) => !r.ok)
+      if (feil) throw 'feil' in feil ? feil.feil : new Error('Klarte ikke å lagre snapshotet.')
+      fremdrift?.(Math.min(i + 20, totalt), totalt)
+    }
     const info: SnapshotInfo = { id, navn: navn.slice(0, 255), tidspunkt: new Date().toISOString(), tattAv: this.bruker.navn, antallRisker: doc.risker.length, kommentar }
     const [h] = await this.lager.skriv([
       {
