@@ -4677,3 +4677,62 @@ td.aktiv .eier-felt .eier-tom {
   font-size: 12px;
   text-align: center;
 }
+
+/* Flere merkede risker (Ctrl/Shift+klikk, Shift+pil) */
+.grid tbody.risk.merket td,
+.grid tbody.risk.merket:hover td,
+.stil-moderne .grid tbody.risk.merket td,
+.stil-moderne .grid tbody.risk.merket:hover td {
+  background: var(--aksent-lys);
+}
+.merke-linje {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 6px 6px 16px;
+  background: var(--flate);
+  border: 1px solid var(--linje);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.merke-antall {
+  font-weight: 600;
+  margin-right: 10px;
+  white-space: nowrap;
+}
+.merke-linje > button {
+  border: none;
+  background: none;
+  padding: 7px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.merke-linje > button:hover {
+  background: var(--aksent-lys);
+}
+.merke-linje > button.fare,
+.kontekstmeny > button.fare {
+  color: var(--fare-tekst, #b42318);
+}
+.merke-linje > .merke-fjern {
+  color: var(--dempet);
+  border-left: 1px solid var(--linje);
+  border-radius: 0 6px 6px 0;
+  margin-left: 4px;
+}
+/* Meldingene legger seg over linjen, så Angre ikke skjules */
+.app:has(.merke-linje) .meldinger {
+  bottom: 76px;
+}
+@media print {
+  .merke-linje {
+    display: none;
+  }
+}

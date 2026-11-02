@@ -115,6 +115,9 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   const [kostEditor, setKostEditor] = useState<{ riskId: string; anker: DOMRect } | null>(null)
   const [vurdEditor, setVurdEditor] = useState<{ riskId: string; anker: DOMRect } | null>(null)
   const boks = useRef<HTMLDivElement>(null)
+  // Risker merket for en felles handling (lukk, gjenåpne, slett). Ctrl/Shift+klikk eller Shift+pil opp/ned.
+  const [merket, setMerket] = useState<string[]>([])
+  const merkeAnker = useRef<string | null>(null)
 
   const egendef2 = doc.lister.egendef2Aktiv
   // Egendefinerte felt som vises i risikokortet i samlet utseende. Ingen som standard.
@@ -152,6 +155,19 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
     }
     return ut
   }, [grupperte, lukketGrupper])
+
+  // Riskene i den rekkefølgen de vises, for Shift-merking
+  const riskRekke = useMemo(() => linjer.filter((l) => l.forste).map((l) => l.risk.id), [linjer])
+  // Merkede risker som ikke lenger vises (filter, sletting, fane), tas ut av merkingen
+  useEffect(() => {
+    setMerket((m) => (m.some((id) => !riskRekke.includes(id)) ? m.filter((id) => riskRekke.includes(id)) : m))
+  }, [riskRekke])
+  const merkFra = (anker: string, til: string) => {
+    const a = riskRekke.indexOf(anker)
+    const b = riskRekke.indexOf(til)
+    if (a < 0 || b < 0) return setMerket([til])
+    setMerket(riskRekke.slice(Math.min(a, b), Math.max(a, b) + 1))
+  }
 
   // Venstrekant for frosne kolonner
   const frossenVenstre = useMemo(() => {
@@ -428,6 +444,35 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
     melding(`Risk ${r.nr} er slettet.`, { tekst: 'Angre', gjor: angre })
   }
 
+  // Lukk eller gjenåpne én eller flere risker. Risker som andre redigerer akkurat nå, hoppes over.
+  const settStatus = (ider: string[], status: 'Lukket' | 'Åpen') => {
+    const valgte = ider.map((id) => doc.risker.find((r) => r.id === id)).filter((r): r is Risk => !!r && (status === 'Lukket' ? r.status !== 'Lukket' : r.status === 'Lukket'))
+    const laaste = valgte.filter((r) => okt.laastAv(r.id))
+    const fri = valgte.filter((r) => !okt.laastAv(r.id))
+    if (!fri.length) return laaste.length ? melding(`${nrListe(laaste)} redigeres av andre akkurat nå.`) : undefined
+    endre(...fri.map((r): Op => ({ t: 'setRisk', riskId: r.id, felt: 'status', verdi: status, fra: r.status })))
+    const hvor = status === 'Lukket' ? (visning.fane === 'aapne' ? ' og ligger nå under «Lukkede»' : '') : visning.fane === 'lukkede' ? ' og ligger nå under «Åpne»' : ''
+    const hva = fri.length === 1 ? `Risk ${fri[0].nr} er` : `${fri.length} risker er`
+    const ord = status === 'Lukket' ? 'lukket' : 'åpnet igjen'
+    const hoppet = laaste.length ? ` ${nrListe(laaste)} ble hoppet over fordi noen redigerer ${laaste.length === 1 ? 'den' : 'dem'}.` : ''
+    melding(`${hva} ${ord}${hvor}.${hoppet}`, { tekst: 'Angre', gjor: angre })
+    setMerket([])
+  }
+
+  const slettRisker = (ider: string[]) => {
+    const valgte = ider.map((id) => doc.risker.find((r) => r.id === id)).filter((r): r is Risk => !!r)
+    if (valgte.length === 1) return slettRisk({ riskId: valgte[0].id, kol: 'nr' })
+    const laaste = valgte.filter((r) => okt.laastAv(r.id))
+    const fri = valgte.filter((r) => !okt.laastAv(r.id))
+    if (!fri.length) return melding(`${nrListe(laaste)} redigeres av andre akkurat nå.`)
+    const hoppet = laaste.length ? `\n\n${nrListe(laaste)} hoppes over fordi noen redigerer ${laaste.length === 1 ? 'den' : 'dem'} akkurat nå.` : ''
+    if (!confirm(`Slette ${fri.length} risker (${fri.map((r) => r.nr).join(', ')}) med alle tiltak?${hoppet}\n\nVil du heller beholde historikken, lukk dem i stedet.`)) return
+    endre(...fri.map((r): Op => ({ t: 'deleteRisk', riskId: r.id })))
+    setAktiv(null)
+    setMerket([])
+    melding(`${fri.length} risker er slettet.`, { tekst: 'Angre', gjor: angre })
+  }
+
   const tomCelle = (p: Posisjon) => {
     const { r, k } = hentCelle(p)
     if (!r || !k?.felt || !kanSkrive) return
@@ -494,6 +539,24 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
       }
       return
     }
+    // Shift+pil opp/ned merker flere risker
+    if (e.shiftKey && !mod && !e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault()
+      const i = riskRekke.indexOf(aktiv.riskId)
+      const neste = riskRekke[i + (e.key === 'ArrowDown' ? 1 : -1)]
+      if (i < 0 || !neste) return
+      const anker = merkeAnker.current && riskRekke.includes(merkeAnker.current) && merket.length ? merkeAnker.current : aktiv.riskId
+      merkeAnker.current = anker
+      const nr = doc.risker.find((x) => x.id === neste)
+      setAktiv({ ...aktiv, riskId: neste, tiltakId: nr?.tiltak[0]?.id })
+      merkFra(anker, neste)
+      return
+    }
+    if (e.key === 'Escape' && merket.length) {
+      e.preventDefault()
+      setMerket([])
+      return
+    }
     const { r, k } = hentCelle(aktiv)
     // Ctrl/Cmd+C og V håndteres i copy- og paste-hendelsene (utklipp over)
     // Alt+pil ned åpner lista, som i Excel
@@ -554,6 +617,27 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
 
   const klikkCelle = (p: Posisjon, e: React.MouseEvent) => {
     setKontekst(null)
+    // Ctrl/Cmd+klikk merker eller avmerker en risk, Shift+klikk merker alle fra forrige til denne
+    if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+      e.preventDefault()
+      const start = merket.length ? merket : aktiv && aktiv.riskId !== p.riskId ? [aktiv.riskId] : []
+      setMerket(start.includes(p.riskId) ? start.filter((id) => id !== p.riskId) : [...start, p.riskId])
+      merkeAnker.current = p.riskId
+      setAktiv(p)
+      boks.current?.focus()
+      return
+    }
+    if (e.shiftKey && (merkeAnker.current || aktiv)) {
+      e.preventDefault()
+      const anker = merkeAnker.current && merket.length ? merkeAnker.current : aktiv!.riskId
+      merkeAnker.current = anker
+      merkFra(anker, p.riskId)
+      setAktiv(p)
+      boks.current?.focus()
+      return
+    }
+    if (merket.length) setMerket([])
+    merkeAnker.current = p.riskId
     // Et nytt klikk i cellen som kost- eller vurderingsvinduet ble åpnet fra, lagrer og lukker vinduet (det gjør vinduet selv,
     // som ved alle klikk utenfor) i stedet for å åpne det igjen
     const aapent = (kostEditor && { riskId: kostEditor.riskId, kol: 'fv' }) || (vurdEditor && { riskId: vurdEditor.riskId, kol: 'eksponering' })
@@ -642,7 +726,35 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   const totalBredde = kolonner.reduce((s, k) => s + bredde(k), 0)
   const fyllBredde = samlet && kolonner.some((k) => k.key === 'hendelse') && visning.bredder.hendelse == null
 
+  // Lukk, gjenåpne og slett for de merkede riskene. Brukes både i linjen nederst og i høyreklikkmenyen.
+  const merkedeRisker = doc.risker.filter((r) => merket.includes(r.id))
+  const flereHandlinger = () => {
+    const aapne = merkedeRisker.filter((r) => r.status !== 'Lukket').length
+    const lukkede = merkedeRisker.length - aapne
+    // Antallet vises bare når handlingen ikke gjelder alle de merkede
+    const antall = (n: number) => (n < merkedeRisker.length ? ` ${n}` : '')
+    return (
+      <>
+        {aapne > 0 && <button onClick={() => (settStatus(merket, 'Lukket'), setKontekst(null))}>Lukk{antall(aapne)}</button>}
+        {lukkede > 0 && <button onClick={() => (settStatus(merket, 'Åpen'), setKontekst(null))}>Gjenåpne{antall(lukkede)}</button>}
+        <button className="fare" onClick={() => (slettRisker(merket), setKontekst(null))}>
+          Slett
+        </button>
+      </>
+    )
+  }
+
   return (
+    <>
+    {merket.length > 1 && (
+      <div className="merke-linje" role="toolbar" aria-label="Merkede risker">
+        <span className="merke-antall">{merket.length} risker merket</span>
+        {kanSkrive && flereHandlinger()}
+        <button className="merke-fjern" onClick={() => setMerket([])} title="Fjern merking (Esc)">
+          Fjern merking
+        </button>
+      </div>
+    )}
     <div className="grid-boks" ref={boks} tabIndex={0} onKeyDown={onKeyDown} onClick={() => setMeny(null)}>
       {/* I samlet utseende fyller beskrivelsen resten av bredden, så tabellen alltid går helt ut */}
       <table className="grid" style={fyllBredde ? { width: '100%', minWidth: totalBredde } : { width: totalBredde }}>
@@ -731,8 +843,10 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   minLaas={okt.minLaas === r.id}
                   bredde={bredde}
                   klikk={klikkCelle}
+                  merket={merket.includes(r.id)}
                   kontekst={(p, e) => {
                     e.preventDefault()
+                    if (!merket.includes(p.riskId)) setMerket([])
                     setAktiv(p)
                     setKontekst({ x: e.clientX, y: e.clientY, pos: p })
                   }}
@@ -740,6 +854,8 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   avbryt={avbrytRedigering}
                   nyttTiltak={(p) => nyttTiltakUnder(p)}
                   fagVelger={(riskId, e) => {
+                    // Ctrl/Shift+klikk på fagmerket merker risken i stedet
+                    if (e.ctrlKey || e.metaKey || e.shiftKey) return
                     e.stopPropagation()
                     e.preventDefault()
                     const b = (e.currentTarget as HTMLElement).getBoundingClientRect()
@@ -812,7 +928,13 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
           lukk={() => setFagVelger(null)}
         />
       )}
-      {kontekst && (
+      {kontekst && merket.length > 1 && merket.includes(kontekst.pos.riskId) ? (
+        <div className="kontekstmeny" style={{ left: Math.min(kontekst.x, window.innerWidth - 270), top: Math.max(8, Math.min(kontekst.y, window.innerHeight - 220)) }} onMouseLeave={() => setKontekst(null)}>
+          <div className="meny-tittel">{merket.length} risker merket</div>
+          {kanSkrive && flereHandlinger()}
+          <button onClick={() => (setMerket([]), setKontekst(null))}>Fjern merking</button>
+        </div>
+      ) : kontekst && (
         <div className="kontekstmeny" style={{ left: Math.min(kontekst.x, window.innerWidth - 270), top: Math.max(8, Math.min(kontekst.y, window.innerHeight - 340)) }} onMouseLeave={() => setKontekst(null)}>
           {(() => {
             const r = doc.risker.find((x) => x.id === kontekst.pos.riskId)
@@ -821,6 +943,16 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
           <button onClick={() => (aapneDetalj(kontekst.pos.riskId), setKontekst(null))}>Åpne risk i eget panel</button>
           {kanSkrive && (
             <>
+              {(() => {
+                const r = doc.risker.find((x) => x.id === kontekst.pos.riskId)
+                if (!r) return null
+                const lukket = r.status === 'Lukket'
+                return (
+                  <button onClick={() => (settStatus([r.id], lukket ? 'Åpen' : 'Lukket'), setKontekst(null))} title={lukket ? undefined : 'Risken beholdes med historikk og havner under «Lukkede»'}>
+                    {lukket ? 'Gjenåpne risken' : 'Lukk risken'}
+                  </button>
+                )
+              })()}
               <button onClick={() => (setFagVelger({ riskId: kontekst.pos.riskId, x: kontekst.x, y: kontekst.y }), setKontekst(null))}>Sett fag…</button>
               <button onClick={() => (nyttTiltakUnder(kontekst.pos), setKontekst(null))}>Nytt tiltak under</button>
               {kontekst.pos.tiltakId && <button onClick={() => (slettTiltak(kontekst.pos), setKontekst(null))}>Slett tiltaket</button>}
@@ -834,7 +966,14 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
         </div>
       )}
     </div>
+    </>
   )
+}
+
+// «Risk 3» eller «Risk 3, 5 og 8»
+function nrListe(r: Risk[]) {
+  const nr = r.map((x) => x.nr)
+  return 'Risk ' + (nr.length > 1 ? nr.slice(0, -1).join(', ') + ' og ' + nr[nr.length - 1] : nr[0])
 }
 
 function GruppeOverskrift({ gruppe, antallKol, lukket, bytt, mot }: { gruppe: Gruppe; antallKol: number; lukket: boolean; bytt: () => void; mot?: Map<string, Risk> }) {
@@ -873,6 +1012,7 @@ interface RaderProps {
   tilstede: Tilstede[]
   laastAv?: string
   minLaas: boolean
+  merket?: boolean
   bredde: (k: Kolonne) => number
   klikk: (p: Posisjon, e: React.MouseEvent) => void
   kontekst: (p: Posisjon, e: React.MouseEvent) => void
@@ -901,7 +1041,7 @@ function RiskRader(p: RaderProps) {
   const e = eksponering(r)
   const farge = eksponeringFarge(r.rm, e)
   const laasFarge = p.laastAv ? p.tilstede.find((t) => t.navn === p.laastAv)?.farge : undefined
-  const klasser = ['risk', p.laastAv ? 'laast' : '', p.minLaas ? 'min-laas' : '', r.status === 'Lukket' ? 'lukket' : ''].join(' ')
+  const klasser = ['risk', p.laastAv ? 'laast' : '', p.minLaas ? 'min-laas' : '', r.status === 'Lukket' ? 'lukket' : '', p.merket ? 'merket' : ''].join(' ')
   const stripe = p.tilstede[0]?.farge
   const fag = r.fag ? p.doc.lister.fag.find((f) => f.id === r.fag) : undefined
   const gammel = p.mot?.get(r.id)
