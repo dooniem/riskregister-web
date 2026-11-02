@@ -1045,6 +1045,10 @@ dialog.modal::backdrop {
 .modal.bred {
   width: 900px;
 }
+/* Vinduer med faner: toppen står fast når innholdet skifter høyde, så fanene ikke flytter seg */
+dialog.modal.festet-topp {
+  margin-top: 5vh;
+}
 .modal header {
   display: flex;
   justify-content: space-between;
