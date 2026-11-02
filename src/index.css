@@ -4736,3 +4736,88 @@ td.aktiv .eier-felt .eier-tom {
     display: none;
   }
 }
+
+/* Vedlegg: binders i tabellen og listen i detaljpanelet */
+.vedlegg-merke {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 8px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dempet);
+  background: var(--flate-dempet, #f0f0f0);
+  cursor: pointer;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+.vedlegg-merke:hover {
+  color: var(--aksent);
+}
+.vedlegg-del {
+  margin: 8px -8px 0;
+  padding: 0 8px 8px;
+  border: 2px dashed transparent;
+  border-radius: 8px;
+}
+.vedlegg-del.drar {
+  border-color: var(--aksent);
+  background: var(--aksent-lys);
+}
+.vedlegg-liste {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.vedlegg-liste li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.vedlegg-liste a {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--aksent);
+}
+.vedlegg-type {
+  flex: none;
+  min-width: 30px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  color: #fff;
+  background: #6b7280;
+}
+.vedlegg-type.excel {
+  background: #1d6f42;
+}
+.vedlegg-type.word {
+  background: #2b579a;
+}
+.vedlegg-type.powerpoint {
+  background: #b7472a;
+}
+.vedlegg-type.pdf {
+  background: #b30b00;
+}
+.vedlegg-legg-til {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+@media print {
+  .vedlegg-merke {
+    display: none;
+  }
+}

@@ -74,6 +74,11 @@ export async function finnPlassering(ref: string): Promise<Plassering> {
   return { driveId: forelder.parentReference.driveId, mappeId: forelder.id, mappeNavn: forelder.name, webUrl: forelder.webUrl }
 }
 
+// Grensen for opplasting i ett kall i Graph
+const MAKS_OPPLASTING = 250 * 1024 * 1024
+// Tegn SharePoint ikke tillater i fil- og mappenavn
+const renNavn = (s: string) => s.replace(/["*:<>?/\\|#%]/g, '-').trim() || 'Fil'
+
 // Mapper og filer i SharePoint for import og eksport. Starter i en gitt mappe og kan gå opp til roten av biblioteket.
 export class GraphFiler implements FilKilde {
   readonly navn = 'SharePoint'
@@ -127,6 +132,23 @@ export class GraphFiler implements FilKilde {
     const r = await graph(`${this.drive}/items/${id}/content`)
     if (!r.ok) throw new GraphFeil(r.status, await feiltekst(r))
     return r.arrayBuffer()
+  }
+  async lenke(id: string) {
+    await this.klar
+    const i = await graphJson<DriveItem>(`${this.drive}/items/${id}?$select=id,name,webUrl`)
+    return { id: i.id, navn: i.name, url: i.webUrl }
+  }
+  // Laster opp til en sti fra roten av biblioteket. Graph lager mappene som mangler. Finnes navnet, får filen et ledig navn.
+  async lastOpp(sti: string[], navn: string, data: ArrayBuffer) {
+    await this.klar
+    if (data.byteLength > MAKS_OPPLASTING) throw new Error(`«${navn}» er for stor. Filer over 250 MB må lastes opp i SharePoint, og så velges derfra.`)
+    const vei = [...sti, navn].map((d) => encodeURIComponent(renNavn(d))).join('/')
+    const i = await graphJson<DriveItem>(`${this.drive}/root:/${vei}:/content?@microsoft.graph.conflictBehavior=rename`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: data,
+    })
+    return { id: i.id, navn: i.name, url: i.webUrl }
   }
   async lagre(mappeId: string, navn: string, data: ArrayBuffer) {
     await this.klar

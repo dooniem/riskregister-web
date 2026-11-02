@@ -31,6 +31,15 @@ export interface FilKilde {
   hent(id: string): Promise<ArrayBuffer>
   // Lagrer filen i mappen. Finnes navnet fra før, får den nye filen et ledig navn. Returnerer navnet som ble brukt.
   lagre(mappeId: string, navn: string, data: ArrayBuffer): Promise<string>
+  // For vedlegg: lenken som åpner filen, og opplasting til en mappe (stien regnes fra roten av biblioteket, mappene lages ved behov)
+  lenke(id: string): Promise<FilLenke>
+  lastOpp(sti: string[], navn: string, data: ArrayBuffer): Promise<FilLenke>
+}
+
+export interface FilLenke {
+  id: string
+  navn: string
+  url: string
 }
 
 export const erExcel = (navn: string) => /\.xls[xm]$/i.test(navn)
@@ -133,6 +142,21 @@ export class DemoFiler implements FilKilde {
     for (let i = 1; brukt.has(ledig.toLowerCase()); i++) ledig = navn.replace(/(\.\w+)$/, ` ${i}$1`)
     node(ledig, mappeId, false, data, new Date().toISOString())
     return ledig
+  }
+  // I demo finnes filene bare i minnet, så lenken er en blob-adresse som virker til siden lastes på nytt
+  async lenke(id: string) {
+    const n = this.finn(id)
+    return { id, navn: n.navn, url: URL.createObjectURL(new Blob([n.data ?? new ArrayBuffer(0)])) }
+  }
+  async lastOpp(sti: string[], navn: string, data: ArrayBuffer) {
+    let mappe = [...noder.values()].find((n) => !n.forelder)?.id ?? startMappe
+    for (const del of sti) {
+      const fins = [...noder.values()].find((n) => n.mappe && n.forelder === mappe && n.navn === del)
+      mappe = fins ? fins.id : node(del, mappe, true)
+    }
+    const brukt = await this.lagre(mappe, navn, data)
+    const n = [...noder.values()].find((x) => x.forelder === mappe && x.navn === brukt)!
+    return this.lenke(n.id)
   }
   private element(n: DemoNode): FilElement {
     return { id: n.id, navn: n.navn, mappe: n.mappe, endret: n.endret, storrelse: n.data?.byteLength }

@@ -108,7 +108,7 @@ Inntil oversikten finnes, bruker appen sitt eget standardoppsett. Det brukes ogs
 
 | Liste | Hvem lager den | Innhold |
 | --- | --- | --- |
-| Riskregister Risker | IT eller appen | Én rad per risk: `RiskId` (indeksert), `Nr`, `RM`, `Aarsak`, `Hendelse`, `Konsekvenser`, `Eier`, `Status`, `Kategori`, `Egendef`, `Egendef2`, `FagId`, `Sannsynlighet`, `Konsekvens`, `BC`, `ML`, `WC`, `TilSkarisk`, `Kilde`, `EndretTid`, `EndretAv`, `OpprettetTid`, `OpprettetAv`, `LukketTid`, `LukketAv` |
+| Riskregister Risker | IT eller appen | Én rad per risk: `RiskId` (indeksert), `Nr`, `RM`, `Aarsak`, `Hendelse`, `Konsekvenser`, `Eier`, `Status`, `Kategori`, `Egendef`, `Egendef2`, `FagId`, `Sannsynlighet`, `Konsekvens`, `BC`, `ML`, `WC`, `TilSkarisk`, `Kilde`, `Vedlegg` (lenker til filer i dokumentbiblioteket, JSON), `EndretTid`, `EndretAv`, `OpprettetTid`, `OpprettetAv`, `LukketTid`, `LukketAv` |
 | Riskregister Tiltak | IT eller appen | Én rad per tiltak: `RiskId` (indeksert, peker på risken), `TiltakId`, `Rekkefolge`, `Tekst`, `Eier`, `Frist`, `Beskrivelse`, `Status` |
 | Riskregister Snapshots | Appen | Én rad per snapshot: `SnapshotId` (indeksert), `Tidspunkt`, `TattAv`, `AntallRisker`, `Kommentar`, `Register` (prosjektinfo og lister som JSON) |
 | Riskregister Snapshotdata | Appen | Riskene slik de var da snapshotet ble tatt: `SnapshotId` (indeksert), de samme kolonnene som i Risker, og `Tiltak` (JSON) |

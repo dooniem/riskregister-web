@@ -871,6 +871,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   kostSkala={kostSkala}
                   person={visning.person}
                   byttSkarisk={byttSkarisk}
+                  aapne={aapneDetalj}
                 />
               ))}
           </Fragment>
@@ -970,6 +971,24 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   )
 }
 
+// Binders med antall vedlegg. Klikk åpner risken i panelet, der vedleggene står.
+function VedleggMerke({ r, aapne }: { r: Risk; aapne: (id: string) => void }) {
+  const n = r.vedlegg?.length ?? 0
+  if (!n) return null
+  return (
+    <span
+      className="vedlegg-merke"
+      title={`${n} vedlegg: ${r.vedlegg!.map((v) => v.navn).join(', ')}. Klikk for å åpne risken.`}
+      onMouseDown={(ev) => (ev.stopPropagation(), ev.preventDefault(), aapne(r.id))}
+    >
+      <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden>
+        <path d="M10.5 4.5 5.8 9.2a1.5 1.5 0 0 0 2.1 2.1l5-5a3 3 0 0 0-4.2-4.2l-5.2 5.2a4.5 4.5 0 0 0 6.4 6.4l4.4-4.4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+      {n}
+    </span>
+  )
+}
+
 // «Risk 3» eller «Risk 3, 5 og 8»
 function nrListe(r: Risk[]) {
   const nr = r.map((x) => x.nr)
@@ -1030,6 +1049,7 @@ interface RaderProps {
   egendef: string[]
   person?: string
   byttSkarisk: (riskId: string) => void
+  aapne: (riskId: string) => void
 }
 
 // Tallkolonnene som viser endring når et snapshot er aktivt
@@ -1112,6 +1132,7 @@ function RiskRader(p: RaderProps) {
             )
           )}
           <span className="nr-tall">{r.nr}</span>
+          {!p.samlet && <VedleggMerke r={r} aapne={p.aapne} />}
           {p.mot && !gammel && (
             <span className="ny-siden" title="Risken er lagt til etter snapshotet">
               ny
@@ -1212,6 +1233,7 @@ function RiskRader(p: RaderProps) {
           editor={kortNode ? { kol: p.redigerer!.kol, node: kortNode } : undefined}
           kanSkrive={p.kanSkrive}
           velg={(kol, ev) => ev.button === 0 && (ev.stopPropagation(), p.klikk({ ...pos, kol }, ev))}
+          vedlegg={<VedleggMerke r={r} aapne={p.aapne} />}
         />
       )
     if (k.key === 'fv') innhold = p.moderne ? <KostCelle r={r} skala={p.kostSkala} /> : formatTall(fv(r))
@@ -1388,10 +1410,12 @@ function BeskrivelseSamlet({
   editor,
   kanSkrive,
   velg,
+  vedlegg,
 }: {
   r: Risk
   doc: Register
   egendef: string[]
+  vedlegg?: React.ReactNode
   aktiv?: string
   editor?: { kol: string; node: React.ReactNode }
   kanSkrive: boolean
@@ -1413,6 +1437,7 @@ function BeskrivelseSamlet({
         <span className={kl('hendelse', 'linje')} onMouseDown={(ev) => velg('hendelse', ev)}>
           {tekst('hendelse', r.hendelse, 'Uten hendelse')}
         </span>
+        {vedlegg}
       </div>
       <dl>
         <dt className={kl('aarsak')} onMouseDown={(ev) => velg('aarsak', ev)}>

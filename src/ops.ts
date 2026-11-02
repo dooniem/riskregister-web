@@ -44,7 +44,9 @@ function merk(r: Risk, bruker: Bruker) {
 
 // Bruker operasjonen på doc (muterer). Returnerer en konflikt hvis feltet er endret av andre.
 // Felt som mangler (eldre registre) regnes som tomme, så de ikke gir falske konflikter
-const lik = (a: unknown, b: unknown) => (a ?? '') === (b ?? '')
+// Lister (som vedlegg) sammenlignes på innhold, siden de kommer som nye objekter etter hver henting
+const lik = (a: unknown, b: unknown) =>
+  typeof a === 'object' || typeof b === 'object' ? JSON.stringify(a ?? '') === JSON.stringify(b ?? '') : (a ?? '') === (b ?? '')
 
 export function brukOp(doc: Register, op: Op, bruker: Bruker): Konflikt | null {
   switch (op.t) {

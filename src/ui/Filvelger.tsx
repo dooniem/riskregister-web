@@ -14,6 +14,8 @@ interface Felles {
 type Props =
   | (Felles & { modus: 'aapne'; valgt: (navn: string, data: ArrayBuffer) => void | Promise<void> })
   | (Felles & { modus: 'lagre'; filnavn: string; data: () => ArrayBuffer; lagretPc: () => void; lagret: (navn: string, mappe: string) => void })
+  // Vedlegg til en risk: velg en hvilken som helst fil i biblioteket, eller last opp fra egen PC
+  | (Felles & { modus: 'vedlegg'; valgt: (f: FilElement) => Promise<void>; fraPc: (filer: File[]) => Promise<void>; pcTekst: string })
 
 const dato = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' }) : '')
 const storrelse = (b?: number) => (b === undefined || b === 0 ? '' : b < 1024 * 1024 ? `${Math.max(1, Math.round(b / 1024))} kB` : `${(b / 1024 / 1024).toFixed(1)} MB`)
@@ -30,6 +32,7 @@ export function Filvelger(p: Props) {
   const [jobber, setJobber] = useState('')
   const [feil, setFeil] = useState('')
   const filRef = useRef<HTMLInputElement>(null)
+  const vedlegg = p.modus === 'vedlegg'
   const [laast, setLaast] = useState<{ navn: string; data: ArrayBuffer } | null>(null)
   const [passord, setPassord] = useState('')
   const mappe = sti[sti.length - 1]
@@ -74,10 +77,11 @@ export function Filvelger(p: Props) {
 
   const sokNaa = () => {
     if (!sok.trim()) return setTreff(null)
-    void jobb('Søker…', async () => setTreff((await kilde!.sok(sok.trim())).filter((f) => erExcel(f.navn))))
+    void jobb('Søker…', async () => setTreff((await kilde!.sok(sok.trim())).filter((f) => vedlegg || erExcel(f.navn))))
   }
 
   const velgFil = (f: FilElement) => {
+    if (p.modus === 'vedlegg') return void jobb(`Legger til «${f.navn}»…`, () => p.valgt(f))
     if (p.modus !== 'aapne') return setFilnavn(f.navn)
     void jobb(`Henter «${f.navn}»…`, async () => {
       await aapne(f.navn, await kilde!.hent(f.id))
@@ -124,14 +128,32 @@ export function Filvelger(p: Props) {
   return (
     <Modal className="filvelger" lukk={p.lukk}>
       <header>
-        <ModalTittel>{p.modus === 'aapne' ? 'Importer fra Excel' : 'Eksporter til Excel'}</ModalTittel>
+        <ModalTittel>{p.modus === 'vedlegg' ? 'Legg til vedlegg' : p.modus === 'aapne' ? 'Importer fra Excel' : 'Eksporter til Excel'}</ModalTittel>
         <button className="ikonknapp" onClick={p.lukk} aria-label="Lukk" title="Lukk">
           ✕
         </button>
       </header>
       <div className="modal-innhold">
         <div className="fv-pc">
-          {p.modus === 'aapne' ? (
+          {p.modus === 'vedlegg' ? (
+            <>
+              <button className="knapp" disabled={!!jobber} onClick={() => filRef.current?.click()}>
+                Last opp fra min PC…
+              </button>
+              <input
+                ref={filRef}
+                type="file"
+                multiple
+                hidden
+                onChange={(e) => {
+                  const filer = [...(e.target.files ?? [])]
+                  e.target.value = ''
+                  if (filer.length) void jobb(filer.length === 1 ? `Laster opp «${filer[0].name}»…` : `Laster opp ${filer.length} filer…`, () => p.fraPc(filer))
+                }}
+              />
+              <span className="liten">{p.pcTekst}</span>
+            </>
+          ) : p.modus === 'aapne' ? (
             <>
               <button className="knapp" onClick={() => filRef.current?.click()}>
                 Fra min PC…
@@ -206,17 +228,17 @@ export function Filvelger(p: Props) {
                 sokNaa()
               }}
             >
-              <input value={sok} onChange={(e) => (setSok(e.target.value), !e.target.value && setTreff(null))} placeholder="Søk etter Excel-filer i hele biblioteket" />
+              <input value={sok} onChange={(e) => (setSok(e.target.value), !e.target.value && setTreff(null))} placeholder={vedlegg ? 'Søk etter filer i hele biblioteket' : 'Søk etter Excel-filer i hele biblioteket'} />
               <button className="knapp" disabled={!!jobber}>
                 Søk
               </button>
             </form>
             <ul className="fv-liste">
-              {treff && <li className="fv-info">{treff.length ? `${treff.length} treff på «${sok}»` : `Ingen Excel-filer funnet for «${sok}»`}</li>}
+              {treff && <li className="fv-info">{treff.length ? `${treff.length} treff på «${sok}»` : `Ingen ${vedlegg ? 'filer' : 'Excel-filer'} funnet for «${sok}»`}</li>}
               {!treff && innhold && !rader.length && <li className="fv-info">Mappen er tom.</li>}
               {rader.map((f) => {
                 const excel = !f.mappe && erExcel(f.navn)
-                const aktiv = f.mappe || (excel && p.modus === 'aapne') || (p.modus === 'lagre' && excel)
+                const aktiv = f.mappe || vedlegg || (excel && p.modus === 'aapne') || (p.modus === 'lagre' && excel)
                 return (
                   <li key={f.id}>
                     <button

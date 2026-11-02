@@ -167,6 +167,10 @@ export class Okt {
     this.lyttere.forEach((l) => l())
   }
 
+  // Navnet til den som er logget inn
+  get mittNavn() {
+    return this.meg.navn
+  }
   get doc() {
     return this.visning
   }

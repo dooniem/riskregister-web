@@ -71,6 +71,17 @@ export interface Risk {
   lukket?: string // når status sist ble satt til Lukket
   lukketAv?: string
   kilde?: string // hvor risken kom fra, f.eks. delregisteret i Excel den ble hentet inn fra
+  vedlegg?: Vedlegg[]
+}
+
+// En fil i SharePoint som hører til risken: lastet opp fra registeret eller valgt fra dokumentbiblioteket.
+// Risken lagrer bare lenken. Filen ligger i biblioteket og blir der selv om lenken fjernes eller risken slettes.
+export interface Vedlegg {
+  id: string // id-en til filen i dokumentbiblioteket
+  navn: string
+  url: string // åpner filen i SharePoint (Excel, Word osv. på nett)
+  lagtTilAv?: string
+  lagtTil?: string
 }
 
 export interface Deltaker {
