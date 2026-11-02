@@ -120,6 +120,21 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   const [vedleggUnder, setVedleggUnder] = useState(false)
   const vedleggTid = useRef<ReturnType<typeof setTimeout>>(undefined)
   const [vedleggVelger, setVedleggVelger] = useState<{ riskId: string; fil?: File } | null>(null)
+  // Vedleggsmenyen alene, åpnet fra bindersen
+  const [vedleggPop, setVedleggPop] = useState<{ riskId: string; r: DOMRect } | null>(null)
+  const vedleggPopRef = useRef<HTMLDivElement>(null)
+  const visVedlegg = useCallback((riskId: string, el: HTMLElement) => setVedleggPop({ riskId, r: el.getBoundingClientRect() }), [])
+  useEffect(() => {
+    if (!vedleggPop) return
+    const ned = (e: MouseEvent) => !vedleggPopRef.current?.contains(e.target as Node) && setVedleggPop(null)
+    const tast = (e: KeyboardEvent) => e.key === 'Escape' && setVedleggPop(null)
+    document.addEventListener('mousedown', ned, true)
+    document.addEventListener('keydown', tast)
+    return () => {
+      document.removeEventListener('mousedown', ned, true)
+      document.removeEventListener('keydown', tast)
+    }
+  }, [vedleggPop])
   useEffect(() => setVedleggUnder(false), [kontekst])
   const [fagVelger, setFagVelger] = useState<{ riskId: string; x: number; y: number } | null>(null)
   const [lukketGrupper, setLukketGrupper] = useState<string[]>([])
@@ -902,6 +917,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   byttSkarisk={byttSkarisk}
                   aapne={aapneDetalj}
                   aapneVedlegg={kanSkrive || r.vedlegg?.length ? aapneVedlegg : undefined}
+                  visVedlegg={visVedlegg}
                   visMarkering={!visning.skjulMarkering}
                 />
               ))}
@@ -948,6 +964,29 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
         (() => {
           const r = doc.risker.find((x) => x.id === vurdEditor.riskId)
           return r ? <VurderingEditor risk={r} anker={vurdEditor.anker} onLagre={(v) => lagreVurdering(r.id, v)} onAvbryt={lukkKost} /> : null
+        })()}
+      {vedleggPop &&
+        (() => {
+          const r = doc.risker.find((x) => x.id === vedleggPop.riskId)
+          if (!r) return null
+          const { r: b } = vedleggPop
+          // Under bindersen med forhåndsvisningen nederst, eller over (med forhåndsvisningen øverst) når det er lite plass under
+          const under = window.innerHeight - b.bottom > 440
+          const stil: React.CSSProperties = { left: Math.max(8, Math.min(b.left, window.innerWidth - 330)), ...(under ? { top: b.bottom + 6 } : { top: 'auto', bottom: window.innerHeight - b.top + 6 }) }
+          return (
+            <div ref={vedleggPopRef} className={'undermeny flytende' + (under ? ' forhand-under' : '')} style={stil}>
+              <VedleggMeny
+                r={r}
+                okt={okt}
+                endre={endre}
+                melding={melding}
+                kanSkrive={kanSkrive && !!filer}
+                filer={filer}
+                leggTil={(fil) => (setVedleggVelger({ riskId: r.id, fil }), setVedleggPop(null))}
+                lukk={() => setVedleggPop(null)}
+              />
+            </div>
+          )
         })()}
       {vedleggVelger && filer && (() => {
         const r = doc.risker.find((x) => x.id === vedleggVelger.riskId)
@@ -1055,14 +1094,16 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
 }
 
 // Binders med antall vedlegg. Klikk åpner risken i panelet, der vedleggene står.
-function VedleggMerke({ r, aapne }: { r: Risk; aapne: (id: string) => void }) {
+// Klikk eller høyreklikk på bindersen åpner bare vedleggsmenyen, rett ved bindersen.
+function VedleggMerke({ r, aapne }: { r: Risk; aapne: (id: string, el: HTMLElement) => void }) {
   const n = r.vedlegg?.length ?? 0
   if (!n) return null
   return (
     <span
       className="vedlegg-merke"
       title={`${n} vedlegg: ${r.vedlegg!.map((v) => v.navn).join(', ')}. Klikk for å se vedleggene.`}
-      onMouseDown={(ev) => (ev.stopPropagation(), ev.preventDefault(), aapne(r.id))}
+      onMouseDown={(ev) => (ev.stopPropagation(), ev.preventDefault(), aapne(r.id, ev.currentTarget))}
+      onContextMenu={(ev) => (ev.stopPropagation(), ev.preventDefault())}
     >
       <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden>
         <path d="M10.5 4.5 5.8 9.2a1.5 1.5 0 0 0 2.1 2.1l5-5a3 3 0 0 0-4.2-4.2l-5.2 5.2a4.5 4.5 0 0 0 6.4 6.4l4.4-4.4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -1160,6 +1201,7 @@ interface RaderProps {
   byttSkarisk: (riskId: string) => void
   aapne: (riskId: string) => void
   aapneVedlegg?: (riskId: string, filer?: File[]) => void
+  visVedlegg: (riskId: string, el: HTMLElement) => void
   visMarkering: boolean
 }
 
@@ -1250,7 +1292,7 @@ function RiskRader(p: RaderProps) {
             )
           )}
           <span className="nr-tall">{r.nr}</span>
-          {!p.samlet && <VedleggMerke r={r} aapne={p.aapneVedlegg ?? p.aapne} />}
+          {!p.samlet && <VedleggMerke r={r} aapne={p.visVedlegg} />}
           {p.mot && !gammel && (
             <span className="ny-siden" title="Risken er lagt til etter snapshotet">
               ny
@@ -1351,7 +1393,7 @@ function RiskRader(p: RaderProps) {
           editor={kortNode ? { kol: p.redigerer!.kol, node: kortNode } : undefined}
           kanSkrive={p.kanSkrive}
           velg={(kol, ev) => ev.button === 0 && (ev.stopPropagation(), p.klikk({ ...pos, kol }, ev))}
-          vedlegg={<VedleggMerke r={r} aapne={p.aapneVedlegg ?? p.aapne} />}
+          vedlegg={<VedleggMerke r={r} aapne={p.visVedlegg} />}
         />
       )
     if (k.key === 'fv') innhold = p.moderne ? <KostCelle r={r} skala={p.kostSkala} /> : formatTall(fv(r))
