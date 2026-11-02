@@ -104,6 +104,8 @@ export function RegisterView({ okt, tilbake }: Props) {
   const visningKey = `rr-visning:${doc.registerId}`
   const [visning, setVisningRaw] = useState<Visning>(() => lesVisning(visningKey))
   const [detalj, setDetalj] = useState<string | null>(null)
+  // Vedleggene i panelet: «vis» blar ned til dem, «filer» er filer som er sluppet på en rad i tabellen og skal lastes opp
+  const [vedleggStart, setVedleggStart] = useState<{ riskId: string; filer?: File[] } | null>(null)
   const [prosjekt, setProsjekt] = useState<false | 'prosjekt' | 'deltakere' | 'gjennomganger' | 'lister'>(false)
   const [kolVelger, setKolVelger] = useState(false)
   // Øker når «Ny risk» i verktøylinjen trykkes, så tabellen legger til en rad og setter markøren i den
@@ -678,6 +680,7 @@ export function RegisterView({ okt, tilbake }: Props) {
             endre={endre}
             angre={angre}
             aapneDetalj={setDetalj}
+            aapneVedlegg={(id, filer) => (setDetalj(id), setVedleggStart({ riskId: id, filer }))}
             melding={melding}
             kanSkrive={b.kanSkrive}
             mot={motRisker}
@@ -687,7 +690,20 @@ export function RegisterView({ okt, tilbake }: Props) {
             forsteTreffTeller={forsteTreffTeller}
           />
           )}
-          {detalj && <Detaljpanel okt={okt} doc={doc} riskId={detalj} endre={endre} lukk={() => setDetalj(null)} kanSkrive={b.kanSkrive && !b.snapshot} filer={filKilde} melding={melding} />}
+          {detalj && (
+            <Detaljpanel
+              okt={okt}
+              doc={doc}
+              riskId={detalj}
+              endre={endre}
+              lukk={() => (setDetalj(null), setVedleggStart(null))}
+              kanSkrive={b.kanSkrive && !b.snapshot}
+              filer={filKilde}
+              melding={melding}
+              vedleggStart={vedleggStart?.riskId === detalj ? vedleggStart : undefined}
+              vedleggStartet={() => setVedleggStart(null)}
+            />
+          )}
         </div>
         </>
         )}

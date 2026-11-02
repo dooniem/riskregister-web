@@ -19,10 +19,13 @@ interface Props {
   // Dokumentbiblioteket på området, for vedlegg. Mangler den, vises bare vedleggene som finnes.
   filer?: () => FilKilde
   melding?: (tekst: string) => void
+  // Åpnet fra «Vedlegg…» eller ved å slippe filer på en rad: blar til vedleggene og laster opp filene
+  vedleggStart?: { filer?: File[] }
+  vedleggStartet?: () => void
 }
 
 // Hele risken i et sidepanel. Nyttig for lange tekster og for å se alle tiltak samlet.
-export function Detaljpanel({ okt, doc, riskId, endre, lukk, kanSkrive, filer, melding }: Props) {
+export function Detaljpanel({ okt, doc, riskId, endre, lukk, kanSkrive, filer, melding, vedleggStart, vedleggStartet }: Props) {
   const r = doc.risker.find((x) => x.id === riskId)
   const laastAv = r ? okt.laastAv(r.id)?.navn : undefined
   const sperret = !kanSkrive || !!laastAv
@@ -139,7 +142,7 @@ export function Detaljpanel({ okt, doc, riskId, endre, lukk, kanSkrive, filer, m
         </div>
 
         {(filer || r.vedlegg?.length) && (
-          <VedleggDel r={r} okt={okt} endre={endre} sperret={sperret || !filer} filer={filer ?? (() => { throw new Error('Ingen filer') })} melding={melding ?? alert} />
+          <VedleggDel r={r} okt={okt} endre={endre} sperret={sperret || !filer} filer={filer ?? (() => { throw new Error('Ingen filer') })} melding={melding ?? alert} start={vedleggStart} startet={vedleggStartet} />
         )}
         <h3>
           Tiltak <span className="liten">({r.tiltak.length})</span>

@@ -4890,3 +4890,28 @@ td.aktiv .eier-felt .eier-tom {
 .merke-linje .markering-valg {
   padding: 0 6px;
 }
+
+/* Fil dras inn på en risk i tabellen: hele risken markeres som mål */
+.grid tbody.risk.slipp-fil td,
+.stil-moderne .grid tbody.risk.slipp-fil td {
+  background: var(--aksent-lys);
+}
+.grid tbody.risk.slipp-fil td:first-child {
+  box-shadow: inset 3px 0 0 var(--aksent);
+}
+/* Vedleggene blinker kort når panelet åpnes på dem */
+.vedlegg-del.blink {
+  animation: vedlegg-blink 1.2s ease-out;
+}
+@keyframes vedlegg-blink {
+  0%, 40% { background: var(--aksent-lys); }
+  100% { background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vedlegg-del.blink { animation: none; }
+}
+.meny-antall {
+  margin-left: 6px;
+  font-size: 12px;
+  color: var(--dempet);
+}
