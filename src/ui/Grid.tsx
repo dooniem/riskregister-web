@@ -39,6 +39,8 @@ interface Props {
   endre: (...ops: Op[]) => void
   angre: () => void
   aapneDetalj: (riskId: string) => void
+  // Åpner panelet på vedleggene, eventuelt med filer som skal lastes opp
+  aapneVedlegg?: (riskId: string, filer?: File[]) => void
   melding: (tekst: string, handling?: { tekst: string; gjor: () => void }) => void
   kanSkrive: boolean
   // Riskene i snapshotet det sammenlignes med, etter id. Endringer i tallene vises i cellene.
@@ -105,7 +107,7 @@ export function synligeKolonner(v: Visning, egendef2Aktiv = false, moderne = fal
 // Fulle navn på kostkolonnene, vist som hjelpetekst på overskriften
 const KOST_NAVN: Record<string, string> = { bc: 'Best case', ml: 'Most likely', wc: 'Worst case', eksponering: 'Sannsynlighet × konsekvens' }
 
-export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapneDetalj, melding, kanSkrive, mot, moderne = false, samlet = false, nyRiskTeller = 0, forsteTreffTeller = 0 }: Props) {
+export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapneDetalj, aapneVedlegg, melding, kanSkrive, mot, moderne = false, samlet = false, nyRiskTeller = 0, forsteTreffTeller = 0 }: Props) {
   const [aktiv, setAktiv] = useState<Posisjon | null>(null)
   const [redigerer, setRedigerer] = useState<(Posisjon & { start: string; erstatt: boolean; markor?: number }) | null>(null)
   const [meny, setMeny] = useState<{ kol: string; x: number; y: number } | null>(null)
@@ -890,6 +892,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   person={visning.person}
                   byttSkarisk={byttSkarisk}
                   aapne={aapneDetalj}
+                  aapneVedlegg={kanSkrive || r.vedlegg?.length ? aapneVedlegg : undefined}
                   visMarkering={!visning.skjulMarkering}
                 />
               ))}
@@ -905,7 +908,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                     + Ny risk
                   </button>
                   <span className="hint">
-                    Skriv rett i cellene · Enter/F2 redigerer · Klikk på valgceller og datoer for liste/kalender · Ctrl+Enter nytt tiltak · Høyreklikk for flere valg · Ctrl+Z angrer
+                    Skriv rett i cellene · Enter/F2 redigerer · Klikk på valgceller og datoer for liste/kalender · Ctrl+Enter nytt tiltak · Dra filer inn på en risk for vedlegg · Høyreklikk for flere valg · Ctrl+Z angrer
                   </span>
                 </div>
               </td>
@@ -961,6 +964,14 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
             return r && <RiskInfo r={r} />
           })()}
           <button onClick={() => (aapneDetalj(kontekst.pos.riskId), setKontekst(null))}>Åpne risk i eget panel</button>
+          {aapneVedlegg && (
+            <button onClick={() => (aapneVedlegg(kontekst.pos.riskId), setKontekst(null))}>
+              Vedlegg…{(() => {
+                const n = doc.risker.find((x) => x.id === kontekst.pos.riskId)?.vedlegg?.length
+                return n ? <span className="meny-antall">{n}</span> : null
+              })()}
+            </button>
+          )}
           {kanSkrive && (
             <>
               {(() => {
@@ -1010,7 +1021,7 @@ function VedleggMerke({ r, aapne }: { r: Risk; aapne: (id: string) => void }) {
   return (
     <span
       className="vedlegg-merke"
-      title={`${n} vedlegg: ${r.vedlegg!.map((v) => v.navn).join(', ')}. Klikk for å åpne risken.`}
+      title={`${n} vedlegg: ${r.vedlegg!.map((v) => v.navn).join(', ')}. Klikk for å se vedleggene.`}
       onMouseDown={(ev) => (ev.stopPropagation(), ev.preventDefault(), aapne(r.id))}
     >
       <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden>
@@ -1108,6 +1119,7 @@ interface RaderProps {
   person?: string
   byttSkarisk: (riskId: string) => void
   aapne: (riskId: string) => void
+  aapneVedlegg?: (riskId: string, filer?: File[]) => void
   visMarkering: boolean
 }
 
@@ -1117,10 +1129,13 @@ const TALL_ENDRING: Record<string, (r: Risk) => number> = { bc: (r) => r.bc, ml:
 function RiskRader(p: RaderProps) {
   const { risk: r, kolonner } = p
   const n = Math.max(1, r.tiltak.length)
+  // Filer kan dras rett inn på raden. De lastes opp som vedlegg i panelet til risken.
+  const [slipp, setSlipp] = useState(false)
+  const kanSlippe = p.kanSkrive && !!p.aapneVedlegg
   const e = eksponering(r)
   const farge = eksponeringFarge(r.rm, e)
   const laasFarge = p.laastAv ? p.tilstede.find((t) => t.navn === p.laastAv)?.farge : undefined
-  const klasser = ['risk', p.laastAv ? 'laast' : '', p.minLaas ? 'min-laas' : '', r.status === 'Lukket' ? 'lukket' : '', p.merket ? 'merket' : ''].join(' ')
+  const klasser = ['risk', p.laastAv ? 'laast' : '', p.minLaas ? 'min-laas' : '', r.status === 'Lukket' ? 'lukket' : '', p.merket ? 'merket' : '', slipp ? 'slipp-fil' : ''].join(' ')
   const stripe = p.tilstede[0]?.farge
   const fag = r.fag ? p.doc.lister.fag.find((f) => f.id === r.fag) : undefined
   const gammel = p.mot?.get(r.id)
@@ -1195,7 +1210,7 @@ function RiskRader(p: RaderProps) {
             )
           )}
           <span className="nr-tall">{r.nr}</span>
-          {!p.samlet && <VedleggMerke r={r} aapne={p.aapne} />}
+          {!p.samlet && <VedleggMerke r={r} aapne={p.aapneVedlegg ?? p.aapne} />}
           {p.mot && !gammel && (
             <span className="ny-siden" title="Risken er lagt til etter snapshotet">
               ny
@@ -1296,7 +1311,7 @@ function RiskRader(p: RaderProps) {
           editor={kortNode ? { kol: p.redigerer!.kol, node: kortNode } : undefined}
           kanSkrive={p.kanSkrive}
           velg={(kol, ev) => ev.button === 0 && (ev.stopPropagation(), p.klikk({ ...pos, kol }, ev))}
-          vedlegg={<VedleggMerke r={r} aapne={p.aapne} />}
+          vedlegg={<VedleggMerke r={r} aapne={p.aapneVedlegg ?? p.aapne} />}
         />
       )
     if (k.key === 'fv') innhold = p.moderne ? <KostCelle r={r} skala={p.kostSkala} /> : formatTall(fv(r))
@@ -1350,7 +1365,33 @@ function RiskRader(p: RaderProps) {
   }
 
   return (
-    <tbody className={klasser} data-risk={r.id} style={stripe ? ({ '--stripe': stripe } as React.CSSProperties) : undefined}>
+    <tbody
+      className={klasser}
+      data-risk={r.id}
+      style={stripe ? ({ '--stripe': stripe } as React.CSSProperties) : undefined}
+      title={slipp ? `Slipp for å legge filen til som vedlegg på risk ${r.nr}` : undefined}
+      onDragOver={
+        kanSlippe
+          ? (e) => {
+              if (!e.dataTransfer.types.includes('Files')) return
+              e.preventDefault()
+              e.dataTransfer.dropEffect = 'copy'
+              if (!slipp) setSlipp(true)
+            }
+          : undefined
+      }
+      onDragLeave={kanSlippe ? (e) => !e.currentTarget.contains(e.relatedTarget as Node) && setSlipp(false) : undefined}
+      onDrop={
+        kanSlippe
+          ? (e) => {
+              if (!e.dataTransfer.files.length) return
+              e.preventDefault()
+              setSlipp(false)
+              p.aapneVedlegg!(r.id, [...e.dataTransfer.files])
+            }
+          : undefined
+      }
+    >
       {Array.from({ length: n }, (_, i) => {
         const t = r.tiltak[i]
         return (

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Risk, Vedlegg } from '../model'
 import type { Op } from '../ops'
 import type { FilKilde, FilLenke } from '../store/filer'
@@ -15,6 +15,8 @@ interface Props {
   sperret: boolean
   filer: () => FilKilde
   melding: (tekst: string) => void
+  start?: { filer?: File[] }
+  startet?: () => void
 }
 
 // Filtypen som et kort merke foran navnet
@@ -30,10 +32,12 @@ function typeMerke(navn: string) {
 
 // Vedleggene til en risk i detaljpanelet: lenker til filer i dokumentbiblioteket på området.
 // Filer kan velges fra biblioteket eller lastes opp (knapp eller dra og slipp). Fjern tar bare bort lenken.
-export function VedleggDel({ r, okt, endre, sperret, filer, melding }: Props) {
+export function VedleggDel({ r, okt, endre, sperret, filer, melding, start, startet }: Props) {
   const [velger, setVelger] = useState<FilKilde | null>(null)
   const [drar, setDrar] = useState(false)
   const [laster, setLaster] = useState('')
+  const [blink, setBlink] = useState(false)
+  const del = useRef<HTMLElement>(null)
   const liste = r.vedlegg ?? []
 
   // Legger lenkene til på risken slik den er nå (andre kan ha endret den mens filen ble lastet opp)
@@ -59,17 +63,35 @@ export function VedleggDel({ r, okt, endre, sperret, filer, melding }: Props) {
     melding(lenker.length === 1 ? `«${lenker[0].navn}» er lastet opp og lagt til.` : `${lenker.length} filer er lastet opp og lagt til.`)
   }
 
-  const slipp = (e: React.DragEvent) => {
-    e.preventDefault()
-    setDrar(false)
-    if (sperret) return
-    const filListe = [...e.dataTransfer.files]
+  const lastOppMedStatus = (filListe: File[]) => {
     if (!filListe.length) return
     setLaster(filListe.length === 1 ? `Laster opp «${filListe[0].name}»…` : `Laster opp ${filListe.length} filer…`)
     lastOpp(filListe)
       .catch((err) => melding(err instanceof Error ? err.message : String(err)))
       .finally(() => setLaster(''))
   }
+
+  const slipp = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDrar(false)
+    if (sperret) return
+    lastOppMedStatus([...e.dataTransfer.files])
+  }
+
+  // Åpnet fra høyreklikkmenyen eller med filer sluppet på raden: vis vedleggene og last opp filene
+  useEffect(() => {
+    if (!start) return
+    del.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    setBlink(true)
+    const t = setTimeout(() => setBlink(false), 1200)
+    if (start.filer?.length) {
+      if (sperret) melding('Risken kan ikke endres akkurat nå, så filene ble ikke lastet opp.')
+      else lastOppMedStatus(start.filer)
+    }
+    startet?.()
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [start])
 
   const fjern = (v: Vedlegg) => {
     const naa = okt.doc.risker.find((x) => x.id === r.id)
@@ -84,7 +106,8 @@ export function VedleggDel({ r, okt, endre, sperret, filer, melding }: Props) {
 
   return (
     <section
-      className={'vedlegg-del' + (drar ? ' drar' : '')}
+      ref={del}
+      className={'vedlegg-del' + (drar ? ' drar' : '') + (blink ? ' blink' : '')}
       onDragOver={(e) => {
         if (sperret || !e.dataTransfer.types.includes('Files')) return
         e.preventDefault()
