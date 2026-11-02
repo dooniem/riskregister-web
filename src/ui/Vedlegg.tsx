@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Risk, Vedlegg } from '../model'
 import type { Op } from '../ops'
@@ -349,6 +349,40 @@ function MedForhandsvisning({ v, filer, children }: { v: Vedlegg; filer?: () => 
   )
 }
 
+// Fast forhåndsvisning over vedleggene i høyreklikkmenyen. Alle forhåndsbildene hentes når menyen åpnes,
+// så de er klare når musen kommer. Uten fil under musen står en grå boks med en forklaring.
+function ForhandsvisningBoks({ liste, filer, over }: { liste: Vedlegg[]; filer: () => FilKilde; over: Vedlegg | null }) {
+  const [bilder, setBilder] = useState<Record<string, string | null>>({})
+  const ref = useRef<HTMLDivElement>(null)
+  const [under, setUnder] = useState(false)
+  useEffect(() => {
+    let aktiv = true
+    for (const v of liste) hentMiniatyr(filer, v.id).then((url) => aktiv && setBilder((b) => ({ ...b, [v.id]: url ?? null })))
+    return () => {
+      aktiv = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liste.map((v) => v.id).join()])
+  // Over menyen når det er plass, ellers under
+  useLayoutEffect(() => {
+    const meny = ref.current?.closest('.undermeny')
+    if (meny) setUnder(meny.getBoundingClientRect().top < 200)
+  }, [])
+  const bilde = over ? bilder[over.id] : undefined
+  return (
+    <div ref={ref} className={'vedlegg-forhand' + (under ? ' under' : '')} aria-hidden>
+      {over && bilde ? (
+        <img src={bilde} alt="" />
+      ) : (
+        <span>
+          {!over ? 'Forhåndsvisning' : bilde === undefined ? 'Henter forhåndsvisning…' : 'Ingen forhåndsvisning for denne filen'}
+          {!over && <small>Hold musen over en fil</small>}
+        </span>
+      )}
+    </div>
+  )
+}
+
 const feiltekst = (err: unknown) => (err instanceof Error ? err.message : String(err))
 
 // Filvelgeren for vedlegg, brukt både fra panelet og fra høyreklikkmenyen
@@ -389,25 +423,25 @@ export function VedleggMeny({ r, okt, endre, melding, kanSkrive, filer, leggTil,
   const liste = r.vedlegg ?? []
   const ktx = { r, okt, endre, melding }
   const [nyttNavn, setNyttNavn] = useState<string | null>(null)
+  const [over, setOver] = useState<Vedlegg | null>(null)
   return (
-    <div className="vedlegg-meny" role="menu">
+    <div className="vedlegg-meny" role="menu" onMouseLeave={() => setOver(null)}>
+      {filer && liste.length > 0 && <ForhandsvisningBoks liste={liste} filer={filer} over={over} />}
       {liste.length === 0 && <p className="vedlegg-meny-tom">Ingen vedlegg ennå</p>}
       {liste.map((v) => {
         const m = typeMerke(v.navn)
         return (
-          <div key={v.id} className="vedlegg-meny-rad">
+          <div key={v.id} className={'vedlegg-meny-rad' + (over?.id === v.id ? ' over' : '')} onMouseEnter={() => setOver(v)}>
             {nyttNavn === v.id ? (
               <NavnFelt ktx={ktx} v={v} filer={filer} redigerer ferdig={() => setNyttNavn(null)} />
             ) : (
               <>
-                <MedForhandsvisning v={v} filer={filer}>
-                  <a href={v.url} target="_blank" rel="noreferrer" role="menuitem" onClick={lukk} title={`Åpne «${v.navn}» i SharePoint`}>
-                    <span className={'vedlegg-type ' + m.kl} aria-hidden>
-                      {m.tekst}
-                    </span>
-                    <span className="vedlegg-meny-navn">{v.navn}</span>
-                  </a>
-                </MedForhandsvisning>
+                <a href={v.url} target="_blank" rel="noreferrer" role="menuitem" onClick={lukk} title={`Åpne «${v.navn}» i SharePoint`}>
+                  <span className={'vedlegg-type ' + m.kl} aria-hidden>
+                    {m.tekst}
+                  </span>
+                  <span className="vedlegg-meny-navn">{v.navn}</span>
+                </a>
                 {kanSkrive && (
                   <button className="vedlegg-meny-ikon" onClick={() => setNyttNavn(v.id)} title="Gi nytt navn" aria-label={`Gi nytt navn til ${v.navn}`}>
                     <Blyant />

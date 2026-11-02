@@ -4948,8 +4948,6 @@ td.aktiv .eier-felt .eier-tom {
   left: calc(100% + 4px);
   z-index: 61;
   width: 320px;
-  max-height: min(420px, 70vh);
-  overflow: auto;
   background: var(--flate);
   border: 1px solid var(--linje);
   border-radius: 8px;
@@ -4976,6 +4974,51 @@ td.aktiv .eier-felt .eier-tom {
 .vedlegg-meny {
   display: flex;
   flex-direction: column;
+  max-height: min(420px, 70vh);
+  overflow-y: auto;
+}
+/* Fast forhåndsvisning over (eller under) undermenyen med vedlegg */
+.vedlegg-forhand {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
+  height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  background: var(--flate-dempet, #eef0eb);
+  border: 1px solid var(--linje);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  color: var(--dempet);
+  font-size: 13px;
+  text-align: center;
+  pointer-events: none;
+}
+.vedlegg-forhand.under {
+  bottom: auto;
+  top: calc(100% + 6px);
+}
+.vedlegg-forhand span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.vedlegg-forhand small {
+  font-size: 12px;
+  opacity: 0.8;
+}
+.vedlegg-forhand img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+  background: var(--flate);
+}
+.vedlegg-meny-rad.over {
+  background: var(--aksent-lys);
 }
 .vedlegg-meny-tom {
   margin: 4px 10px 6px;
