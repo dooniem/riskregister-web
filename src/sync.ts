@@ -56,6 +56,7 @@ export class Okt {
   private sjekkes = new WeakSet<Op>()
   private avklar: Konflikt[] = []
   onKonflikt?: (k: Konflikt[]) => void
+  onStoppetAvLaas?: (av: string) => void
   onLaasTapt?: (riskId: string, av: string) => void
 
   constructor(backend: Backend) {
@@ -179,7 +180,12 @@ export class Okt {
   utfor(...ops: Op[]) {
     if (!this.backend.kanSkrive) return
     // Når registeret er låst, går bare endringer av selve låsen gjennom, uansett hvor i appen de kommer fra
-    if (aktivLaas(this.visning)) ops = ops.filter((o) => o.t === 'setLaas')
+    if (aktivLaas(this.visning)) {
+      const stoppet = ops.filter((o) => o.t !== 'setLaas').length
+      ops = ops.filter((o) => o.t === 'setLaas')
+      // F.eks. en celle som ble redigert idet låsen trådte i kraft. Brukeren skal få vite at endringen ikke ble lagret.
+      if (stoppet) this.onStoppetAvLaas?.(this.visning.laas!.av)
+    }
     if (!ops.length) return
     this.ventende.push(...ops)
     if (this.status === 'frakoblet') ops.forEach((o) => this.sjekkes.add(o))

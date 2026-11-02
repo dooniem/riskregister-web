@@ -5451,3 +5451,36 @@ td.aktiv .eier-felt .eier-tom {
     display: none;
   }
 }
+.banner.registerlaas-snart > svg {
+  flex: none;
+}
+.banner.registerlaas-snart .knapp {
+  margin-left: auto;
+}
+.laas-tid {
+  display: flex;
+  gap: 8px;
+}
+.laas-tid > input,
+.laas-tid > select {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 9em;
+}
+.laas-andre {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.laas-andre ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.laas-andre b {
+  color: #8a1c1c;
+  font-weight: 600;
+}
+.laas-andre small {
+  color: var(--dempet);
+}

@@ -4,7 +4,7 @@ import { excelFil, lastNed, lesExcel } from '../excel'
 import { SkariskVisning } from './Skarisk'
 import { FagMeny, fagForNyRisk } from './Fag'
 import type { Register } from '../model'
-import { aktivLaas, nyRisk } from '../model'
+import { aktivLaas, kommendeLaas, LAAS_NEDTELLING_S, nyRisk } from '../model'
 import type { Konflikt, Op } from '../ops'
 import { SimulertKollega } from '../sim'
 import type { Okt } from '../sync'
@@ -104,20 +104,23 @@ export function RegisterView({ okt, tilbake }: Props) {
   const { doc, andre, status } = snap
   const b = okt.backend
   // Registeret kan låses for redigering frem til et tidspunkt (Mer › Lås riskregister). Da kan alle lese, men ingen endre.
-  // «naa» oppdateres når låsen går ut, så registeret åpner seg av seg selv uten at siden må lastes på nytt.
+  // Først telles det ned i LAAS_NEDTELLING_S sekunder, så andre rekker å fullføre det de holder på med.
+  // «naa» oppdateres hvert sekund under nedtellingen og når låsen går ut, så alt skjer uten at siden må lastes på nytt.
   const [naa, setNaa] = useState(() => Date.now())
   const laas = b.snapshot ? null : aktivLaas(doc, naa)
+  const kommende = b.snapshot ? null : kommendeLaas(doc, naa)
   const laastAvMeg = !!laas && laas.avId === b.bruker.id
   const kanSkrive = b.kanSkrive && !laas
-  const laasTil = doc.laas?.til
+  const laasNokkel = doc.laas ? `${doc.laas.fra ?? ''}|${doc.laas.til}` : ''
   useEffect(() => {
-    if (!laasTil) return
-    const igjen = Date.parse(laasTil) - Date.now()
+    if (!laasNokkel) return
+    const [fra, til] = laasNokkel.split('|').map((x) => (x ? Date.parse(x) : 0))
+    const igjen = fra > Date.now() ? Math.min(fra - Date.now(), 1000) : til - Date.now() + 300
     if (!(igjen > 0)) return
     // setTimeout tåler ikke mer enn ca. 24 dager, så lange låser sjekkes på nytt hver time
-    const t = window.setTimeout(() => setNaa(Date.now()), Math.min(igjen + 500, 3_600_000))
+    const t = window.setTimeout(() => setNaa(Date.now()), Math.min(igjen, 3_600_000))
     return () => window.clearTimeout(t)
-  }, [laasTil, naa])
+  }, [laasNokkel, naa])
   const [laasDialog, setLaasDialog] = useState(false)
   const visningKey = `rr-visning:${doc.registerId}`
   const [visning, setVisningRaw] = useState<Visning>(() => lesVisning(visningKey))
@@ -232,6 +235,7 @@ export function RegisterView({ okt, tilbake }: Props) {
   useEffect(() => {
     okt.onKonflikt = (k: Konflikt[]) =>
       melding(`Du og en annen endret samme felt samtidig (risk ${[...new Set(k.map((x) => x.riskNr))].join(', ')}). Din versjon ble lagret.`)
+    okt.onStoppetAvLaas = (av) => melding(`Endringen ble ikke lagret, fordi ${av} har låst registeret for redigering.`)
     okt.onLaasTapt = (_r, av) => melding(`${av} begynte å redigere samme risk samtidig og fikk låsen først.`)
   }, [okt, melding])
 
@@ -290,7 +294,7 @@ export function RegisterView({ okt, tilbake }: Props) {
 
   const laasOpp = () => {
     okt.utfor({ t: 'setLaas', laas: null })
-    melding('Registeret er åpnet for redigering igjen.')
+    melding(laas ? 'Registeret er åpnet for redigering igjen.' : 'Låsingen er avbrutt.')
   }
 
   const filterAktivt = !!visning.sok || Object.keys(visning.filter.verdier).length > 0 || Object.values(visning.filter.tekst).some(Boolean) || !!visning.filter.matrise || !!visning.fag?.length || !!visning.person
@@ -465,16 +469,16 @@ export function RegisterView({ okt, tilbake }: Props) {
                 <hr />
                 <button onClick={() => setProsjekt('lister')}>Lister og valg…</button>
                 {kanSkrive && <button onClick={() => setHentOppsett(true)}>Hent oppsett fra et annet register…</button>}
-                {b.kanSkrive && !b.snapshot && (!laas || laastAvMeg) && (
+                {b.kanSkrive && !b.snapshot && (laas || kommende ? (laas ?? kommende)!.avId === b.bruker.id : true) && (
                   <>
                     <hr />
                     <button
                       className="meny-med-ikon"
-                      onClick={() => (laas ? laasOpp() : setLaasDialog(true))}
-                      title={laas ? 'Åpne registeret for redigering igjen nå' : 'Ingen kan endre registeret før det åpner igjen. Alle kan fortsatt lese det.'}
+                      onClick={() => (laas || kommende ? laasOpp() : setLaasDialog(true))}
+                      title={laas ? 'Åpne registeret for redigering igjen nå' : kommende ? 'Stopp nedtellingen, så blir registeret ikke låst' : 'Ingen kan endre registeret før det åpner igjen. Alle kan fortsatt lese det.'}
                     >
                       <Laas str={14} />
-                      {laas ? 'Lås opp riskregister' : 'Lås riskregister…'}
+                      {laas ? 'Lås opp riskregister' : kommende ? 'Avbryt låsingen' : 'Lås riskregister…'}
                     </button>
                   </>
                 )}
@@ -530,6 +534,23 @@ export function RegisterView({ okt, tilbake }: Props) {
           </div>
         </header>
 
+        {kommende && (
+          <div className="banner advarsel registerlaas-snart" role="status">
+            <Laas str={15} />
+            <span>
+              <b>
+                {kommende.avId === b.bruker.id ? 'Du låser' : `${kommende.av} låser`} registeret for redigering om {Math.min(LAAS_NEDTELLING_S, Math.max(1, Math.ceil((Date.parse(kommende.fra!) - naa) / 1000)))} s.
+              </b>{' '}
+              {kommende.avId === b.bruker.id ? 'De andre får beskjed og rekker å fullføre det de holder på med.' : 'Fullfør det du holder på med, så blir det lagret.'} Det åpner igjen{' '}
+              {visTid(kommende.til)}.
+            </span>
+            {kommende.avId === b.bruker.id && (
+              <button className="knapp" onClick={laasOpp}>
+                Avbryt låsingen
+              </button>
+            )}
+          </div>
+        )}
         {laas && (
           <div className="banner registerlaas" role="status">
             <Laas str={15} />
@@ -795,11 +816,13 @@ export function RegisterView({ okt, tilbake }: Props) {
         {snarveier && <SnarveierDialog lukk={() => setSnarveier(false)} />}
         {laasDialog && (
           <LaasDialog
+            andre={andre}
+            doc={doc}
             lukk={() => setLaasDialog(false)}
             laas={(til) => {
-              okt.utfor({ t: 'setLaas', laas: { av: b.bruker.navn, avId: b.bruker.id, tid: new Date().toISOString(), til } })
+              const tid = Date.now()
+              okt.utfor({ t: 'setLaas', laas: { av: b.bruker.navn, avId: b.bruker.id, tid: new Date(tid).toISOString(), fra: new Date(tid + LAAS_NEDTELLING_S * 1000).toISOString(), til } })
               setLaasDialog(false)
-              melding(`Registeret er låst for redigering til ${visTid(til)}.`)
             }}
           />
         )}

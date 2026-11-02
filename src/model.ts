@@ -156,17 +156,29 @@ export interface Prosjekt {
   notering: string
 }
 
-// Registeret er låst for redigering frem til «til» (ISO-tid). Alle kan fortsatt lese. Bare den som låste, kan låse opp før tiden.
+// Registeret er låst for redigering fra «fra» til «til» (ISO-tid). Alle kan fortsatt lese. Bare den som låste, kan låse opp før tiden.
+// Mellom «tid» og «fra» telles det ned, så andre rekker å fullføre det de holder på med, og den som låste, kan angre.
 export interface RegisterLaas {
   av: string // navnet på den som låste
   avId: string
-  tid: string // når det ble låst
+  tid: string // når låsen ble satt
+  fra?: string // når låsen trer i kraft (mangler den, gjelder låsen fra «tid»)
   til: string // når det åpner igjen av seg selv
 }
 
-// Låsen som gjelder akkurat nå, eller null hvis registeret er åpent (også når tiden har gått ut)
+// Sekundene fra låsen settes til den trer i kraft
+export const LAAS_NEDTELLING_S = 30
+
+// Låsen som gjelder akkurat nå, eller null hvis registeret er åpent (også under nedtellingen og når tiden har gått ut)
 export function aktivLaas(doc: Register, naa = Date.now()): RegisterLaas | null {
-  return doc.laas && Date.parse(doc.laas.til) > naa ? doc.laas : null
+  const l = doc.laas
+  return l && Date.parse(l.fra ?? l.tid) <= naa && Date.parse(l.til) > naa ? l : null
+}
+
+// Låsen som er satt, men som ikke har trådt i kraft ennå (nedtellingen går)
+export function kommendeLaas(doc: Register, naa = Date.now()): RegisterLaas | null {
+  const l = doc.laas
+  return l?.fra && Date.parse(l.fra) > naa && Date.parse(l.til) > naa ? l : null
 }
 
 export interface Register {

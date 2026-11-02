@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { LAAS_NEDTELLING_S, type Register } from '../model'
+import type { Tilstede } from '../store/backend'
 import { Modal, ModalTittel } from './Modal'
 
 // Tidspunktet låsen går ut, f.eks. «tirsdag 3. november kl. 08:00». Året tas med når det ikke er i år.
@@ -11,34 +13,42 @@ export function visTid(iso: string) {
     year: d.getFullYear() === new Date().getFullYear() ? undefined : 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    hourCycle: 'h23',
   })
 }
 
-// Verdien et <input type="datetime-local"> bruker: lokal tid uten tidssone, «2026-11-03T08:00»
-const lokal = (d: Date) => {
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
-}
+const p2 = (n: number) => String(n).padStart(2, '0')
+// Verdien et <input type="date"> bruker: «2026-11-03»
+const datoVerdi = (d: Date) => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`
+
+// Klokkeslettene i nedtrekkslisten, hvert kvarter med 24-timersklokke (et vanlig tidsfelt viser AM/PM i engelske nettlesere)
+const KLOKKESLETT = Array.from({ length: 96 }, (_, i) => `${p2(Math.floor(i / 4))}:${p2((i % 4) * 15)}`)
 
 // Forslaget er neste morgen kl. 08:00
 function imorgen() {
   const d = new Date()
   d.setDate(d.getDate() + 1)
-  d.setHours(8, 0, 0, 0)
   return d
 }
 
 // Låser registeret for redigering. Tidspunktet er påkrevd, så registeret aldri blir låst for alltid.
-export function LaasDialog({ lukk, laas }: { lukk: () => void; laas: (til: string) => void }) {
-  const [til, setTil] = useState(() => lokal(imorgen()))
+// Låsen trer i kraft etter en nedtelling, så de som er inne i registeret, rekker å fullføre.
+export function LaasDialog({ lukk, laas, andre, doc }: { lukk: () => void; laas: (til: string) => void; andre: Tilstede[]; doc: Register }) {
+  const [dato, setDato] = useState(() => datoVerdi(imorgen()))
+  const [klokke, setKlokke] = useState('08:00')
   const [feil, setFeil] = useState<string | null>(null)
 
+  const valgt = new Date(`${dato}T${klokke}`)
+  const gyldig = dato && !isNaN(valgt.getTime()) ? valgt : null
+
   const bekreft = () => {
-    const tid = new Date(til)
-    if (!til || isNaN(tid.getTime())) return setFeil('Velg dato og klokkeslett for når registeret skal åpne igjen.')
-    if (tid.getTime() <= Date.now()) return setFeil('Tidspunktet må være frem i tid.')
+    const tid = new Date(`${dato}T${klokke}`)
+    if (!dato || isNaN(tid.getTime())) return setFeil('Velg dato og klokkeslett for når registeret skal åpne igjen.')
+    if (tid.getTime() <= Date.now() + LAAS_NEDTELLING_S * 1000) return setFeil('Tidspunktet må være frem i tid.')
     laas(tid.toISOString())
   }
+
+  const nr = (riskId: string) => doc.risker.find((r) => r.id === riskId)?.nr
 
   return (
     <Modal className="laas-dialog" lukk={lukk}>
@@ -55,19 +65,45 @@ export function LaasDialog({ lukk, laas }: { lukk: () => void; laas: (til: strin
           bekreft()
         }}
       >
-        <p>Ingen kan endre registeret mens det er låst, heller ikke du. Alle kan fortsatt lese, søke, skrive ut og eksportere. Du kan låse opp før tiden.</p>
-        <label className="felt">
-          <span>Åpner igjen</span>
-          <input
-            type="datetime-local"
-            required
-            autoFocus
-            value={til}
-            min={lokal(new Date())}
-            onChange={(e) => (setTil(e.target.value), setFeil(null))}
-          />
-          <small>Registeret åpner av seg selv på dette tidspunktet.</small>
-        </label>
+        <p>
+          Ingen kan endre registeret mens det er låst, heller ikke du. Alle kan fortsatt lese, søke, skrive ut og eksportere. Du kan låse opp før tiden.
+        </p>
+        <div className="felt">
+          <span id="laas-aapner">Åpner igjen</span>
+          <div className="laas-tid" role="group" aria-labelledby="laas-aapner">
+            <input type="date" aria-label="Dato" required autoFocus value={dato} min={datoVerdi(new Date())} onChange={(e) => (setDato(e.target.value), setFeil(null))} />
+            <select aria-label="Klokkeslett" value={klokke} onChange={(e) => (setKlokke(e.target.value), setFeil(null))}>
+              {KLOKKESLETT.map((k) => (
+                <option key={k} value={k}>
+                  kl. {k}
+                </option>
+              ))}
+            </select>
+          </div>
+          <small>
+            {gyldig ? `Registeret åpner av seg selv ${visTid(gyldig.toISOString())}.` : 'Registeret åpner av seg selv på dette tidspunktet.'}
+          </small>
+        </div>
+        <div className="laas-andre">
+          {andre.length ? (
+            <>
+              <span>Inne i registeret nå:</span>
+              <ul>
+                {andre.map((t) => (
+                  <li key={t.brukerId}>
+                    {t.navn}
+                    {t.laas && <b> redigerer risk {nr(t.laas.riskId) ?? ''} akkurat nå</b>}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <span>Ingen andre er inne i registeret nå.</span>
+          )}
+          <small>
+            Låsen trer i kraft etter {LAAS_NEDTELLING_S} sekunder. Så lenge ser alle en nedtelling, så de rekker å fullføre det de holder på med, og du kan avbryte.
+          </small>
+        </div>
         {feil && <div className="banner feil">{feil}</div>}
         <div className="knapperad">
           <button type="button" className="knapp" onClick={lukk}>
