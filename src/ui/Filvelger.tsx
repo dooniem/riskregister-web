@@ -145,7 +145,9 @@ export function Filvelger(p: Props) {
         },
         onDragLeave: (e: React.DragEvent) => {
           if (!harFiler(e)) return
-          if (--dybde.current <= 0) (dybde.current = 0), setSlipp(false)
+          if (--dybde.current > 0) return
+          dybde.current = 0
+          setSlipp(false)
         },
         onDrop: (e: React.DragEvent) => {
           if (!harFiler(e)) return
