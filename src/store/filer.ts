@@ -38,6 +38,8 @@ export interface FilKilde {
   slett(id: string): Promise<void>
   // Gir filen nytt navn. Finnes navnet i mappen fra før, kastes en feil.
   gjNavn(id: string, navn: string): Promise<FilLenke>
+  // Adressen til et lite forhåndsbilde av filen, eller undefined når det ikke finnes
+  miniatyr(id: string): Promise<string | undefined>
 }
 
 export interface FilLenke {
@@ -165,6 +167,12 @@ export class DemoFiler implements FilKilde {
   }
   async slett(id: string) {
     noder.delete(id)
+  }
+  // I demo lages forhåndsbilder bare av bildefiler
+  async miniatyr(id: string) {
+    const n = noder.get(id)
+    if (!n?.data || !/\.(png|jpe?g|gif|webp|bmp)$/i.test(n.navn)) return undefined
+    return URL.createObjectURL(new Blob([n.data]))
   }
   async gjNavn(id: string, navn: string) {
     const n = this.finn(id)

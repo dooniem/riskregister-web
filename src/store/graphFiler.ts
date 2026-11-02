@@ -159,6 +159,12 @@ export class GraphFiler implements FilKilde {
     const r = await graph(`${this.drive}/items/${id}`, { method: 'DELETE' })
     if (!r.ok && r.status !== 404) throw new GraphFeil(r.status, await feiltekst(r))
   }
+  // SharePoint lager forhåndsbilder av bilder, PDF og Office-filer. Andre filer gir ingen.
+  async miniatyr(id: string) {
+    await this.klar
+    const t = await graphJson<{ url?: string }>(`${this.drive}/items/${id}/thumbnails/0/large`).catch(() => undefined)
+    return t?.url
+  }
   async gjNavn(id: string, navn: string) {
     await this.klar
     const ren = renNavn(navn)
