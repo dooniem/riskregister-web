@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { LAAS_NEDTELLING_S, type Register } from '../model'
-import type { Tilstede } from '../store/backend'
+import type { LaasBrudd, Tilstede } from '../store/backend'
 import { Modal, ModalTittel } from './Modal'
 
 // Tidspunktet låsen går ut, f.eks. «tirsdag 3. november kl. 08:00». Året tas med når det ikke er i år.
@@ -114,6 +114,71 @@ export function LaasDialog({ lukk, laas, andre, doc }: { lukk: () => void; laas:
           </button>
         </div>
       </form>
+    </Modal>
+  )
+}
+
+type Brudd = LaasBrudd['endringer']
+
+// Én linje som oppsummerer endringene, uansett hvor mange de er: «3 risker er endret direkte i SharePoint mens registeret er låst, av Per Larsen og Ola Hansen.»
+export function bruddTekst(endringer: Brudd, tilstand: string) {
+  const navn = [...new Set(endringer.map((e) => e.av).filter(Boolean))] as string[]
+  const hvem = navn.length > 3 ? `${navn.slice(0, 3).join(', ')} og ${navn.length - 3} til` : navn.length > 1 ? `${navn.slice(0, -1).join(', ')} og ${navn.at(-1)}` : navn[0]
+  const antall = endringer.length === 1 ? '1 risk er' : `${endringer.length} risker er`
+  return `${antall} endret direkte i SharePoint mens registeret ${tilstand}${hvem ? `, av ${hvem}` : ''}.`
+}
+
+const HVA = { risk: 'Risken endret', tiltak: 'Tiltak endret', slettet: 'Slettet' }
+
+// Alle endringene som er gjort i SharePoint mens registeret var låst, én linje per risk, nyeste først
+export function BruddDialog({ endringer, visHistorikk, lukk }: { endringer: Brudd; visHistorikk?: (riskId: string) => void; lukk: () => void }) {
+  const tid = (iso?: string) => (iso ? new Date(iso).toLocaleString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : '')
+  return (
+    <Modal className="brudd-dialog" lukk={lukk}>
+      <header>
+        <ModalTittel>Endret i SharePoint mens registeret var låst</ModalTittel>
+        <button className="ikonknapp" onClick={lukk} aria-label="Lukk" title="Lukk">
+          ✕
+        </button>
+      </header>
+      <div className="modal-innhold">
+        <p>
+          Disse riskene er endret direkte i listene i SharePoint, utenfor appen. {visHistorikk && 'Åpne historikken for å se hva som ble endret.'} SharePoint lagrer ikke hvem
+          som sletter en rad.
+        </p>
+        <table className="brudd-tabell">
+          <thead>
+            <tr>
+              <th>Risk</th>
+              <th>Hva</th>
+              <th>Av</th>
+              <th>Når</th>
+              {visHistorikk && <th />}
+            </tr>
+          </thead>
+          <tbody>
+            {endringer.map((e) => (
+              <tr key={e.riskId}>
+                <td>
+                  <b>{e.nr}</b> {e.tittel}
+                </td>
+                <td>{HVA[e.hva]}</td>
+                <td>{e.av ?? 'Ukjent'}</td>
+                <td>{tid(e.tid)}</td>
+                {visHistorikk && (
+                  <td>
+                    {e.hva !== 'slettet' && (
+                      <button className="lenkeknapp" onClick={() => visHistorikk(e.riskId)}>
+                        Historikk
+                      </button>
+                    )}
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </Modal>
   )
 }

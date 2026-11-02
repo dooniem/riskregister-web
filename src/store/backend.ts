@@ -48,6 +48,14 @@ export interface Avvik {
   forelderlose: { riskId: string; tiltak: Tiltak[] }[]
 }
 
+// Endringer gjort direkte i SharePoint-listene mens registeret var låst (appen skriver ingenting da)
+export interface LaasBrudd {
+  laas: string // «fra|til» for låsen bruddene gjelder, så de nullstilles når registeret låses på nytt
+  endringer: { riskId: string; nr: number; tittel: string; hva: 'risk' | 'tiltak' | 'slettet'; av?: string; tid?: string }[]
+  // Låsen ble fjernet utenfor appen før tiden (raden i Klientinnstillinger endret eller slettet)
+  fjernet?: { av?: string; tid?: string; laastAv: string }
+}
+
 export interface RadHistorikk {
   liste: 'risker' | 'tiltak'
   versjoner: RadVersjon[]
@@ -73,6 +81,8 @@ export interface Backend {
   lytt?(cb: () => void): () => void
   // Det som ser feil ut i listene etter redigering direkte i SharePoint
   readonly avvik?: Avvik
+  // Endringer gjort direkte i SharePoint mens registeret var låst
+  readonly laasBrudd?: LaasBrudd
   // Listene registeret ligger i (for rådatavisningen)
   readonly lager?: ListeLager
   readonly snapshots?: Snapshots

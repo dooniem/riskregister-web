@@ -27,7 +27,7 @@ import { Oversikt } from './Oversikt'
 import { Prosjektpanel } from './Prosjektpanel'
 import { RaadataDialog } from './Raadata'
 import { OmDialog } from './Om'
-import { LaasDialog, visTid } from './LaasDialog'
+import { BruddDialog, bruddTekst, LaasDialog, visTid } from './LaasDialog'
 import { SnarveierDialog } from './Snarveier'
 import { SnapshotDialog } from './Snapshots'
 import { HistorikkDialog, HistorikkKontekst } from './Historikk'
@@ -122,6 +122,13 @@ export function RegisterView({ okt, tilbake }: Props) {
     return () => window.clearTimeout(t)
   }, [laasNokkel, naa])
   const [laasDialog, setLaasDialog] = useState(false)
+  // Endringer gjort direkte i SharePoint mens registeret er låst. Vises som én linje i banneret, med hele listen i et eget vindu.
+  const [bruddVindu, setBruddVindu] = useState(false)
+  const [lukketFjernet, setLukketFjernet] = useState('')
+  const lb = b.snapshot ? undefined : b.laasBrudd
+  const brudd = lb && laas && lb.laas === `${laas.fra ?? laas.tid}|${laas.til}` ? lb.endringer : []
+  // Låsen ble fjernet i SharePoint før tiden. Vises til noen lukker beskjeden eller registeret låses på nytt.
+  const fjernet = lb?.fjernet && !laas && !kommende && lukketFjernet !== lb.laas ? { ...lb.fjernet, endringer: lb.endringer, nokkel: lb.laas } : null
   const visningKey = `rr-visning:${doc.registerId}`
   const [visning, setVisningRaw] = useState<Visning>(() => lesVisning(visningKey))
   const [detalj, setDetalj] = useState<string | null>(null)
@@ -564,6 +571,45 @@ export function RegisterView({ okt, tilbake }: Props) {
               </button>
             )}
           </div>
+        )}
+        {/* Endringer gjort direkte i SharePoint mens registeret er låst: alltid ett gult banner, uansett hvor mange endringer */}
+        {brudd.length > 0 && (
+          <div className="banner advarsel laas-brudd" role="alert">
+            <span>
+              <b>{bruddTekst(brudd, 'er låst')}</b>
+            </span>
+            <button className="knapp" onClick={() => setBruddVindu(true)}>
+              Vis endringene
+            </button>
+          </div>
+        )}
+        {fjernet && (
+          <div className="banner advarsel laas-brudd" role="alert">
+            <span>
+              <b>
+                Låsen ble fjernet direkte i SharePoint
+                {fjernet.av ? ` av ${fjernet.av}` : ''}
+                {fjernet.tid ? ` ${visTid(fjernet.tid)}` : ''}.
+              </b>{' '}
+              Registeret var låst av {fjernet.laastAv}, og er nå åpent for redigering.
+              {fjernet.endringer.length > 0 && ` ${bruddTekst(fjernet.endringer, 'var låst')}`}
+            </span>
+            {fjernet.endringer.length > 0 && (
+              <button className="knapp" onClick={() => setBruddVindu(true)}>
+                Vis endringene
+              </button>
+            )}
+            <button className="knapp" onClick={() => setLukketFjernet(fjernet.nokkel)}>
+              Lukk
+            </button>
+          </div>
+        )}
+        {bruddVindu && (
+          <BruddDialog
+            endringer={brudd.length ? brudd : (fjernet?.endringer ?? [])}
+            visHistorikk={b.historikk ? (id) => (setBruddVindu(false), setHistorikkFor(id)) : undefined}
+            lukk={() => setBruddVindu(false)}
+          />
         )}
         {b.snapshot && (
           <div className="banner advarsel">
