@@ -375,8 +375,8 @@ export function RegisterView({ okt, tilbake }: Props) {
               ))}
             </nav>
           )}
-          <div className={'lagrestatus ' + visStatus} title={snap.feil}>
-            <span className="prikk" /> {statusTekst}
+          <div className={'lagrestatus ' + visStatus} title={snap.feil || statusTekst}>
+            <span className="prikk" /> <span className="lagrestatus-tekst">{statusTekst}</span>
           </div>
           <div className="tilstede">
             {andre.map((t) => (

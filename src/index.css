@@ -3949,11 +3949,14 @@ td.aktiv .tiltak-samlet-tekst {
   color: var(--fane-tekst, var(--tekst));
   border-bottom-color: var(--fane-strek, var(--aksent));
 }
+/* Prosjektnavnet får all ledig plass, og fanene står til høyre ved lagrestatusen */
 .stil-moderne .toppfelt .tittel {
-  flex: 0 1 auto;
+  flex: 1 1 auto;
 }
-.stil-moderne .toppfelt .lagrestatus {
+.stil-moderne .toppfelt .sidevalg {
+  flex: none;
   margin-left: auto;
+  margin-right: 12px;
 }
 
 /* Siden Risikobilde */
@@ -4180,8 +4183,14 @@ td.aktiv .tiltak-samlet-tekst {
   .rb-rutenett {
     grid-template-columns: minmax(0, 1fr);
   }
-  .sidevalg {
-    margin-left: 8px;
+  .stil-moderne .toppfelt .sidevalg {
+    margin-right: 0;
+  }
+}
+/* Når det er trangt, vises lagrestatusen bare som en prikk (teksten ligger i tooltip), så prosjektnavnet får plassen */
+@media (max-width: 1280px) {
+  .stil-moderne .toppfelt .lagrestatus:not(.feil):not(.frakoblet) .lagrestatus-tekst {
+    display: none;
   }
 }
 
