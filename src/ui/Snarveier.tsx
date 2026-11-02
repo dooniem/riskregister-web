@@ -22,13 +22,14 @@ const GRUPPER: [string, [string[], string][]][] = [
     'I tabellen',
     [
       [['Piltaster'], 'Flytt mellom cellene (Tab og Shift+Tab bortover)'],
+      [['Shift', '↑↓'], 'Merk flere risker (eller Ctrl+klikk og Shift+klikk)'],
       [['Enter'], 'Rediger cellen (eller begynn å skrive)'],
       [['Ctrl', 'Enter'], 'Nytt tiltak under'],
       [['Alt', '↓'], 'Åpne listen i en nedtrekkscelle'],
       [['Delete'], 'Tøm cellen'],
       [['Ctrl', 'C'], 'Kopier, og Ctrl+V for å lime inn'],
       [['Ctrl', 'Z'], 'Angre'],
-      [['Esc'], 'Avbryt redigering'],
+      [['Esc'], 'Avbryt redigering eller fjern merkingen'],
     ],
   ],
 ]
