@@ -48,6 +48,8 @@ interface Props {
   filer?: () => FilKilde
   melding: (tekst: string, handling?: { tekst: string; gjor: () => void }) => void
   kanSkrive: boolean
+  // Meldingen når noen prøver å endre uten å kunne, f.eks. fordi registeret er låst
+  sperretTekst?: string
   // Riskene i snapshotet det sammenlignes med, etter id. Endringer i tallene vises i cellene.
   mot?: Map<string, Risk>
   // Moderne utseende: BC, ML og WC samles i FV-kolonnen, og sannsynlighet og konsekvens i eksponeringskolonnen.
@@ -112,7 +114,7 @@ export function synligeKolonner(v: Visning, egendef2Aktiv = false, moderne = fal
 // Fulle navn på kostkolonnene, vist som hjelpetekst på overskriften
 const KOST_NAVN: Record<string, string> = { bc: 'Best case', ml: 'Most likely', wc: 'Worst case', eksponering: 'Sannsynlighet × konsekvens' }
 
-export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapneDetalj, aapneVedlegg, filer, melding, kanSkrive, mot, moderne = false, samlet = false, nyRiskTeller = 0, forsteTreffTeller = 0 }: Props) {
+export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapneDetalj, aapneVedlegg, filer, melding, kanSkrive, sperretTekst = 'Du har bare lesetilgang til dette registeret.', mot, moderne = false, samlet = false, nyRiskTeller = 0, forsteTreffTeller = 0 }: Props) {
   const visHistorikk = useContext(HistorikkKontekst)
   const [aktiv, setAktiv] = useState<Posisjon | null>(null)
   const [redigerer, setRedigerer] = useState<(Posisjon & { start: string; erstatt: boolean; markor?: number }) | null>(null)
@@ -300,7 +302,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   const harVindu = (k?: Kolonne) => erKost(k) || erVurdering(k)
 
   const startRedigering = (p: Posisjon, start?: string, markor?: number) => {
-    if (!kanSkrive) return melding('Du har bare lesetilgang til dette registeret.')
+    if (!kanSkrive) return melding(sperretTekst)
     const { r, k, t } = hentCelle(p)
     if (r && harVindu(k)) {
       const av = okt.laas(r.id)
@@ -546,7 +548,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
         const { r, k } = hentCelle(aktiv)
         if (!r || !k?.felt) return
         e.preventDefault()
-        if (!kanSkrive) return melding('Du har bare lesetilgang til dette registeret.')
+        if (!kanSkrive) return melding(sperretTekst)
         // Bare tekst limes inn. Uten tekst (f.eks. et bilde) skal ikke cellen tømmes.
         if (!e.clipboardData?.types.includes('text/plain')) return
         const s = e.clipboardData.getData('text/plain')

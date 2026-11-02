@@ -4,7 +4,7 @@ import { excelFil, lastNed, lesExcel } from '../excel'
 import { SkariskVisning } from './Skarisk'
 import { FagMeny, fagForNyRisk } from './Fag'
 import type { Register } from '../model'
-import { nyRisk } from '../model'
+import { aktivLaas, kommendeLaas, LAAS_NEDTELLING_S, nyRisk } from '../model'
 import type { Konflikt, Op } from '../ops'
 import { SimulertKollega } from '../sim'
 import type { Okt } from '../sync'
@@ -27,6 +27,7 @@ import { Oversikt } from './Oversikt'
 import { Prosjektpanel } from './Prosjektpanel'
 import { RaadataDialog } from './Raadata'
 import { OmDialog } from './Om'
+import { LaasDialog, visTid } from './LaasDialog'
 import { SnarveierDialog } from './Snarveier'
 import { SnapshotDialog } from './Snapshots'
 import { HistorikkDialog, HistorikkKontekst } from './Historikk'
@@ -102,6 +103,25 @@ export function RegisterView({ okt, tilbake }: Props) {
   const snap = useSyncExternalStore(okt.abonner, okt.hentSnap)
   const { doc, andre, status } = snap
   const b = okt.backend
+  // Registeret kan låses for redigering frem til et tidspunkt (Mer › Lås riskregister). Da kan alle lese, men ingen endre.
+  // Først telles det ned i LAAS_NEDTELLING_S sekunder, så andre rekker å fullføre det de holder på med.
+  // «naa» oppdateres hvert sekund under nedtellingen og når låsen går ut, så alt skjer uten at siden må lastes på nytt.
+  const [naa, setNaa] = useState(() => Date.now())
+  const laas = b.snapshot ? null : aktivLaas(doc, naa)
+  const kommende = b.snapshot ? null : kommendeLaas(doc, naa)
+  const laastAvMeg = !!laas && laas.avId === b.bruker.id
+  const kanSkrive = b.kanSkrive && !laas
+  const laasNokkel = doc.laas ? `${doc.laas.fra ?? ''}|${doc.laas.til}` : ''
+  useEffect(() => {
+    if (!laasNokkel) return
+    const [fra, til] = laasNokkel.split('|').map((x) => (x ? Date.parse(x) : 0))
+    const igjen = fra > Date.now() ? Math.min(fra - Date.now(), 1000) : til - Date.now() + 300
+    if (!(igjen > 0)) return
+    // setTimeout tåler ikke mer enn ca. 24 dager, så lange låser sjekkes på nytt hver time
+    const t = window.setTimeout(() => setNaa(Date.now()), Math.min(igjen, 3_600_000))
+    return () => window.clearTimeout(t)
+  }, [laasNokkel, naa])
+  const [laasDialog, setLaasDialog] = useState(false)
   const visningKey = `rr-visning:${doc.registerId}`
   const [visning, setVisningRaw] = useState<Visning>(() => lesVisning(visningKey))
   const [detalj, setDetalj] = useState<string | null>(null)
@@ -160,7 +180,7 @@ export function RegisterView({ okt, tilbake }: Props) {
   const [snarveier, setSnarveier] = useState(false)
   // Øker når Enter trykkes i søkefeltet, så tabellen markerer første treff
   const [forsteTreffTeller, setForsteTreffTeller] = useState(0)
-  const kanLageRisk = b.kanSkrive && !b.snapshot && visning.fane !== 'skarisk' && !mobil
+  const kanLageRisk = kanSkrive && !b.snapshot && visning.fane !== 'skarisk' && !mobil
   useEffect(() => {
     if (mobil) return
     const h = (e: KeyboardEvent) => {
@@ -215,6 +235,7 @@ export function RegisterView({ okt, tilbake }: Props) {
   useEffect(() => {
     okt.onKonflikt = (k: Konflikt[]) =>
       melding(`Du og en annen endret samme felt samtidig (risk ${[...new Set(k.map((x) => x.riskNr))].join(', ')}). Din versjon ble lagret.`)
+    okt.onStoppetAvLaas = (av) => melding(`Endringen ble ikke lagret, fordi ${av} har låst registeret for redigering.`)
     okt.onLaasTapt = (_r, av) => melding(`${av} begynte å redigere samme risk samtidig og fikk låsen først.`)
   }, [okt, melding])
 
@@ -230,13 +251,14 @@ export function RegisterView({ okt, tilbake }: Props) {
   )
 
   const angre = useCallback(() => {
+    if (laas) return melding(`Registeret er låst for redigering av ${laas.av}.`)
     const ops = angreStabel.current.pop()
     if (!ops) return melding('Ingenting å angre.')
     const r = ops.map((o) => ('riskId' in o ? o.riskId : 'risk' in o ? o.risk.id : '')).find(Boolean)
     if (r && okt.laastAv(r)) return melding('Kan ikke angre: risken redigeres av en annen akkurat nå.')
     // Oppdater «fra» til nåværende verdi slik at angring ikke rapporteres som konflikt
     okt.utfor(...ops)
-  }, [okt, melding])
+  }, [okt, melding, laas])
 
   // Esc lukker paneler
   useEffect(() => {
@@ -270,6 +292,11 @@ export function RegisterView({ okt, tilbake }: Props) {
     window.location.search = '?' + p.toString()
   }
 
+  const laasOpp = () => {
+    okt.utfor({ t: 'setLaas', laas: null })
+    melding(laas ? 'Registeret er åpnet for redigering igjen.' : 'Låsingen er avbrutt.')
+  }
+
   const filterAktivt = !!visning.sok || Object.keys(visning.filter.verdier).length > 0 || Object.values(visning.filter.tekst).some(Boolean) || !!visning.filter.matrise || !!visning.fag?.length || !!visning.person
   const tittel = [doc.prosjekt.nummer, doc.prosjekt.navn].filter(Boolean).join(' ') || 'Riskregister uten navn'
   // Endringer samles noen sekunder før de lagres. Så lenge noen venter, sier vi det i stedet for «lagret».
@@ -277,7 +304,7 @@ export function RegisterView({ okt, tilbake }: Props) {
   // Søk i organisasjonen for risikoeier, tiltakseier og deltakere. Demoen har en oppdiktet organisasjon.
   const personer = useMemo<Personer | null>(
     () =>
-      b.kanSkrive
+      kanSkrive
         ? {
             katalog: b.type === 'demo' ? new DemoKatalog() : new GraphKatalog(),
             leggTil: (p) => {
@@ -286,7 +313,7 @@ export function RegisterView({ okt, tilbake }: Props) {
             },
           }
         : null,
-    [b, okt],
+    [b, okt, kanSkrive],
   )
 
   const grupperValg = samlet ? (
@@ -358,7 +385,7 @@ export function RegisterView({ okt, tilbake }: Props) {
                   </a>
                 </>
               )}
-              {b.snapshot ? ` · snapshot «${b.snapshot.navn}»` : !b.kanSkrive && ' · bare lesetilgang'}
+              {b.snapshot ? ` · snapshot «${b.snapshot.navn}»` : !b.kanSkrive ? ' · bare lesetilgang' : laas && ' · låst for redigering'}
             </div>
           </div>
           {moderne && (
@@ -410,7 +437,7 @@ export function RegisterView({ okt, tilbake }: Props) {
             </button>
             {meny && (
               <div className="nedtrekk" onClick={() => setMeny(false)}>
-                {b.kanSkrive && (
+                {kanSkrive && (
                   <button onClick={() => setFilvelger('aapne')} title="Legg til risker fra et Excel-register, f.eks. et delregister fra en underentreprenør">
                     Importer risker fra Excel…
                   </button>
@@ -441,7 +468,20 @@ export function RegisterView({ okt, tilbake }: Props) {
                 </div>
                 <hr />
                 <button onClick={() => setProsjekt('lister')}>Lister og valg…</button>
-                {b.kanSkrive && <button onClick={() => setHentOppsett(true)}>Hent oppsett fra et annet register…</button>}
+                {kanSkrive && <button onClick={() => setHentOppsett(true)}>Hent oppsett fra et annet register…</button>}
+                {b.kanSkrive && !b.snapshot && (laas || kommende ? (laas ?? kommende)!.avId === b.bruker.id : true) && (
+                  <>
+                    <hr />
+                    <button
+                      className="meny-med-ikon"
+                      onClick={() => (laas || kommende ? laasOpp() : setLaasDialog(true))}
+                      title={laas ? 'Åpne registeret for redigering igjen nå' : kommende ? 'Stopp nedtellingen, så blir registeret ikke låst' : 'Ingen kan endre registeret før det åpner igjen. Alle kan fortsatt lese det.'}
+                    >
+                      <Laas str={14} />
+                      {laas ? 'Lås opp riskregister' : kommende ? 'Avbryt låsingen' : 'Lås riskregister…'}
+                    </button>
+                  </>
+                )}
                 {b.snapshots && !b.snapshot && (
                   <>
                     <hr />
@@ -494,6 +534,37 @@ export function RegisterView({ okt, tilbake }: Props) {
           </div>
         </header>
 
+        {kommende && (
+          <div className="banner advarsel registerlaas-snart" role="status">
+            <Laas str={15} />
+            <span>
+              <b>
+                {kommende.avId === b.bruker.id ? 'Du låser' : `${kommende.av} låser`} registeret for redigering om {Math.min(LAAS_NEDTELLING_S, Math.max(1, Math.ceil((Date.parse(kommende.fra!) - naa) / 1000)))} s.
+              </b>{' '}
+              {kommende.avId === b.bruker.id ? 'De andre får beskjed og rekker å fullføre det de holder på med.' : 'Fullfør det du holder på med, så blir det lagret.'} Det åpner igjen{' '}
+              {visTid(kommende.til)}.
+            </span>
+            {kommende.avId === b.bruker.id && (
+              <button className="knapp" onClick={laasOpp}>
+                Avbryt låsingen
+              </button>
+            )}
+          </div>
+        )}
+        {laas && (
+          <div className="banner registerlaas" role="status">
+            <Laas str={15} />
+            <span>
+              <b>Registeret er låst for redigering</b> av {laastAvMeg ? 'deg' : laas.av}. Det åpner igjen {visTid(laas.til)}. Du kan fortsatt lese, søke, skrive ut og
+              eksportere.
+            </span>
+            {laastAvMeg && (
+              <button className="knapp" onClick={laasOpp}>
+                Lås opp nå
+              </button>
+            )}
+          </div>
+        )}
         {b.snapshot && (
           <div className="banner advarsel">
             Du ser på snapshotet «{b.snapshot.navn}» fra {new Date(b.snapshot.tidspunkt).toLocaleString('nb-NO')}, tatt av {b.snapshot.tattAv}. Det kan ikke endres.
@@ -504,7 +575,7 @@ export function RegisterView({ okt, tilbake }: Props) {
         )}
 
         <UlagretBanner okt={okt} snap={snap} />
-        {doc.risker.length === 0 && b.kanSkrive && !b.snapshot && (
+        {doc.risker.length === 0 && kanSkrive && !b.snapshot && (
           <div className="banner info tomt">
             <span>Registeret er tomt. Har et annet prosjekt et oppsett dere vil bruke, kan du hente kategorier, nedtrekkslister og deltakere derfra.</span>
             <button className="knapp" onClick={() => setHentOppsett(true)}>
@@ -520,10 +591,10 @@ export function RegisterView({ okt, tilbake }: Props) {
               {manglende.length === 1 ? 'Kolonnen ' : 'Kolonnene '}
               {manglende.map((k) => `«${k.kolonne}» (${LISTER[k.liste].visningsnavn})`).join(', ')} mangler i listene i SharePoint (nye felt fra en oppdatering, eller slettet). Endringer i{' '}
               {manglende.length === 1 ? 'det feltet' : 'de feltene'} blir ikke lagret, resten lagres som vanlig.
-              {b.kanSkrive && b.lager?.opprettKolonner && ' De kan lages på nytt, men verdiene som lå i dem, kommer ikke tilbake.'}
+              {kanSkrive && b.lager?.opprettKolonner && ' De kan lages på nytt, men verdiene som lå i dem, kommer ikke tilbake.'}
               {kolonneFeil && <span className="feil"> {kolonneFeil}</span>}
             </span>
-            {b.kanSkrive && b.lager?.opprettKolonner && (
+            {kanSkrive && b.lager?.opprettKolonner && (
               <button
                 className="knapp"
                 disabled={lagerKolonner}
@@ -573,8 +644,8 @@ export function RegisterView({ okt, tilbake }: Props) {
             snapshots={b.snapshot ? undefined : b.snapshots}
             okt={okt}
             endre={endre}
-            kanSkrive={b.kanSkrive}
-            detalj={(id, lukk) => <Detaljpanel okt={okt} doc={doc} riskId={id} endre={endre} lukk={lukk} kanSkrive={b.kanSkrive && !b.snapshot} filer={filKilde} melding={melding} />}
+            kanSkrive={kanSkrive}
+            detalj={(id, lukk) => <Detaljpanel okt={okt} doc={doc} riskId={id} endre={endre} lukk={lukk} kanSkrive={kanSkrive && !b.snapshot} filer={filKilde} melding={melding} />}
             melding={melding}
             taSnapshot={() => setSnapshots('liste')}
             autoValgt={autoSnapshot}
@@ -625,7 +696,7 @@ export function RegisterView({ okt, tilbake }: Props) {
               }}
             />
             {!samlet && grupperValg}
-            <FagMeny doc={doc} visning={visning} setVisning={setVisning} endre={endre} kanSkrive={b.kanSkrive} />
+            <FagMeny doc={doc} visning={visning} setVisning={setVisning} endre={endre} kanSkrive={kanSkrive} />
             {personValg}
             {!mobil && !samlet && kolonneKnapp}
             </>
@@ -645,7 +716,7 @@ export function RegisterView({ okt, tilbake }: Props) {
               {visning.fane !== 'skarisk' && grupperValg}
               {visning.fane !== 'skarisk' && !mobil && kolonneKnapp}
               {oversiktKnapp}
-              {b.kanSkrive && visning.fane !== 'skarisk' && !mobil && (
+              {kanSkrive && visning.fane !== 'skarisk' && !mobil && (
                 <button className="knapp primær ny-risk" onClick={() => setNyRiskTeller((n) => n + 1)} aria-keyshortcuts="Alt+N" title="Ny risk (Alt+N)">
                   <Pluss /> Ny risk
                 </button>
@@ -659,7 +730,7 @@ export function RegisterView({ okt, tilbake }: Props) {
             <SkariskVisning doc={doc} aapneDetalj={setDetalj} melding={melding} />
           ) : mobil ? (
             <div className="mobilflate">
-              {b.kanSkrive && (
+              {kanSkrive && (
                 <button
                   className="knapp primær ny-risk ny-risk-mobil"
                   onClick={() => {
@@ -672,7 +743,7 @@ export function RegisterView({ okt, tilbake }: Props) {
                   + Ny risk
                 </button>
               )}
-              <Kortliste okt={okt} doc={doc} andre={andre} visning={visning} aapne={setDetalj} endre={endre} kanSkrive={b.kanSkrive} melding={melding} />
+              <Kortliste okt={okt} doc={doc} andre={andre} visning={visning} aapne={setDetalj} endre={endre} kanSkrive={kanSkrive} melding={melding} />
             </div>
           ) : (
           <Grid
@@ -687,7 +758,8 @@ export function RegisterView({ okt, tilbake }: Props) {
             aapneVedlegg={(id, filer) => (setDetalj(id), setVedleggStart({ riskId: id, filer }))}
             filer={b.snapshot ? undefined : filKilde}
             melding={melding}
-            kanSkrive={b.kanSkrive}
+            kanSkrive={kanSkrive}
+            sperretTekst={laas ? `Registeret er låst for redigering av ${laastAvMeg ? 'deg' : laas.av} til ${visTid(laas.til)}.` : undefined}
             mot={motRisker}
             moderne={moderne}
             samlet={samlet}
@@ -702,7 +774,7 @@ export function RegisterView({ okt, tilbake }: Props) {
               riskId={detalj}
               endre={endre}
               lukk={() => (setDetalj(null), setVedleggStart(null))}
-              kanSkrive={b.kanSkrive && !b.snapshot}
+              kanSkrive={kanSkrive && !b.snapshot}
               filer={filKilde}
               melding={melding}
               vedleggStart={vedleggStart?.riskId === detalj ? vedleggStart : undefined}
@@ -734,21 +806,33 @@ export function RegisterView({ okt, tilbake }: Props) {
             mot={mot ? { navn: mot.info.navn, risker: motRisker! } : undefined}
             okt={okt}
             endre={endre}
-            kanSkrive={b.kanSkrive}
-            detalj={(id, lukk) => <Detaljpanel okt={okt} doc={doc} riskId={id} endre={endre} lukk={lukk} kanSkrive={b.kanSkrive && !b.snapshot} filer={filKilde} melding={melding} />}
+            kanSkrive={kanSkrive}
+            detalj={(id, lukk) => <Detaljpanel okt={okt} doc={doc} riskId={id} endre={endre} lukk={lukk} kanSkrive={kanSkrive && !b.snapshot} filer={filKilde} melding={melding} />}
             melding={melding}
             lukk={() => setStorMatrise(null)}
           />
         )}
         {raadata && b.lager && <RaadataDialog lager={b.lager} lukk={() => setRaadata(false)} />}
         {snarveier && <SnarveierDialog lukk={() => setSnarveier(false)} />}
+        {laasDialog && (
+          <LaasDialog
+            andre={andre}
+            doc={doc}
+            lukk={() => setLaasDialog(false)}
+            laas={(til) => {
+              const tid = Date.now()
+              okt.utfor({ t: 'setLaas', laas: { av: b.bruker.navn, avId: b.bruker.id, tid: new Date(tid).toISOString(), fra: new Date(tid + LAAS_NEDTELLING_S * 1000).toISOString(), til } })
+              setLaasDialog(false)
+            }}
+          />
+        )}
         {om && <OmDialog demo={b.type === 'demo'} lukk={() => setOm(false)} />}
         {prosjekt && (
           <Prosjektpanel
             doc={doc}
             endre={endre}
             lukk={() => setProsjekt(false)}
-            kanSkrive={b.kanSkrive}
+            kanSkrive={kanSkrive}
             start={prosjekt}
             hentOppsett={() => (setProsjekt(false), setHentOppsett(true))}
           />

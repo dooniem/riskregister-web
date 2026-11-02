@@ -1,6 +1,6 @@
 // Endringer lagres som små operasjoner. Ved lagring legges de oppå siste versjon
 // fra SharePoint, slik at to brukere som endrer ulike risker aldri overskriver hverandre.
-import type { Deltaker, Gjennomgang, Lister, Prosjekt, Register, Risk, Tiltak } from './model'
+import type { Deltaker, Gjennomgang, Lister, Prosjekt, Register, RegisterLaas, Risk, Tiltak } from './model'
 import { migrer } from './model'
 
 export type RiskFelt = Exclude<keyof Risk, 'id' | 'nr' | 'tiltak' | 'endret' | 'endretAv' | 'opprettet' | 'opprettetAv' | 'lukket' | 'lukketAv' | 'kilde'>
@@ -19,6 +19,7 @@ export type Op =
   | { t: 'upsertGjennomgang'; gjennomgang: Gjennomgang }
   | { t: 'deleteGjennomgang'; id: string }
   | { t: 'setListe'; key: keyof Lister; verdi: Lister[keyof Lister] }
+  | { t: 'setLaas'; laas: RegisterLaas | null }
   | { t: 'erstatt'; doc: Register }
 
 export interface Konflikt {
@@ -127,6 +128,9 @@ export function brukOp(doc: Register, op: Op, bruker: Bruker): Konflikt | null {
       return null
     case 'setListe':
       ;(doc.lister as unknown as Record<string, unknown>)[op.key] = op.verdi
+      return null
+    case 'setLaas':
+      doc.laas = op.laas
       return null
     case 'erstatt': {
       const ny = migrer(op.doc)
