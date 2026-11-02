@@ -11,8 +11,14 @@ function celle(ws: Ark, r: number, c: number): unknown {
   return ws[XLSX.utils.encode_cell({ r, c })]?.v
 }
 function tekst(ws: Ark, r: number, c: number): string {
-  const v = celle(ws, r, c)
+  const cel = ws[XLSX.utils.encode_cell({ r, c })] as XLSX.CellObject | undefined
+  const v = cel?.v
   if (v == null) return ''
+  // En tekstcelle som bare inneholder en dato, lagres som et tall i Excel. Den vises som dato, ikke som tallet.
+  if (typeof v === 'number' && v >= 1 && typeof cel?.z === 'string' && XLSX.SSF.is_date(cel.z)) {
+    const d = XLSX.SSF.parse_date_code(v)
+    if (d) return `${String(d.d).padStart(2, '0')}.${String(d.m).padStart(2, '0')}.${d.y}`
+  }
   const s = String(v).trim()
   return s === '-' ? '' : s
 }
@@ -149,7 +155,7 @@ export async function importerExcel(fil: File): Promise<Register> {
 
 // Leser en Excel-bok (fra PC eller hentet fra SharePoint) til et register
 export function lesExcel(innhold: ArrayBuffer, filnavn: string): Register {
-  const wb = XLSX.read(innhold, { type: 'array', cellDates: false })
+  const wb = XLSX.read(innhold, { type: 'array', cellDates: false, cellNF: true })
   const hoved = wb.Sheets['Riskregister']
   if (!hoved) throw new Error('Fant ikke arkfanen «Riskregister». Er dette en Riskregister-fil?')
   const reg = nyttRegister()
