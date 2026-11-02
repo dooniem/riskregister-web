@@ -36,6 +36,8 @@ export interface FilKilde {
   lastOpp(sti: string[], navn: string, data: ArrayBuffer): Promise<FilLenke>
   // Sletter filen. I SharePoint havner den i papirkurven på området. En fil som allerede er borte, regnes som slettet.
   slett(id: string): Promise<void>
+  // Gir filen nytt navn. Finnes navnet i mappen fra før, kastes en feil.
+  gjNavn(id: string, navn: string): Promise<FilLenke>
 }
 
 export interface FilLenke {
@@ -163,6 +165,12 @@ export class DemoFiler implements FilKilde {
   }
   async slett(id: string) {
     noder.delete(id)
+  }
+  async gjNavn(id: string, navn: string) {
+    const n = this.finn(id)
+    if ([...noder.values()].some((x) => x.id !== id && x.forelder === n.forelder && x.navn.toLowerCase() === navn.toLowerCase())) throw new Error(`Det finnes allerede en fil som heter «${navn}» i mappen.`)
+    n.navn = navn
+    return this.lenke(id)
   }
   private element(n: DemoNode): FilElement {
     return { id: n.id, navn: n.navn, mappe: n.mappe, endret: n.endret, storrelse: n.data?.byteLength }

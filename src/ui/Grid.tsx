@@ -119,7 +119,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   // Undermenyen «Vedlegg ›» i høyreklikkmenyen, og filvelgeren den kan åpne
   const [vedleggUnder, setVedleggUnder] = useState(false)
   const vedleggTid = useRef<ReturnType<typeof setTimeout>>(undefined)
-  const [vedleggVelger, setVedleggVelger] = useState<string | null>(null)
+  const [vedleggVelger, setVedleggVelger] = useState<{ riskId: string; fil?: File } | null>(null)
   useEffect(() => setVedleggUnder(false), [kontekst])
   const [fagVelger, setFagVelger] = useState<{ riskId: string; x: number; y: number } | null>(null)
   const [lukketGrupper, setLukketGrupper] = useState<string[]>([])
@@ -950,8 +950,8 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
           return r ? <VurderingEditor risk={r} anker={vurdEditor.anker} onLagre={(v) => lagreVurdering(r.id, v)} onAvbryt={lukkKost} /> : null
         })()}
       {vedleggVelger && filer && (() => {
-        const r = doc.risker.find((x) => x.id === vedleggVelger)
-        return r ? <LeggTilVedlegg r={r} okt={okt} endre={endre} filer={filer} melding={melding} lukk={() => setVedleggVelger(null)} /> : null
+        const r = doc.risker.find((x) => x.id === vedleggVelger.riskId)
+        return r ? <LeggTilVedlegg r={r} okt={okt} endre={endre} filer={filer} melding={melding} fil={vedleggVelger.fil} lukk={() => setVedleggVelger(null)} /> : null
       })()}
       {fagVelger && (
         <FagVelger
@@ -1004,7 +1004,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                       melding={melding}
                       kanSkrive={kanVedlegg}
                       filer={filer}
-                      leggTil={() => (setVedleggVelger(r.id), setKontekst(null))}
+                      leggTil={(fil) => (setVedleggVelger({ riskId: r.id, fil }), setKontekst(null))}
                       lukk={() => setKontekst(null)}
                     />
                   </div>
