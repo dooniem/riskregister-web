@@ -1,5 +1,5 @@
 // Mapper og filer i SharePoint (dokumentbiblioteker) for import og eksport av Excel-filer
-import { graph, GraphFeil, graphJson, feiltekst } from './graph'
+import { graph, GraphFeil, graphJson, feiltekst, jsonInit } from './graph'
 import type { FilElement, FilKilde, FilMappe } from './filer'
 
 // Gjør en vanlig SharePoint-lenke om til en share-id for /shares-endepunktet
@@ -158,6 +158,14 @@ export class GraphFiler implements FilKilde {
     await this.klar
     const r = await graph(`${this.drive}/items/${id}`, { method: 'DELETE' })
     if (!r.ok && r.status !== 404) throw new GraphFeil(r.status, await feiltekst(r))
+  }
+  async gjNavn(id: string, navn: string) {
+    await this.klar
+    const ren = renNavn(navn)
+    const r = await graph(`${this.drive}/items/${id}`, jsonInit('PATCH', { name: ren }))
+    if (r.status === 409) throw new Error(`Det finnes allerede en fil som heter «${ren}» i mappen.`)
+    if (!r.ok) throw new GraphFeil(r.status, await feiltekst(r))
+    return this.medMappe(await r.json())
   }
   async lagre(mappeId: string, navn: string, data: ArrayBuffer) {
     await this.klar

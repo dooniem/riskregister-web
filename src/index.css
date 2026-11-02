@@ -4814,7 +4814,7 @@ td.aktiv .eier-felt .eier-tom {
 .vedlegg-type.pdf {
   background: #b30b00;
 }
-.vedlegg-liste a.vedlegg-mappe {
+.vedlegg-liste .vedlegg-mappe {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -4823,7 +4823,7 @@ td.aktiv .eier-felt .eier-tom {
   color: var(--dempet);
   text-decoration: none;
 }
-.vedlegg-liste a.vedlegg-mappe:hover {
+.vedlegg-liste .vedlegg-mappe:hover {
   color: var(--aksent);
 }
 .vedlegg-legg-til {
@@ -5057,4 +5057,72 @@ td.aktiv .eier-felt .eier-tom {
 .vedlegg-meny-rad .fjern-valg {
   flex-basis: 100%;
   padding: 0 8px 6px 46px;
+}
+
+/* Nytt navn på et vedlegg, rett der navnet står */
+.vedlegg-navnefelt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+}
+.vedlegg-navnefelt input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  padding: 3px 6px;
+  border: 1px solid var(--aksent);
+  border-radius: 4px;
+}
+.vedlegg-liste button.vedlegg-mappe {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+/* Navn før opplasting av ett skjermbilde eller én fil */
+.modal.navngi-fil {
+  width: min(480px, calc(100vw - 32px));
+}
+.navngi-bilde {
+  display: block;
+  max-width: 100%;
+  max-height: 260px;
+  margin: 0 auto 14px;
+  border: 1px solid var(--linje);
+  border-radius: 6px;
+  object-fit: contain;
+}
+.navngi-felt {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--dempet);
+}
+.navngi-felt > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.navngi-felt input {
+  flex: 1;
+  font: inherit;
+  font-size: 15px;
+  color: var(--tekst, inherit);
+  padding: 7px 10px;
+  border: 1px solid var(--linje-sterk);
+  border-radius: 6px;
+}
+.navngi-fil .feil {
+  color: var(--fare-tekst, #b42318);
+  margin: 8px 0 0;
+}
+.navngi-fil .modal-knapper {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px 18px;
 }

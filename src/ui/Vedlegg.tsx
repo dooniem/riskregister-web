@@ -4,6 +4,7 @@ import type { Op } from '../ops'
 import type { FilKilde, FilLenke } from '../store/filer'
 import type { Okt } from '../sync'
 import { Filvelger } from './Filvelger'
+import { Modal, ModalTittel } from './Modal'
 
 // Mappen i dokumentbiblioteket der filer som lastes opp fra registeret havner
 export const VEDLEGG_MAPPE = 'Riskregister vedlegg'
@@ -89,8 +90,7 @@ async function slettVedlegg(ktx: Ktx, kilde: FilKilde, v: Vedlegg) {
 function FjernVedlegg({ ktx, v, filer, kompakt, ferdig }: { ktx: Ktx; v: Vedlegg; filer?: () => FilKilde; kompakt?: boolean; ferdig?: () => void }) {
   const [spor, setSpor] = useState(false)
   const [sletter, setSletter] = useState(false)
-  // Vedlegg lagt til før merket fantes, kjennes igjen på mappen de ligger i
-  const kanSlette = (!!v.opplastet || !!v.mappeUrl?.includes(encodeURIComponent(VEDLEGG_MAPPE))) && !!filer
+  const kanSlette = erOpplastet(v) && !!filer
   const bareLenke = () => (fjernVedlegg(ktx, v), ferdig?.())
   if (!spor)
     return kompakt ? (
@@ -159,10 +159,144 @@ function bilderFraLimInn(e: ClipboardEvent) {
   return [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/')).map((f) => new File([f], skjermbildeNavn(f.type), { type: f.type }))
 }
 
+// Lastet opp fra registeret, så filen ligger i vedleggsmappen og kan slettes og få nytt navn i SharePoint.
+// Vedlegg lagt til før merket fantes, kjennes igjen på mappen de ligger i.
+const erOpplastet = (v: Vedlegg) => !!v.opplastet || !!v.mappeUrl?.includes(encodeURIComponent(VEDLEGG_MAPPE))
+
+// «Befaring.pdf» → { navn: 'Befaring', endelse: '.pdf' }
+function delNavn(fil: string) {
+  const m = fil.match(/^(.*?)(\.[^.\s]{1,8})?$/)
+  return { navn: m?.[1] || fil, endelse: m?.[2] ?? '' }
+}
+// Nytt navn med den gamle endelsen, med mindre brukeren har skrevet den selv
+function medEndelse(nytt: string, endelse: string) {
+  const n = nytt.trim()
+  return endelse && !n.toLowerCase().endsWith(endelse.toLowerCase()) ? n + endelse : n
+}
+
+// Gir vedlegget nytt navn. Filer lastet opp fra registeret får nytt filnavn i SharePoint (og ny adresse),
+// andre filer får bare nytt navn i registeret, så originalen i biblioteket ikke endres.
+async function gjNavnVedlegg(ktx: Ktx, filer: (() => FilKilde) | undefined, v: Vedlegg, nyttNavn: string) {
+  const navn = medEndelse(nyttNavn, delNavn(v.navn).endelse)
+  if (!navn || navn === v.navn) return
+  const av = ktx.okt.laastAv(ktx.r.id)
+  if (av) throw new Error(`${av.navn} redigerer risken akkurat nå.`)
+  const ny: Partial<Vedlegg> = erOpplastet(v) && filer ? await filer().gjNavn(v.id, navn) : { navn }
+  const naa = ktx.okt.doc.risker.find((x) => x.id === ktx.r.id)
+  if (!naa?.vedlegg) return
+  if (ktx.okt.laas(ktx.r.id)) throw new Error('Risken redigeres av andre akkurat nå.')
+  const liste = naa.vedlegg.map((x) => (x.id === v.id ? { ...x, ...ny } : x))
+  ktx.endre({ t: 'setRisk', riskId: ktx.r.id, felt: 'vedlegg', verdi: liste, fra: naa.vedlegg })
+  ktx.okt.slippLaas()
+  ktx.melding(erOpplastet(v) && filer ? `Filen heter nå «${ny.navn}».` : `Vedlegget heter nå «${navn}» i registeret. Originalfilen beholder navnet sitt.`)
+}
+
+// Navnet på et vedlegg, som blir et tekstfelt når blyanten trykkes. Enter lagrer, Esc avbryter.
+function NavnFelt({ ktx, v, filer, redigerer, ferdig }: { ktx: Ktx; v: Vedlegg; filer?: () => FilKilde; redigerer: boolean; ferdig: () => void }) {
+  const { navn, endelse } = delNavn(v.navn)
+  const [tekst, setTekst] = useState(navn)
+  const [lagrer, setLagrer] = useState(false)
+  if (!redigerer) return null
+  const lagre = () => {
+    if (lagrer) return
+    if (!tekst.trim() || tekst.trim() === navn) return ferdig()
+    setLagrer(true)
+    gjNavnVedlegg(ktx, filer, v, tekst)
+      .then(ferdig)
+      .catch((err) => ktx.melding(feiltekst(err)))
+      .finally(() => setLagrer(false))
+  }
+  return (
+    <span className="vedlegg-navnefelt">
+      <input
+        autoFocus
+        value={tekst}
+        disabled={lagrer}
+        aria-label={`Nytt navn på ${v.navn}`}
+        onFocus={(e) => e.currentTarget.select()}
+        onChange={(e) => setTekst(e.target.value)}
+        onKeyDown={(e) => {
+          e.stopPropagation()
+          if (e.key === 'Enter') lagre()
+          if (e.key === 'Escape') (e.preventDefault(), ferdig())
+        }}
+      />
+      {endelse && <span className="liten">{endelse}</span>}
+      <button className="lenkeknapp" onClick={lagre} disabled={lagrer}>
+        {lagrer ? 'Lagrer…' : 'Lagre'}
+      </button>
+    </span>
+  )
+}
+
+function Blyant() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden>
+      <path d="M11 2.5l2.5 2.5L5.5 13H3v-2.5z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+// Vinduet som ber om navn før én fil (et innlimt skjermbilde, eller én fil som dras inn) lastes opp.
+// Bilder vises som forhåndsvisning. Navnet er markert, så man kan skrive rett over det.
+function NavngiFil({ fil, lagre, lukk }: { fil: File; lagre: (fil: File) => Promise<void>; lukk: () => void }) {
+  const { navn, endelse } = delNavn(fil.name)
+  const [tekst, setTekst] = useState(navn)
+  const [feil, setFeil] = useState('')
+  const [lagrer, setLagrer] = useState(false)
+  const [bilde] = useState(() => (fil.type.startsWith('image/') ? URL.createObjectURL(fil) : ''))
+  useEffect(() => () => (bilde ? URL.revokeObjectURL(bilde) : undefined), [bilde])
+  const ok = async () => {
+    if (!tekst.trim()) return setFeil('Skriv inn et navn.')
+    setLagrer(true)
+    setFeil('')
+    try {
+      await lagre(new File([fil], medEndelse(tekst, endelse), { type: fil.type }))
+      lukk()
+    } catch (err) {
+      setFeil(feiltekst(err))
+      setLagrer(false)
+    }
+  }
+  return (
+    <Modal className="navngi-fil" lukk={lagrer ? undefined : lukk}>
+      <header>
+        <ModalTittel>{fil.type.startsWith('image/') ? 'Lagre skjermbilde' : 'Lagre vedlegg'}</ModalTittel>
+      </header>
+      <div className="modal-innhold">
+        {bilde && <img className="navngi-bilde" src={bilde} alt="" />}
+        <label className="navngi-felt">
+          Navn
+          <span>
+            <input
+              autoFocus
+              value={tekst}
+              disabled={lagrer}
+              onFocus={(e) => e.currentTarget.select()}
+              onChange={(e) => setTekst(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), ok())}
+            />
+            {endelse && <span className="liten">{endelse}</span>}
+          </span>
+        </label>
+        {feil && <p className="feil">{feil}</p>}
+      </div>
+      <footer className="modal-knapper">
+        <button className="knapp" onClick={lukk} disabled={lagrer}>
+          Avbryt
+        </button>
+        <button className="knapp primær" onClick={ok} disabled={lagrer}>
+          {lagrer ? 'Lagrer…' : 'Lagre'}
+        </button>
+      </footer>
+    </Modal>
+  )
+}
+
 const feiltekst = (err: unknown) => (err instanceof Error ? err.message : String(err))
 
 // Filvelgeren for vedlegg, brukt både fra panelet og fra høyreklikkmenyen
-function VedleggFilvelger({ ktx, kilde, lukk }: { ktx: Ktx; kilde: FilKilde; lukk: () => void }) {
+function VedleggFilvelger({ ktx, kilde, lukk, enFil }: { ktx: Ktx; kilde: FilKilde; lukk: () => void; enFil?: (f: File) => void }) {
   return (
     <Filvelger
       modus="vedlegg"
@@ -170,6 +304,8 @@ function VedleggFilvelger({ ktx, kilde, lukk }: { ktx: Ktx; kilde: FilKilde; luk
       lukk={lukk}
       pcTekst={`Lastes opp til «${VEDLEGG_MAPPE} › Risk ${ktx.r.nr}» i dokumentbiblioteket.`}
       fraPc={async (filListe) => {
+        // Én fil får navn før den lastes opp
+        if (filListe.length === 1 && enFil) return enFil(filListe[0])
         await lastOppVedlegg(ktx, kilde, filListe)
         lukk()
       }}
@@ -183,15 +319,20 @@ function VedleggFilvelger({ ktx, kilde, lukk }: { ktx: Ktx; kilde: FilKilde; luk
 }
 
 // «Legg til vedlegg…» fra høyreklikkmenyen: bare filvelgeren, uten panelet
-export function LeggTilVedlegg({ r, okt, endre, filer, melding, lukk }: Omit<Props, 'sperret' | 'start' | 'startet'> & { lukk: () => void }) {
+// Med fil (et innlimt skjermbilde) åpnes navnevinduet direkte.
+export function LeggTilVedlegg({ r, okt, endre, filer, melding, lukk, fil }: Omit<Props, 'sperret' | 'start' | 'startet'> & { lukk: () => void; fil?: File }) {
   const [kilde] = useState(filer)
-  return <VedleggFilvelger ktx={{ r, okt, endre, melding }} kilde={kilde} lukk={lukk} />
+  const [navngi, setNavngi] = useState<File | null>(fil ?? null)
+  const ktx = { r, okt, endre, melding }
+  if (navngi) return <NavngiFil fil={navngi} lagre={(f) => lastOppVedlegg(ktx, kilde, [f])} lukk={lukk} />
+  return <VedleggFilvelger ktx={ktx} kilde={kilde} lukk={lukk} enFil={setNavngi} />
 }
 
 // Undermenyen «Vedlegg ›» i høyreklikkmenyen: alle vedleggene, med mappe og fjern, og «Legg til vedlegg…» nederst
-export function VedleggMeny({ r, okt, endre, melding, kanSkrive, filer, leggTil, lukk }: { r: Risk; okt: Okt; endre: (...ops: Op[]) => void; melding: (tekst: string) => void; kanSkrive: boolean; filer?: () => FilKilde; leggTil: () => void; lukk: () => void }) {
+export function VedleggMeny({ r, okt, endre, melding, kanSkrive, filer, leggTil, lukk }: { r: Risk; okt: Okt; endre: (...ops: Op[]) => void; melding: (tekst: string) => void; kanSkrive: boolean; filer?: () => FilKilde; leggTil: (fil?: File) => void; lukk: () => void }) {
   const liste = r.vedlegg ?? []
   const ktx = { r, okt, endre, melding }
+  const [nyttNavn, setNyttNavn] = useState<string | null>(null)
   return (
     <div className="vedlegg-meny" role="menu">
       {liste.length === 0 && <p className="vedlegg-meny-tom">Ingen vedlegg ennå</p>}
@@ -199,12 +340,23 @@ export function VedleggMeny({ r, okt, endre, melding, kanSkrive, filer, leggTil,
         const m = typeMerke(v.navn)
         return (
           <div key={v.id} className="vedlegg-meny-rad">
-            <a href={v.url} target="_blank" rel="noreferrer" role="menuitem" onClick={lukk} title={`Åpne «${v.navn}» i SharePoint`}>
-              <span className={'vedlegg-type ' + m.kl} aria-hidden>
-                {m.tekst}
-              </span>
-              <span className="vedlegg-meny-navn">{v.navn}</span>
-            </a>
+            {nyttNavn === v.id ? (
+              <NavnFelt ktx={ktx} v={v} filer={filer} redigerer ferdig={() => setNyttNavn(null)} />
+            ) : (
+              <>
+                <a href={v.url} target="_blank" rel="noreferrer" role="menuitem" onClick={lukk} title={`Åpne «${v.navn}» i SharePoint`}>
+                  <span className={'vedlegg-type ' + m.kl} aria-hidden>
+                    {m.tekst}
+                  </span>
+                  <span className="vedlegg-meny-navn">{v.navn}</span>
+                </a>
+                {kanSkrive && (
+                  <button className="vedlegg-meny-ikon" onClick={() => setNyttNavn(v.id)} title="Gi nytt navn" aria-label={`Gi nytt navn til ${v.navn}`}>
+                    <Blyant />
+                  </button>
+                )}
+              </>
+            )}
             {v.mappeUrl && (
               <a className="vedlegg-meny-ikon" href={v.mappeUrl} target="_blank" rel="noreferrer" onClick={lukk} title="Åpne mappen filen ligger i" aria-label={`Åpne mappen til ${v.navn}`}>
                 <MappeIkon />
@@ -219,7 +371,7 @@ export function VedleggMeny({ r, okt, endre, melding, kanSkrive, filer, leggTil,
       {kanSkrive && (
         <>
           {liste.length > 0 && <hr />}
-          <button className="vedlegg-meny-legg-til" role="menuitem" onClick={leggTil}>
+          <button className="vedlegg-meny-legg-til" role="menuitem" onClick={() => leggTil()}>
             + Legg til vedlegg…
           </button>
           {filer && (
@@ -230,7 +382,7 @@ export function VedleggMeny({ r, okt, endre, melding, kanSkrive, filer, leggTil,
               onClick={() => {
                 lukk()
                 bildeFraUtklipp()
-                  .then((fil) => (melding(`Laster opp «${fil.name}»…`), lastOppVedlegg(ktx, filer(), [fil])))
+                  .then((fil) => leggTil(fil))
                   .catch((err) => melding(feiltekst(err)))
               }}
             >
@@ -258,6 +410,8 @@ export function VedleggDel({ r, okt, endre, sperret, filer, melding, start, star
   const [drar, setDrar] = useState(false)
   const [laster, setLaster] = useState('')
   const [blink, setBlink] = useState(false)
+  const [navngi, setNavngi] = useState<File | null>(null)
+  const [nyttNavn, setNyttNavn] = useState<string | null>(null)
   const del = useRef<HTMLElement>(null)
   const liste = r.vedlegg ?? []
 
@@ -267,8 +421,10 @@ export function VedleggDel({ r, okt, endre, sperret, filer, melding, start, star
     setVelger(null)
   }
 
+  // Én fil får navn i et eget vindu før den lastes opp. Flere filer lastes opp med navnene de har.
   const lastOppMedStatus = (filListe: File[]) => {
     if (!filListe.length) return
+    if (filListe.length === 1) return setNavngi(filListe[0])
     setLaster(filListe.length === 1 ? `Laster opp «${filListe[0].name}»…` : `Laster opp ${filListe.length} filer…`)
     lastOpp(filListe)
       .catch((err) => melding(feiltekst(err)))
@@ -339,9 +495,18 @@ export function VedleggDel({ r, okt, endre, sperret, filer, melding, start, star
                 <span className={'vedlegg-type ' + m.kl} aria-hidden>
                   {m.tekst}
                 </span>
-                <a href={v.url} target="_blank" rel="noreferrer" title={[v.lagtTilAv && `Lagt til av ${v.lagtTilAv}`, v.lagtTil && new Date(v.lagtTil).toLocaleDateString('nb-NO')].filter(Boolean).join(', ') || undefined}>
-                  {v.navn}
-                </a>
+                {nyttNavn === v.id ? (
+                  <NavnFelt ktx={ktx} v={v} filer={filer} redigerer ferdig={() => setNyttNavn(null)} />
+                ) : (
+                  <a href={v.url} target="_blank" rel="noreferrer" title={[v.lagtTilAv && `Lagt til av ${v.lagtTilAv}`, v.lagtTil && new Date(v.lagtTil).toLocaleDateString('nb-NO')].filter(Boolean).join(', ') || undefined}>
+                    {v.navn}
+                  </a>
+                )}
+                {!sperret && nyttNavn !== v.id && (
+                  <button className="vedlegg-mappe" onClick={() => setNyttNavn(v.id)} title="Gi nytt navn" aria-label={`Gi nytt navn til ${v.navn}`}>
+                    <Blyant />
+                  </button>
+                )}
                 {v.mappeUrl && (
                   <a className="vedlegg-mappe" href={v.mappeUrl} target="_blank" rel="noreferrer" title="Åpne mappen filen ligger i, i SharePoint" aria-label={`Åpne mappen til ${v.navn}`}>
                     <MappeIkon />
@@ -375,7 +540,8 @@ export function VedleggDel({ r, okt, endre, sperret, filer, melding, start, star
           </div>
         )
       )}
-      {velger && <VedleggFilvelger ktx={ktx} kilde={velger} lukk={() => setVelger(null)} />}
+      {velger && <VedleggFilvelger ktx={ktx} kilde={velger} lukk={() => setVelger(null)} enFil={(f) => (setVelger(null), setNavngi(f))} />}
+      {navngi && <NavngiFil fil={navngi} lagre={(f) => lastOppVedlegg(ktx, filer(), [f])} lukk={() => setNavngi(null)} />}
     </section>
   )
 }
