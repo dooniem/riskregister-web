@@ -4644,3 +4644,36 @@ td.aktiv .eier-felt .eier-tom {
   border-radius: 50%;
   background: var(--aksent);
 }
+
+/* Oversikten over tastatursnarveier (?) */
+.modal.snarveier {
+  width: 520px;
+}
+.snarvei-liste {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 6px 16px;
+  align-items: baseline;
+  margin: 0 0 8px;
+}
+.snarvei-liste dt {
+  white-space: nowrap;
+  color: var(--dempet);
+}
+.snarvei-liste dd {
+  margin: 0;
+}
+.snarvei-liste kbd {
+  display: inline-block;
+  min-width: 22px;
+  padding: 1px 6px;
+  margin: 0 2px;
+  border: 1px solid var(--linje);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--flate, #fff);
+  color: var(--tekst, inherit);
+  font: inherit;
+  font-size: 12px;
+  text-align: center;
+}

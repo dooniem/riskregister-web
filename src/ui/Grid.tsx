@@ -51,6 +51,7 @@ interface Props {
   samlet?: boolean
   // Teller som øker når «Ny risk» i verktøylinjen trykkes
   nyRiskTeller?: number
+  forsteTreffTeller?: number
 }
 
 const Kalenderikon = () => (
@@ -104,7 +105,7 @@ export function synligeKolonner(v: Visning, egendef2Aktiv = false, moderne = fal
 // Fulle navn på kostkolonnene, vist som hjelpetekst på overskriften
 const KOST_NAVN: Record<string, string> = { bc: 'Best case', ml: 'Most likely', wc: 'Worst case', eksponering: 'Sannsynlighet × konsekvens' }
 
-export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapneDetalj, melding, kanSkrive, mot, moderne = false, samlet = false, nyRiskTeller = 0 }: Props) {
+export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapneDetalj, melding, kanSkrive, mot, moderne = false, samlet = false, nyRiskTeller = 0, forsteTreffTeller = 0 }: Props) {
   const [aktiv, setAktiv] = useState<Posisjon | null>(null)
   const [redigerer, setRedigerer] = useState<(Posisjon & { start: string; erstatt: boolean; markor?: number }) | null>(null)
   const [meny, setMeny] = useState<{ kol: string; x: number; y: number } | null>(null)
@@ -378,6 +379,18 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
     boks.current?.focus()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nyRiskTeller])
+
+  // Enter i søkefeltet: marker første treff og flytt fokus til tabellen
+  const forrigeTreff = useRef(forsteTreffTeller)
+  useEffect(() => {
+    if (forsteTreffTeller === forrigeTreff.current) return
+    forrigeTreff.current = forsteTreffTeller
+    const l = linjer[0]
+    if (!l) return melding('Ingen treff.')
+    setAktiv({ riskId: l.risk.id, tiltakId: l.tiltak?.id, kol: kolonner.find((k) => k.key === 'hendelse') ? 'hendelse' : (kolonner[1]?.key ?? 'nr') })
+    boks.current?.focus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forsteTreffTeller])
 
   const settFag = (riskId: string, fag: string) => {
     const r = doc.risker.find((x) => x.id === riskId)
