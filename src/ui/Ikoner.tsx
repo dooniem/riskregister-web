@@ -1,6 +1,6 @@
-export function Laas() {
+export function Laas({ str = 11 }: { str?: number }) {
   return (
-    <svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true" style={{ verticalAlign: '-1px' }}>
+    <svg width={str} height={str} viewBox="0 0 16 16" aria-hidden="true" style={{ verticalAlign: '-1px' }}>
       <path d="M4 7V5a4 4 0 0 1 8 0v2h1v8H3V7h1zm2 0h4V5a2 2 0 0 0-4 0v2z" fill="currentColor" />
     </svg>
   )

@@ -5430,3 +5430,24 @@ td.aktiv .eier-felt .eier-tom {
     gap: 0;
   }
 }
+
+/* ---- Låst register (Mer › Lås riskregister) ---- */
+/* Samme banner som den gule for manglende kolonner, bare rød */
+.banner.registerlaas {
+  background: #ffe3e3;
+  color: #8a1c1c;
+  border-bottom: 1px solid #ffa8a8;
+}
+.banner.registerlaas > svg {
+  flex: none;
+}
+.nedtrekk > button.meny-med-ikon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+@media print {
+  .banner.registerlaas {
+    display: none;
+  }
+}

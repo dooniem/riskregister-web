@@ -156,6 +156,19 @@ export interface Prosjekt {
   notering: string
 }
 
+// Registeret er låst for redigering frem til «til» (ISO-tid). Alle kan fortsatt lese. Bare den som låste, kan låse opp før tiden.
+export interface RegisterLaas {
+  av: string // navnet på den som låste
+  avId: string
+  tid: string // når det ble låst
+  til: string // når det åpner igjen av seg selv
+}
+
+// Låsen som gjelder akkurat nå, eller null hvis registeret er åpent (også når tiden har gått ut)
+export function aktivLaas(doc: Register, naa = Date.now()): RegisterLaas | null {
+  return doc.laas && Date.parse(doc.laas.til) > naa ? doc.laas : null
+}
+
 export interface Register {
   schemaVersion: number
   registerId: string
@@ -169,6 +182,7 @@ export interface Register {
   nesteNr?: number
   // Nøkkelen Excel-registeret bygger UnikID av (cellene AC2 og AC3 i Riskregister-arket). Tas vare på ved import fra Excel.
   excelNokkel?: { ac2: string; ac3: string }
+  laas?: RegisterLaas | null
 }
 
 export const SANNSYNLIGHET = ['1 Veldig lav', '2 Lav', '3 Medium', '4 Høy', '5 Veldig høy']

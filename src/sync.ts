@@ -1,7 +1,7 @@
 // Holder registeret i synk med lagringen: lokale endringer legges i kø og lagres med en gang,
 // endringer fra andre hentes jevnlig, og tilstedeværelse/låser publiseres.
 import type { Register } from './model'
-import { migrer } from './model'
+import { aktivLaas, migrer } from './model'
 import type { Konflikt, Op } from './ops'
 import { brukAlle } from './ops'
 import type { Backend, Tilstede } from './store/backend'
@@ -178,6 +178,9 @@ export class Okt {
   // ---- Endringer ----
   utfor(...ops: Op[]) {
     if (!this.backend.kanSkrive) return
+    // Når registeret er låst, går bare endringer av selve låsen gjennom, uansett hvor i appen de kommer fra
+    if (aktivLaas(this.visning)) ops = ops.filter((o) => o.t === 'setLaas')
+    if (!ops.length) return
     this.ventende.push(...ops)
     if (this.status === 'frakoblet') ops.forEach((o) => this.sjekkes.add(o))
     this.husk()
