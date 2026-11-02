@@ -127,6 +127,38 @@ function FjernVedlegg({ ktx, v, filer, kompakt, ferdig }: { ktx: Ktx; v: Vedlegg
   )
 }
 
+// Navnet på et innlimt skjermbilde: «Skjermbilde 2026-11-02 11.42.07.png»
+function skjermbildeNavn(type = 'image/png') {
+  const d = new Date()
+  const to = (n: number) => String(n).padStart(2, '0')
+  const ext = type.split('/')[1]?.replace('jpeg', 'jpg') || 'png'
+  return `Skjermbilde ${d.getFullYear()}-${to(d.getMonth() + 1)}-${to(d.getDate())} ${to(d.getHours())}.${to(d.getMinutes())}.${to(d.getSeconds())}.${ext}`
+}
+
+// Henter et bilde fra utklippstavlen. Nettleseren spør om lov første gang.
+async function bildeFraUtklipp(): Promise<File> {
+  if (!navigator.clipboard?.read) throw new Error('Nettleseren kan ikke lese bilder fra utklippstavlen herfra. Åpne risken i panelet og trykk Ctrl+V.')
+  let elementer: ClipboardItems
+  try {
+    elementer = await navigator.clipboard.read()
+  } catch {
+    throw new Error('Fikk ikke lese utklippstavlen. Tillat det i nettleseren, eller åpne risken i panelet og trykk Ctrl+V.')
+  }
+  for (const el of elementer) {
+    const type = el.types.find((t) => t.startsWith('image/'))
+    if (type) {
+      const blob = await el.getType(type)
+      return new File([blob], skjermbildeNavn(type), { type })
+    }
+  }
+  throw new Error('Utklippstavlen har ikke noe bilde. Ta et skjermbilde først (Windows + Shift + S), og prøv igjen.')
+}
+
+// Bilder fra en lim inn-hendelse (Ctrl+V), med navn som skjermbilde
+function bilderFraLimInn(e: ClipboardEvent) {
+  return [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/')).map((f) => new File([f], skjermbildeNavn(f.type), { type: f.type }))
+}
+
 const feiltekst = (err: unknown) => (err instanceof Error ? err.message : String(err))
 
 // Filvelgeren for vedlegg, brukt både fra panelet og fra høyreklikkmenyen
@@ -190,6 +222,21 @@ export function VedleggMeny({ r, okt, endre, melding, kanSkrive, filer, leggTil,
           <button className="vedlegg-meny-legg-til" role="menuitem" onClick={leggTil}>
             + Legg til vedlegg…
           </button>
+          {filer && (
+            <button
+              className="vedlegg-meny-legg-til"
+              role="menuitem"
+              title="Lagrer bildet du har kopiert (f.eks. med Windows + Shift + S) som vedlegg på risken"
+              onClick={() => {
+                lukk()
+                bildeFraUtklipp()
+                  .then((fil) => (melding(`Laster opp «${fil.name}»…`), lastOppVedlegg(ktx, filer(), [fil])))
+                  .catch((err) => melding(feiltekst(err)))
+              }}
+            >
+              + Lim inn skjermbilde
+            </button>
+          )}
         </>
       )}
     </div>
@@ -250,6 +297,24 @@ export function VedleggDel({ r, okt, endre, sperret, filer, melding, start, star
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [start])
 
+  // Ctrl+V med panelet åpent legger til bildet fra utklippstavlen, så lenge man ikke skriver i et tekstfelt
+  useEffect(() => {
+    if (sperret) return
+    const limInn = (e: ClipboardEvent) => {
+      const m = e.target as HTMLElement | null
+      if (e.defaultPrevented) return
+      if (m && (m.tagName === 'INPUT' || m.tagName === 'TEXTAREA' || m.isContentEditable)) return
+      const bilder = bilderFraLimInn(e)
+      if (!bilder.length) return
+      e.preventDefault()
+      del.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      lastOppMedStatus(bilder)
+    }
+    window.addEventListener('paste', limInn)
+    return () => window.removeEventListener('paste', limInn)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sperret, r.id])
+
   return (
     <section
       ref={del}
@@ -298,6 +363,13 @@ export function VedleggDel({ r, okt, endre, sperret, filer, melding, start, star
           <div className="vedlegg-legg-til">
             <button className="knapp" onClick={() => setVelger(filer())}>
               + Legg til vedlegg
+            </button>
+            <button
+              className="knapp"
+              title="Lagrer bildet du har kopiert (f.eks. med Windows + Shift + S) som vedlegg. Ctrl+V virker også."
+              onClick={() => bildeFraUtklipp().then((fil) => lastOppMedStatus([fil])).catch((err) => melding(feiltekst(err)))}
+            >
+              Lim inn skjermbilde
             </button>
             <span className="liten">eller dra filer hit</span>
           </div>
