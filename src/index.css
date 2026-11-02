@@ -2795,6 +2795,13 @@ td .valgpil.synlig {
   border: 1px solid var(--linje);
   border-radius: 8px;
 }
+.deltaker-topp {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0 0 10px;
+}
 .organisasjonen h4 {
   margin: 0 0 8px;
 }
