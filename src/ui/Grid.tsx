@@ -1060,10 +1060,15 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                 const r = doc.risker.find((x) => x.id === kontekst.pos.riskId)
                 if (!r) return null
                 const lukket = r.status === 'Lukket'
+                // Egen linje over og under, så valget skiller seg ut fra resten av menyen
                 return (
-                  <button onClick={() => (settStatus([r.id], lukket ? 'Åpen' : 'Lukket'), setKontekst(null))} title={lukket ? undefined : 'Risken beholdes med historikk og havner under «Lukkede»'}>
+                  <>
+                  <hr />
+                  <button className="meny-uthevet" onClick={() => (settStatus([r.id], lukket ? 'Åpen' : 'Lukket'), setKontekst(null))} title={lukket ? undefined : 'Risken beholdes med historikk og havner under «Lukkede»'}>
                     {lukket ? 'Gjenåpne risken' : 'Lukk risken'}
                   </button>
+                  <hr />
+                  </>
                 )
               })()}
               <button onClick={() => (setFagVelger({ riskId: kontekst.pos.riskId, x: kontekst.x, y: kontekst.y }), setKontekst(null))}>Sett fag…</button>
@@ -1080,8 +1085,15 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   </>
                 )
               })()}
-              <button onClick={() => (nyttTiltakUnder(kontekst.pos), setKontekst(null))}>Nytt tiltak under</button>
-              {kontekst.pos.tiltakId && <button onClick={() => (slettTiltak(kontekst.pos), setKontekst(null))}>Slett tiltaket</button>}
+              {/* Tiltaksvalgene gjelder tiltaket det er høyreklikket på. Utenfor tiltakskolonnene legges et nytt tiltak sist. */}
+              {KOL[kontekst.pos.kol]?.nivaa === 'tiltak' && kontekst.pos.tiltakId ? (
+                <>
+                  <button onClick={() => (nyttTiltakUnder(kontekst.pos), setKontekst(null))}>Nytt tiltak under</button>
+                  <button onClick={() => (slettTiltak(kontekst.pos), setKontekst(null))}>Slett tiltaket</button>
+                </>
+              ) : (
+                <button onClick={() => (nyttTiltakUnder({ ...kontekst.pos, tiltakId: undefined }), setKontekst(null))}>Nytt tiltak</button>
+              )}
               <hr />
               <button onClick={() => (nyRad(), setKontekst(null))}>Ny risk</button>
               <button className="fare" onClick={() => (slettRisk(kontekst.pos), setKontekst(null))}>
