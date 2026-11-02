@@ -27,6 +27,7 @@ import { Oversikt } from './Oversikt'
 import { Prosjektpanel } from './Prosjektpanel'
 import { RaadataDialog } from './Raadata'
 import { OmDialog } from './Om'
+import { SnarveierDialog } from './Snarveier'
 import { SnapshotDialog } from './Snapshots'
 import { StorMatrise } from './StorMatrise'
 import { Risikobilde } from './Risikobilde'
@@ -146,6 +147,44 @@ export function RegisterView({ okt, tilbake }: Props) {
   const samlet = stil === 'samlet'
   // Moderne visning har to sider: registeret og risikobildet
   const [side, setSide] = useState<{ navn: 'register' | 'risikobilde'; rm: 'R' | 'M' }>({ navn: 'register', rm: 'R' })
+
+  // Tastatursnarveier: / går til søkefeltet, Alt+N lager en ny risk og ? viser oversikten (Snarveier.tsx). Ingen av dem brukes av Windows eller nettleserne,
+  // og nettleseren får bare tastene når siden har fokus. De virker ikke når du skriver i et felt eller har en dialog åpen.
+  // Lyttes på i fangstfasen, så tabellen ikke tolker tastene som starten på en redigering.
+  const sokRef = useRef<HTMLInputElement>(null)
+  const [snarveier, setSnarveier] = useState(false)
+  // Øker når Enter trykkes i søkefeltet, så tabellen markerer første treff
+  const [forsteTreffTeller, setForsteTreffTeller] = useState(0)
+  const kanLageRisk = b.kanSkrive && !b.snapshot && visning.fane !== 'skarisk' && !mobil
+  useEffect(() => {
+    if (mobil) return
+    const h = (e: KeyboardEvent) => {
+      if (e.repeat || e.ctrlKey || e.metaKey || e.isComposing) return
+      const sok = e.key === '/' && !e.altKey
+      const ny = e.altKey && !e.shiftKey && e.code === 'KeyN'
+      const hjelp = e.key === '?' && !e.altKey
+      if (!sok && !ny && !hjelp) return
+      const el = document.activeElement
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement || (el instanceof HTMLElement && el.isContentEditable)) return
+      if (document.querySelector('dialog[open]')) return
+      if (ny && !kanLageRisk) return
+      e.preventDefault()
+      e.stopPropagation()
+      setMeny(false)
+      if (hjelp) return setSnarveier(true)
+      const tilRegister = moderne && side.navn !== 'register'
+      if (tilRegister) setSide((s) => ({ ...s, navn: 'register' }))
+      // Vent til registeret er tegnet hvis vi kom fra risikobildet
+      setTimeout(() => {
+        if (sok) {
+          sokRef.current?.focus()
+          sokRef.current?.select()
+        } else setNyRiskTeller((n) => n + 1)
+      }, 0)
+    }
+    window.addEventListener('keydown', h, true)
+    return () => window.removeEventListener('keydown', h, true)
+  }, [mobil, moderne, side.navn, kanLageRisk])
   const paaRisikobilde = moderne && side.navn === 'risikobilde'
   const autoSnapshot = useRef(false)
   const [snapshotsLukket, setSnapshotsLukket] = useState(0)
@@ -549,7 +588,27 @@ export function RegisterView({ okt, tilbake }: Props) {
           </nav>
           {visning.fane !== 'skarisk' && (
             <>
-            <input className="sok" placeholder="Søk i alle felt…" value={visning.sok} onChange={(e) => setVisning((v) => ({ ...v, sok: e.target.value }))} />
+            <input
+              ref={sokRef}
+              className="sok"
+              placeholder="Søk i alle felt…"
+              aria-keyshortcuts="/"
+              title="Søk i alle felt (/). Enter går til første treff, Esc tømmer søket."
+              value={visning.sok}
+              onChange={(e) => setVisning((v) => ({ ...v, sok: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                  e.preventDefault()
+                  setForsteTreffTeller((n) => n + 1)
+                } else if (e.key === 'Escape') {
+                  // Første Esc tømmer søket, neste går ut av feltet. Stopper her, så Esc ikke også lukker andre ting.
+                  e.preventDefault()
+                  e.nativeEvent.stopImmediatePropagation()
+                  if (visning.sok) setVisning((v) => ({ ...v, sok: '' }))
+                  else e.currentTarget.blur()
+                }
+              }}
+            />
             {!samlet && grupperValg}
             <FagMeny doc={doc} visning={visning} setVisning={setVisning} endre={endre} kanSkrive={b.kanSkrive} />
             {personValg}
@@ -572,7 +631,7 @@ export function RegisterView({ okt, tilbake }: Props) {
               {visning.fane !== 'skarisk' && !mobil && kolonneKnapp}
               {oversiktKnapp}
               {b.kanSkrive && visning.fane !== 'skarisk' && !mobil && (
-                <button className="knapp primær ny-risk" onClick={() => setNyRiskTeller((n) => n + 1)}>
+                <button className="knapp primær ny-risk" onClick={() => setNyRiskTeller((n) => n + 1)} aria-keyshortcuts="Alt+N" title="Ny risk (Alt+N)">
                   <Pluss /> Ny risk
                 </button>
               )}
@@ -616,6 +675,7 @@ export function RegisterView({ okt, tilbake }: Props) {
             moderne={moderne}
             samlet={samlet}
             nyRiskTeller={nyRiskTeller}
+            forsteTreffTeller={forsteTreffTeller}
           />
           )}
           {detalj && <Detaljpanel okt={okt} doc={doc} riskId={detalj} endre={endre} lukk={() => setDetalj(null)} kanSkrive={b.kanSkrive} />}
@@ -650,6 +710,7 @@ export function RegisterView({ okt, tilbake }: Props) {
           />
         )}
         {raadata && b.lager && <RaadataDialog lager={b.lager} lukk={() => setRaadata(false)} />}
+        {snarveier && <SnarveierDialog lukk={() => setSnarveier(false)} />}
         {om && <OmDialog demo={b.type === 'demo'} lukk={() => setOm(false)} />}
         {prosjekt && (
           <Prosjektpanel
