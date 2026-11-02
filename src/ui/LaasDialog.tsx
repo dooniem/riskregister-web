@@ -125,7 +125,8 @@ export function bruddTekst(endringer: Brudd, tilstand: string) {
   const navn = [...new Set(endringer.map((e) => e.av).filter(Boolean))] as string[]
   const hvem = navn.length > 3 ? `${navn.slice(0, 3).join(', ')} og ${navn.length - 3} til` : navn.length > 1 ? `${navn.slice(0, -1).join(', ')} og ${navn.at(-1)}` : navn[0]
   const antall = endringer.length === 1 ? '1 risk er' : `${endringer.length} risker er`
-  return `${antall} endret direkte i SharePoint mens registeret ${tilstand}${hvem ? `, av ${hvem}` : ''}.`
+  const hva = endringer.some((e) => e.hva === 'slettet') ? 'endret eller slettet' : 'endret'
+  return `${antall} ${hva} direkte i SharePoint mens registeret ${tilstand}${hvem ? `, av ${hvem}` : ''}.`
 }
 
 const HVA = { risk: 'Risken endret', tiltak: 'Tiltak endret', slettet: 'Slettet' }
