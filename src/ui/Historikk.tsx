@@ -40,7 +40,7 @@ export function HistorikkDialog({ riskId, doc, hent, lukk }: Props) {
   const antall = (h: HistorikkPost['hva']) => poster.filter((p) => p.hva === h).length
 
   return (
-    <Modal className="bred historikk" lukk={lukk}>
+    <Modal className="bred historikk festet-topp" lukk={lukk}>
       <header>
         <ModalTittel>Historikk for risk {r?.nr ?? ''}</ModalTittel>
         <button className="ikonknapp" onClick={lukk} aria-label="Lukk" title="Lukk">

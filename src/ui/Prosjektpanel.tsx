@@ -21,7 +21,7 @@ interface Props {
 export function Prosjektpanel({ doc, endre, lukk, kanSkrive, start = 'prosjekt', hentOppsett }: Props) {
   const [fane, setFane] = useState<Fane>(start)
   return (
-    <Modal className="bred" lukk={lukk}>
+    <Modal className="bred festet-topp" lukk={lukk}>
       <header>
         <ModalTittel>Prosjekt</ModalTittel>
         <button className="ikonknapp" onClick={lukk} aria-label="Lukk" title="Lukk">
