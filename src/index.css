@@ -4915,3 +4915,146 @@ td.aktiv .eier-felt .eier-tom {
   font-size: 12px;
   color: var(--dempet);
 }
+
+/* Undermeny i høyreklikkmenyen (Vedlegg ›), åpnes ved hover eller klikk */
+.undermeny-holder {
+  position: relative;
+}
+.undermeny-knapp {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 7px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.undermeny-knapp:hover,
+.undermeny-knapp.aapen {
+  background: var(--aksent-lys);
+}
+.undermeny-pil {
+  margin-left: auto;
+  display: inline-flex;
+  color: var(--dempet);
+}
+.undermeny {
+  position: absolute;
+  top: -7px;
+  left: calc(100% + 4px);
+  z-index: 61;
+  width: 320px;
+  max-height: min(420px, 70vh);
+  overflow: auto;
+  background: var(--flate);
+  border: 1px solid var(--linje);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  padding: 6px;
+}
+.undermeny.venstre {
+  left: auto;
+  right: calc(100% + 4px);
+}
+/* Usynlig bro over mellomrommet, så musen ikke forlater menyen på vei over */
+.undermeny::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  left: -10px;
+}
+.undermeny.venstre::before {
+  left: auto;
+  right: -10px;
+}
+.vedlegg-meny {
+  display: flex;
+  flex-direction: column;
+}
+.vedlegg-meny-tom {
+  margin: 4px 10px 6px;
+  color: var(--dempet);
+  font-size: 13px;
+}
+.vedlegg-meny-rad {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 5px;
+}
+.vedlegg-meny-rad:hover {
+  background: var(--aksent-lys);
+}
+.vedlegg-meny-rad > a:first-child {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  color: inherit;
+  text-decoration: none;
+}
+.vedlegg-meny-navn {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vedlegg-meny-ikon {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: none;
+  border-radius: 4px;
+  color: var(--dempet);
+  cursor: pointer;
+  font-size: 12px;
+  flex: none;
+}
+.vedlegg-meny-ikon:hover {
+  background: var(--flate);
+  color: var(--tekst, inherit);
+}
+.vedlegg-meny-legg-til {
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 7px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font: inherit;
+  color: var(--aksent);
+}
+.vedlegg-meny-legg-til:hover {
+  background: var(--aksent-lys);
+}
+/* Valget mellom å fjerne lenken og å slette filen (bare for filer lastet opp fra registeret) */
+.fjern-valg {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding-right: 6px;
+  font-size: 13px;
+}
+.fjern-valg .fare {
+  color: var(--fare-tekst, #b42318);
+}
+.fjern-valg .dempet {
+  color: var(--dempet);
+}
+.vedlegg-meny-rad {
+  flex-wrap: wrap;
+}
+.vedlegg-meny-rad .fjern-valg {
+  flex-basis: 100%;
+  padding: 0 8px 6px 46px;
+}

@@ -681,6 +681,7 @@ export function RegisterView({ okt, tilbake }: Props) {
             angre={angre}
             aapneDetalj={setDetalj}
             aapneVedlegg={(id, filer) => (setDetalj(id), setVedleggStart({ riskId: id, filer }))}
+            filer={b.snapshot ? undefined : filKilde}
             melding={melding}
             kanSkrive={b.kanSkrive}
             mot={motRisker}

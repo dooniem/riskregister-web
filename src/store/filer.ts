@@ -34,6 +34,8 @@ export interface FilKilde {
   // For vedlegg: lenken som åpner filen, og opplasting til en mappe (stien regnes fra roten av biblioteket, mappene lages ved behov)
   lenke(id: string): Promise<FilLenke>
   lastOpp(sti: string[], navn: string, data: ArrayBuffer): Promise<FilLenke>
+  // Sletter filen. I SharePoint havner den i papirkurven på området. En fil som allerede er borte, regnes som slettet.
+  slett(id: string): Promise<void>
 }
 
 export interface FilLenke {
@@ -158,6 +160,9 @@ export class DemoFiler implements FilKilde {
     const brukt = await this.lagre(mappe, navn, data)
     const n = [...noder.values()].find((x) => x.forelder === mappe && x.navn === brukt)!
     return this.lenke(n.id)
+  }
+  async slett(id: string) {
+    noder.delete(id)
   }
   private element(n: DemoNode): FilElement {
     return { id: n.id, navn: n.navn, mappe: n.mappe, endret: n.endret, storrelse: n.data?.byteLength }
