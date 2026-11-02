@@ -66,7 +66,7 @@ export function OmDialog({ demo, lukk }: { demo: boolean; lukk: () => void }) {
             Ta et snapshot før et møte eller en milepæl. Da kan du senere se hva som er endret siden, både i
             tabellen og i risikobildet.
           </li>
-          <li>Vedlegg legges til fra høyreklikkmenyen (Vedlegg…), eller ved å dra filer inn på en risk.</li>
+          <li>Vedlegg legges til fra høyreklikkmenyen (Vedlegg ›), eller ved å dra filer inn på en risk.</li>
           <li>? åpner listen med tastatursnarveier.</li>
           <li>Registeret kan eksporteres til Excel og skrives ut eller lagres som PDF fra Mer-menyen.</li>
         </ul>

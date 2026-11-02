@@ -96,6 +96,7 @@ export interface Vedlegg {
   navn: string
   url: string // åpner filen i SharePoint (Excel, Word osv. på nett)
   mappeUrl?: string // mappen filen ligger i
+  opplastet?: boolean // lastet opp fra registeret til vedleggsmappen. Bare slike filer kan slettes fra registeret.
   lagtTilAv?: string
   lagtTil?: string
 }

@@ -16,6 +16,8 @@ import { VurderingEditor } from './VurderingEditor'
 import { Laas, Pil } from './Ikoner'
 import { RiskInfo } from './RiskInfo'
 import { initialer, likNavn } from './Personer'
+import { LeggTilVedlegg, VedleggMeny } from './Vedlegg'
+import type { FilKilde } from '../store/filer'
 
 interface Posisjon {
   riskId: string
@@ -41,6 +43,8 @@ interface Props {
   aapneDetalj: (riskId: string) => void
   // Åpner panelet på vedleggene, eventuelt med filer som skal lastes opp
   aapneVedlegg?: (riskId: string, filer?: File[]) => void
+  // Dokumentbiblioteket på området, for vedlegg fra høyreklikkmenyen
+  filer?: () => FilKilde
   melding: (tekst: string, handling?: { tekst: string; gjor: () => void }) => void
   kanSkrive: boolean
   // Riskene i snapshotet det sammenlignes med, etter id. Endringer i tallene vises i cellene.
@@ -107,11 +111,16 @@ export function synligeKolonner(v: Visning, egendef2Aktiv = false, moderne = fal
 // Fulle navn på kostkolonnene, vist som hjelpetekst på overskriften
 const KOST_NAVN: Record<string, string> = { bc: 'Best case', ml: 'Most likely', wc: 'Worst case', eksponering: 'Sannsynlighet × konsekvens' }
 
-export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapneDetalj, aapneVedlegg, melding, kanSkrive, mot, moderne = false, samlet = false, nyRiskTeller = 0, forsteTreffTeller = 0 }: Props) {
+export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapneDetalj, aapneVedlegg, filer, melding, kanSkrive, mot, moderne = false, samlet = false, nyRiskTeller = 0, forsteTreffTeller = 0 }: Props) {
   const [aktiv, setAktiv] = useState<Posisjon | null>(null)
   const [redigerer, setRedigerer] = useState<(Posisjon & { start: string; erstatt: boolean; markor?: number }) | null>(null)
   const [meny, setMeny] = useState<{ kol: string; x: number; y: number } | null>(null)
   const [kontekst, setKontekst] = useState<{ x: number; y: number; pos: Posisjon } | null>(null)
+  // Undermenyen «Vedlegg ›» i høyreklikkmenyen, og filvelgeren den kan åpne
+  const [vedleggUnder, setVedleggUnder] = useState(false)
+  const vedleggTid = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const [vedleggVelger, setVedleggVelger] = useState<string | null>(null)
+  useEffect(() => setVedleggUnder(false), [kontekst])
   const [fagVelger, setFagVelger] = useState<{ riskId: string; x: number; y: number } | null>(null)
   const [lukketGrupper, setLukketGrupper] = useState<string[]>([])
   const [kostEditor, setKostEditor] = useState<{ riskId: string; anker: DOMRect } | null>(null)
@@ -940,6 +949,10 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
           const r = doc.risker.find((x) => x.id === vurdEditor.riskId)
           return r ? <VurderingEditor risk={r} anker={vurdEditor.anker} onLagre={(v) => lagreVurdering(r.id, v)} onAvbryt={lukkKost} /> : null
         })()}
+      {vedleggVelger && filer && (() => {
+        const r = doc.risker.find((x) => x.id === vedleggVelger)
+        return r ? <LeggTilVedlegg r={r} okt={okt} endre={endre} filer={filer} melding={melding} lukk={() => setVedleggVelger(null)} /> : null
+      })()}
       {fagVelger && (
         <FagVelger
           doc={doc}
@@ -964,14 +977,41 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
             return r && <RiskInfo r={r} />
           })()}
           <button onClick={() => (aapneDetalj(kontekst.pos.riskId), setKontekst(null))}>Åpne risk i eget panel</button>
-          {aapneVedlegg && (
-            <button onClick={() => (aapneVedlegg(kontekst.pos.riskId), setKontekst(null))}>
-              Vedlegg…{(() => {
-                const n = doc.risker.find((x) => x.id === kontekst.pos.riskId)?.vedlegg?.length
-                return n ? <span className="meny-antall">{n}</span> : null
-              })()}
-            </button>
-          )}
+          {(() => {
+            const r = doc.risker.find((x) => x.id === kontekst.pos.riskId)
+            const kanVedlegg = kanSkrive && !!filer
+            if (!r || (!kanVedlegg && !r.vedlegg?.length)) return null
+            const n = r.vedlegg?.length ?? 0
+            // Åpnes ved hover (med litt forsinkelse ut, så en skrå musebevegelse ikke lukker den) og ved klikk
+            const aapne = () => (clearTimeout(vedleggTid.current), setVedleggUnder(true))
+            const lukkSnart = () => (clearTimeout(vedleggTid.current), (vedleggTid.current = setTimeout(() => setVedleggUnder(false), 350)))
+            const venstre = kontekst.x + 270 + 330 > window.innerWidth
+            return (
+              <div className="undermeny-holder" onMouseEnter={aapne} onMouseLeave={lukkSnart}>
+                <button className={'undermeny-knapp' + (vedleggUnder ? ' aapen' : '')} aria-haspopup="menu" aria-expanded={vedleggUnder} onClick={aapne}>
+                  Vedlegg
+                  {n > 0 && <span className="meny-antall">{n}</span>}
+                  <span className="undermeny-pil" aria-hidden>
+                    <Pil retning="hoyre" />
+                  </span>
+                </button>
+                {vedleggUnder && (
+                  <div className={'undermeny' + (venstre ? ' venstre' : '')}>
+                    <VedleggMeny
+                      r={r}
+                      okt={okt}
+                      endre={endre}
+                      melding={melding}
+                      kanSkrive={kanVedlegg}
+                      filer={filer}
+                      leggTil={() => (setVedleggVelger(r.id), setKontekst(null))}
+                      lukk={() => setKontekst(null)}
+                    />
+                  </div>
+                )}
+              </div>
+            )
+          })()}
           {kanSkrive && (
             <>
               {(() => {

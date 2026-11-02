@@ -154,6 +154,11 @@ export class GraphFiler implements FilKilde {
     })
     return this.medMappe(i)
   }
+  async slett(id: string) {
+    await this.klar
+    const r = await graph(`${this.drive}/items/${id}`, { method: 'DELETE' })
+    if (!r.ok && r.status !== 404) throw new GraphFeil(r.status, await feiltekst(r))
+  }
   async lagre(mappeId: string, navn: string, data: ArrayBuffer) {
     await this.klar
     const i = await graphJson<DriveItem>(`${this.drive}/items/${mappeId}:/${encodeURIComponent(navn)}:/content?@microsoft.graph.conflictBehavior=rename`, {
