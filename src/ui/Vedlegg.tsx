@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { Risk, Vedlegg } from '../model'
 import type { Op } from '../ops'
 import type { FilKilde, FilLenke } from '../store/filer'
@@ -293,6 +294,61 @@ function NavngiFil({ fil, lagre, lukk }: { fil: File; lagre: (fil: File) => Prom
   )
 }
 
+// Forhåndsbilder hentes én gang per fil og huskes til siden lastes på nytt
+const miniatyrer = new Map<string, Promise<string | undefined>>()
+const hentMiniatyr = (filer: () => FilKilde, id: string) => {
+  let m = miniatyrer.get(id)
+  if (!m) {
+    m = filer().miniatyr(id).catch(() => undefined)
+    miniatyrer.set(id, m)
+  }
+  return m
+}
+
+// Viser et forhåndsbilde av vedlegget når musen holdes over navnet. Plasseres over raden,
+// eller ved siden av når det ikke er plass over. Filer uten forhåndsbilde viser ingenting.
+function MedForhandsvisning({ v, filer, children }: { v: Vedlegg; filer?: () => FilKilde; children: React.ReactNode }) {
+  const [vis, setVis] = useState<{ url: string; r: DOMRect } | null>(null)
+  const tid = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const aktiv = useRef(false)
+  useEffect(() => () => clearTimeout(tid.current), [])
+  if (!filer) return <>{children}</>
+  const inn = (e: React.MouseEvent<HTMLElement>) => {
+    const el = e.currentTarget
+    aktiv.current = true
+    clearTimeout(tid.current)
+    tid.current = setTimeout(() => {
+      hentMiniatyr(filer, v.id).then((url) => aktiv.current && url && setVis({ url, r: el.getBoundingClientRect() }))
+    }, 250)
+  }
+  const ut = () => {
+    aktiv.current = false
+    clearTimeout(tid.current)
+    setVis(null)
+  }
+  const B = 240
+  const H = 180
+  let stil: React.CSSProperties | undefined
+  if (vis) {
+    const { r } = vis
+    if (r.top > H + 16) stil = { left: Math.min(r.left, window.innerWidth - B - 8), bottom: window.innerHeight - r.top + 8 }
+    else if (r.right + B + 16 < window.innerWidth) stil = { left: r.right + 8, top: Math.max(8, r.top - 20) }
+    else stil = { left: Math.max(8, r.left - B - 8), top: Math.max(8, r.top - 20) }
+  }
+  return (
+    <span className="forhandsvisning-holder" onMouseEnter={inn} onMouseLeave={ut} onMouseDown={ut}>
+      {children}
+      {vis &&
+        createPortal(
+          <div className="forhandsvisning" style={stil} aria-hidden>
+            <img src={vis.url} alt="" onError={ut} />
+          </div>,
+          document.body,
+        )}
+    </span>
+  )
+}
+
 const feiltekst = (err: unknown) => (err instanceof Error ? err.message : String(err))
 
 // Filvelgeren for vedlegg, brukt både fra panelet og fra høyreklikkmenyen
@@ -344,12 +400,14 @@ export function VedleggMeny({ r, okt, endre, melding, kanSkrive, filer, leggTil,
               <NavnFelt ktx={ktx} v={v} filer={filer} redigerer ferdig={() => setNyttNavn(null)} />
             ) : (
               <>
-                <a href={v.url} target="_blank" rel="noreferrer" role="menuitem" onClick={lukk} title={`Åpne «${v.navn}» i SharePoint`}>
-                  <span className={'vedlegg-type ' + m.kl} aria-hidden>
-                    {m.tekst}
-                  </span>
-                  <span className="vedlegg-meny-navn">{v.navn}</span>
-                </a>
+                <MedForhandsvisning v={v} filer={filer}>
+                  <a href={v.url} target="_blank" rel="noreferrer" role="menuitem" onClick={lukk} title={`Åpne «${v.navn}» i SharePoint`}>
+                    <span className={'vedlegg-type ' + m.kl} aria-hidden>
+                      {m.tekst}
+                    </span>
+                    <span className="vedlegg-meny-navn">{v.navn}</span>
+                  </a>
+                </MedForhandsvisning>
                 {kanSkrive && (
                   <button className="vedlegg-meny-ikon" onClick={() => setNyttNavn(v.id)} title="Gi nytt navn" aria-label={`Gi nytt navn til ${v.navn}`}>
                     <Blyant />
@@ -498,9 +556,11 @@ export function VedleggDel({ r, okt, endre, sperret, filer, melding, start, star
                 {nyttNavn === v.id ? (
                   <NavnFelt ktx={ktx} v={v} filer={filer} redigerer ferdig={() => setNyttNavn(null)} />
                 ) : (
-                  <a href={v.url} target="_blank" rel="noreferrer" title={[v.lagtTilAv && `Lagt til av ${v.lagtTilAv}`, v.lagtTil && new Date(v.lagtTil).toLocaleDateString('nb-NO')].filter(Boolean).join(', ') || undefined}>
-                    {v.navn}
-                  </a>
+                  <MedForhandsvisning v={v} filer={filer}>
+                    <a href={v.url} target="_blank" rel="noreferrer" title={[v.lagtTilAv && `Lagt til av ${v.lagtTilAv}`, v.lagtTil && new Date(v.lagtTil).toLocaleDateString('nb-NO')].filter(Boolean).join(', ') || undefined}>
+                      {v.navn}
+                    </a>
+                  </MedForhandsvisning>
                 )}
                 {!sperret && nyttNavn !== v.id && (
                   <button className="vedlegg-mappe" onClick={() => setNyttNavn(v.id)} title="Gi nytt navn" aria-label={`Gi nytt navn til ${v.navn}`}>
