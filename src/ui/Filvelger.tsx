@@ -125,6 +125,44 @@ export function Filvelger(p: Props) {
 
   const rader = treff ?? innhold ?? []
 
+  // Filer kan dras fra utforskeren og slippes hvor som helst i vinduet (vedlegg og import)
+  const kanSlippe = p.modus === 'vedlegg' || p.modus === 'aapne'
+  const [slipp, setSlipp] = useState(false)
+  const dybde = useRef(0) // dragenter/dragleave kommer også for hvert element inni, så vi teller
+  const harFiler = (e: React.DragEvent) => e.dataTransfer.types.includes('Files')
+  const slippHandlere = kanSlippe
+    ? {
+        onDragEnter: (e: React.DragEvent) => {
+          if (!harFiler(e)) return
+          e.preventDefault()
+          dybde.current++
+          setSlipp(true)
+        },
+        onDragOver: (e: React.DragEvent) => {
+          if (!harFiler(e)) return
+          e.preventDefault()
+          e.dataTransfer.dropEffect = jobber ? 'none' : 'copy'
+        },
+        onDragLeave: (e: React.DragEvent) => {
+          if (!harFiler(e)) return
+          if (--dybde.current > 0) return
+          dybde.current = 0
+          setSlipp(false)
+        },
+        onDrop: (e: React.DragEvent) => {
+          if (!harFiler(e)) return
+          e.preventDefault()
+          e.stopPropagation()
+          dybde.current = 0
+          setSlipp(false)
+          const filer = [...e.dataTransfer.files]
+          if (!filer.length || jobber) return
+          if (p.modus === 'vedlegg') void jobb(filer.length === 1 ? `Laster opp «${filer[0].name}»…` : `Laster opp ${filer.length} filer…`, () => p.fraPc(filer))
+          else fraPc(filer[0])
+        },
+      }
+    : {}
+
   return (
     <Modal className="filvelger" lukk={p.lukk}>
       <header>
@@ -133,7 +171,7 @@ export function Filvelger(p: Props) {
           ✕
         </button>
       </header>
-      <div className="modal-innhold">
+      <div className={'modal-innhold' + (slipp ? ' fv-slipp' : '')} {...slippHandlere} data-slipptekst={p.modus === 'vedlegg' ? 'Slipp filene for å laste dem opp' : 'Slipp Excel-filen for å importere den'}>
         <div className="fv-pc">
           {p.modus === 'vedlegg' ? (
             <>
@@ -151,7 +189,7 @@ export function Filvelger(p: Props) {
                   if (filer.length) void jobb(filer.length === 1 ? `Laster opp «${filer[0].name}»…` : `Laster opp ${filer.length} filer…`, () => p.fraPc(filer))
                 }}
               />
-              <span className="liten">{p.pcTekst}</span>
+              <span className="liten">{p.pcTekst} Du kan også dra filer hit.</span>
             </>
           ) : p.modus === 'aapne' ? (
             <>
@@ -159,7 +197,7 @@ export function Filvelger(p: Props) {
                 Fra min PC…
               </button>
               <input ref={filRef} type="file" accept=".xlsm,.xlsx" hidden onChange={(e) => e.target.files?.[0] && fraPc(e.target.files[0])} />
-              <span className="liten">Åpner vanlig fildialog.</span>
+              <span className="liten">Åpner vanlig fildialog. Du kan også dra filen hit.</span>
             </>
           ) : (
             <>

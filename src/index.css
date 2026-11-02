@@ -190,6 +190,10 @@ code {
 .undertittel {
   font-size: 12px;
   opacity: 0.8;
+  /* Én linje som tittelen, så toppfeltet ikke blir høyere når det er trangt */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .undertittel a {
   color: inherit;
@@ -1998,6 +2002,26 @@ td .valgpil.synlig {
 .modal.filvelger {
   width: min(640px, 100vw);
   min-width: 0;
+}
+/* Filer dras over vinduet: hele innholdet blir et slippområde */
+.modal-innhold.fv-slipp {
+  position: relative;
+}
+.modal-innhold.fv-slipp::after {
+  content: attr(data-slipptekst);
+  position: absolute;
+  inset: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--aksent, #1971c2);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--flate, #fff) 85%, var(--aksent, #1971c2) 15%);
+  color: var(--aksent, #1971c2);
+  font-weight: 600;
+  font-size: 16px;
+  pointer-events: none;
+  z-index: 5;
 }
 .fv-pc {
   display: flex;
@@ -3945,11 +3969,14 @@ td.aktiv .tiltak-samlet-tekst {
   color: var(--fane-tekst, var(--tekst));
   border-bottom-color: var(--fane-strek, var(--aksent));
 }
+/* Prosjektnavnet får all ledig plass, og fanene står til høyre ved lagrestatusen */
 .stil-moderne .toppfelt .tittel {
-  flex: 0 1 auto;
+  flex: 1 1 auto;
 }
-.stil-moderne .toppfelt .lagrestatus {
+.stil-moderne .toppfelt .sidevalg {
+  flex: none;
   margin-left: auto;
+  margin-right: 12px;
 }
 
 /* Siden Risikobilde */
@@ -4176,8 +4203,14 @@ td.aktiv .tiltak-samlet-tekst {
   .rb-rutenett {
     grid-template-columns: minmax(0, 1fr);
   }
-  .sidevalg {
-    margin-left: 8px;
+  .stil-moderne .toppfelt .sidevalg {
+    margin-right: 0;
+  }
+}
+/* Når det er trangt, vises lagrestatusen bare som en prikk (teksten ligger i tooltip), så prosjektnavnet får plassen */
+@media (max-width: 1280px) {
+  .stil-moderne .toppfelt .lagrestatus:not(.feil):not(.frakoblet) .lagrestatus-tekst {
+    display: none;
   }
 }
 
