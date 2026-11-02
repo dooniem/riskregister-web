@@ -2,7 +2,7 @@
 import { appUrl } from '../auth'
 import type { BatchKall } from '../graph'
 import { batch, batchFeil, graph, GraphFeil, graphJson, jsonInit } from '../graph'
-import type { Element, Endring, ListeLager, Resultat } from './lager'
+import type { Element, Endring, ListeLager, RadVersjon, Resultat } from './lager'
 import type { Kolonne, ListeNavn } from './skjema'
 import { LISTER } from './skjema'
 
@@ -380,6 +380,26 @@ export class GraphLister implements ListeLager {
       }
       return { ok: false, konflikt: false, feil: batchFeil(s) }
     })
+  }
+
+  // SharePoint tar vare på tidligere utgaver av hver rad når versjonering er på (standard for lister)
+  async versjoner(liste: ListeNavn, id: string): Promise<RadVersjon[]> {
+    type GraphVersjon = { id: string; lastModifiedDateTime: string; lastModifiedBy?: { user?: { displayName?: string } }; fields?: Record<string, unknown> }
+    const ut: RadVersjon[] = []
+    // Feltene følger med i svaret; $expand=fields er for sikkerhets skyld, og prøves uten hvis Graph avviser den
+    const grunn = `${this.sti(liste)}/items/${id}/versions`
+    let neste: string | undefined = `${grunn}?$expand=fields`
+    while (neste) {
+      type Side = { value: GraphVersjon[]; '@odata.nextLink'?: string }
+      const url: string = neste
+      const side: Side = await graphJson<Side>(url).catch((e) => {
+        if (url.endsWith('$expand=fields') && e instanceof GraphFeil && e.status === 400) return graphJson<Side>(grunn)
+        throw e
+      })
+      for (const v of side.value) ut.push({ tid: v.lastModifiedDateTime, av: v.lastModifiedBy?.user?.displayName, felt: v.fields ?? {}, forste: v.id === '1.0' })
+      neste = side['@odata.nextLink']
+    }
+    return ut.sort((a, b) => a.tid.localeCompare(b.tid))
   }
 
   slettVedLukk(liste: ListeNavn, id: string) {

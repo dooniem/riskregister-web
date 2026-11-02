@@ -12,6 +12,14 @@ export interface Element {
   endretAv?: string
 }
 
+// En tidligere utgave av en rad (versjonshistorikken i SharePoint)
+export interface RadVersjon {
+  tid: string
+  av?: string
+  felt: Record<string, unknown>
+  forste: boolean // utgaven raden ble opprettet med (eldre utgaver kan være slettet av SharePoint)
+}
+
 export type Endring =
   | { type: 'ny'; liste: ListeNavn; felt: Felt }
   // Med etag lagres endringen bare hvis raden ikke er endret av andre siden den ble hentet
@@ -37,6 +45,8 @@ export interface ListeLager {
   // Kolonner appen bruker som er slettet fra listene, og som kan lages på nytt (tomme)
   manglendeKolonner?(): { liste: ListeNavn; kolonne: string }[]
   opprettKolonner?(): Promise<void>
+  // Alle lagrede utgaver av en rad, eldste først (versjonshistorikken i listen)
+  versjoner?(liste: ListeNavn, id: string): Promise<RadVersjon[]>
   // Beskjed om at noe er endret, slik at klienten kan hente med en gang
   lytt?(cb: () => void): () => void
 }

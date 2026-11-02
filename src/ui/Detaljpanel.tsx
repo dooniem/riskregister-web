@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { KOL, formatTall } from '../columns'
 import type { Register, Tiltak } from '../model'
 import { KONSEKVENS, SANNSYNLIGHET, eksponering, eksponeringFarge, fagFarge, fv, nyttTiltak } from '../model'
@@ -8,6 +8,7 @@ import { Laas } from './Ikoner'
 import { PersonFelt } from './Personer'
 import type { FilKilde } from '../store/filer'
 import { VedleggDel } from './Vedlegg'
+import { HistorikkKontekst } from './Historikk'
 
 interface Props {
   okt: Okt
@@ -26,6 +27,7 @@ interface Props {
 
 // Hele risken i et sidepanel. Nyttig for lange tekster og for å se alle tiltak samlet.
 export function Detaljpanel({ okt, doc, riskId, endre, lukk, kanSkrive, filer, melding, vedleggStart, vedleggStartet }: Props) {
+  const visHistorikk = useContext(HistorikkKontekst)
   const r = doc.risker.find((x) => x.id === riskId)
   const laastAv = r ? okt.laastAv(r.id)?.navn : undefined
   const sperret = !kanSkrive || !!laastAv
@@ -177,9 +179,17 @@ export function Detaljpanel({ okt, doc, riskId, endre, lukk, kanSkrive, filer, m
             + Nytt tiltak
           </button>
         )}
-        {r.endretAv && (
+        {(r.endretAv || visHistorikk) && (
           <p className="liten metadata">
-            Sist endret av {r.endretAv}, {r.endret ? new Date(r.endret).toLocaleString('nb-NO') : ''}
+            {r.endretAv && <>Sist endret av {r.endretAv}, {r.endret ? new Date(r.endret).toLocaleString('nb-NO') : ''}</>}
+            {visHistorikk && (
+              <>
+                {r.endretAv && ' · '}
+                <button className="lenkeknapp" onClick={() => visHistorikk(r.id)}>
+                  Vis historikk
+                </button>
+              </>
+            )}
           </p>
         )}
       </div>

@@ -7,7 +7,7 @@
 import type { Register } from '../model'
 import { migrer, uid } from '../model'
 import type { Bruker } from '../ops'
-import type { Avvik, Backend, LagreSvar, SnapshotInfo, Snapshots, Tilstede, Versjon } from './backend'
+import type { Avvik, Backend, LagreSvar, RadHistorikk, SnapshotInfo, Snapshots, Tilstede, Versjon } from './backend'
 import { GraphFeil } from './graph'
 import type { Element, Endring, ListeLager } from './lister/lager'
 import type { Felt } from './lister/skjema'
@@ -133,6 +133,22 @@ export class ListeBackend implements Backend {
     }
     this.avvik = { innstillinger: odelagt, doble: [...doble.values()], forelderlose: [...forelderlose.values()] }
     return { doc: byggRegister(innst, risker, tiltak), etag: this.etagFra(tid) }
+  }
+
+  // Radene til risken og tiltakene den har nå. Tiltak som er slettet, er ikke med.
+  async historikk(riskId: string): Promise<RadHistorikk[]> {
+    const lager = this.lager
+    if (!lager.versjoner) return []
+    const rad = this.risker.get(riskId)
+    const tiltak = [...this.tiltak.values()].filter((t) => {
+      try {
+        return JSON.parse(t.verdi).RiskId === riskId
+      } catch {
+        return false
+      }
+    })
+    const rader: [RadHistorikk['liste'], string][] = [...(rad ? [['risker', rad.id] as [RadHistorikk['liste'], string]] : []), ...tiltak.map((t): [RadHistorikk['liste'], string] => ['tiltak', t.id])]
+    return Promise.all(rader.map(async ([liste, id]) => ({ liste, versjoner: await lager.versjoner!(liste, id) })))
   }
 
   // Skriver verdien som vises (standardverdien) over innstillinger som ikke kan leses

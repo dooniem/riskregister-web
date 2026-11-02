@@ -1,6 +1,6 @@
 import type { Register, Risk, Tiltak } from '../model'
 import type { Bruker } from '../ops'
-import type { ListeLager } from './lister/lager'
+import type { ListeLager, RadVersjon } from './lister/lager'
 
 export interface Versjon {
   doc: Register
@@ -48,6 +48,11 @@ export interface Avvik {
   forelderlose: { riskId: string; tiltak: Tiltak[] }[]
 }
 
+export interface RadHistorikk {
+  liste: 'risker' | 'tiltak'
+  versjoner: RadVersjon[]
+}
+
 export interface Backend {
   readonly type: 'demo' | 'sharepoint'
   readonly bruker: Bruker
@@ -71,6 +76,8 @@ export interface Backend {
   // Listene registeret ligger i (for rådatavisningen)
   readonly lager?: ListeLager
   readonly snapshots?: Snapshots
+  // Versjonshistorikken til en risk og tiltakene den har nå, eldste først per rad
+  historikk?(riskId: string): Promise<RadHistorikk[]>
   // Satt når det som vises er et snapshot og ikke registeret slik det er nå
   readonly snapshot?: SnapshotInfo
 }
