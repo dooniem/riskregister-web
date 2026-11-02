@@ -4821,6 +4821,13 @@ td.aktiv .eier-felt .eier-tom {
   background: var(--aksent-lys);
 }
 .merke-linje > button.fare,
+.kontekstmeny > button.meny-uthevet {
+  font-weight: 600;
+}
+/* To streker rett etter hverandre (f.eks. når Vedlegg mangler) blir én */
+.kontekstmeny > hr + hr {
+  display: none;
+}
 .kontekstmeny > button.fare {
   color: var(--fare-tekst, #b42318);
 }
