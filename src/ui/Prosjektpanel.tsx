@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Lister, Prosjekt, Register } from '../model'
 import { uid } from '../model'
 import type { Op } from '../ops'
@@ -165,10 +165,41 @@ function Organisasjonen({ doc, endre }: { doc: Register; endre: Props['endre'] }
 }
 
 function Deltakere({ doc, endre, kanSkrive }: { doc: Register; endre: Props['endre']; kanSkrive: boolean }) {
+  // En ny deltaker legges sist i listen. Knappen står øverst, så vi ruller ned og setter markøren i navnefeltet.
+  const [nyId, setNyId] = useState<string | null>(null)
+  const tabell = useRef<HTMLTableElement>(null)
+  useEffect(() => {
+    if (!nyId) return
+    const rad = tabell.current?.querySelector<HTMLTableRowElement>(`tr[data-id="${nyId}"]`)
+    if (!rad) return
+    rad.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    rad.querySelectorAll('input')[1]?.focus({ preventScroll: true })
+    setNyId(null)
+  }, [nyId, doc.deltakere])
   return (
     <>
       <h3>Interessenter og deltakere</h3>
-      <table className="enkel-tabell">
+      <p className="liten">
+        Navnene her brukes i nedtrekkslistene for risikoeier og tiltakseier. E-posten kobler deltakeren til en bruker i organisasjonen. Deltakere uten e-post kan
+        også være folk utenfor organisasjonen.
+      </p>
+      {kanSkrive && <Organisasjonen doc={doc} endre={endre} />}
+      {kanSkrive && (
+        <div className="deltaker-topp">
+          <button
+            className="knapp"
+            onClick={() => {
+              const id = uid()
+              endre({ t: 'upsertDeltaker', deltaker: { id, initialer: '', navn: '', rolleProsjekt: '', rolleRisk: '' } })
+              setNyId(id)
+            }}
+          >
+            + Legg til deltaker manuelt
+          </button>
+          <span className="liten">For folk utenfor organisasjonen, eller uten e-post. Legges nederst i listen.</span>
+        </div>
+      )}
+      <table className="enkel-tabell" ref={tabell}>
         <thead>
           <tr>
             <th>#</th>
@@ -182,7 +213,7 @@ function Deltakere({ doc, endre, kanSkrive }: { doc: Register; endre: Props['end
         </thead>
         <tbody>
           {doc.deltakere.map((d, i) => (
-            <tr key={d.id}>
+            <tr key={d.id} data-id={d.id}>
               <td>{i + 1}</td>
               <td>
                 <Inn verdi={d.initialer} disabled={!kanSkrive} size={5} onLagre={(v) => endre({ t: 'upsertDeltaker', deltaker: { ...d, initialer: v } })} />
@@ -220,16 +251,6 @@ function Deltakere({ doc, endre, kanSkrive }: { doc: Register; endre: Props['end
           ))}
         </tbody>
       </table>
-      {kanSkrive && (
-        <button className="knapp" onClick={() => endre({ t: 'upsertDeltaker', deltaker: { id: uid(), initialer: '', navn: '', rolleProsjekt: '', rolleRisk: '' } })}>
-          + Legg til deltaker
-        </button>
-      )}
-      <p className="liten">
-        Navnene her brukes i nedtrekkslistene for risikoeier og tiltakseier. E-posten kobler deltakeren til en bruker i organisasjonen. Deltakere uten e-post kan
-        også være folk utenfor organisasjonen.
-      </p>
-      {kanSkrive && <Organisasjonen doc={doc} endre={endre} />}
     </>
   )
 }
