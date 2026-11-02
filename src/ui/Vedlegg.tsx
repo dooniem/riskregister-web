@@ -366,7 +366,7 @@ function ForhandsvisningBoks({ liste, filer, over }: { liste: Vedlegg[]; filer: 
   // Over menyen når det er plass, ellers under
   useLayoutEffect(() => {
     const meny = ref.current?.closest('.undermeny')
-    if (meny) setUnder(meny.getBoundingClientRect().top < 200)
+    if (meny) setUnder(meny.classList.contains('forhand-under') || meny.getBoundingClientRect().top < 200)
   }, [])
   const bilde = over ? bilder[over.id] : undefined
   return (
