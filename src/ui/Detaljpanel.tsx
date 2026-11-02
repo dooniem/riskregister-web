@@ -6,6 +6,8 @@ import type { Op, RiskFelt, TiltakFelt } from '../ops'
 import type { Okt } from '../sync'
 import { Laas } from './Ikoner'
 import { PersonFelt } from './Personer'
+import type { FilKilde } from '../store/filer'
+import { VedleggDel } from './Vedlegg'
 
 interface Props {
   okt: Okt
@@ -14,10 +16,13 @@ interface Props {
   endre: (...ops: Op[]) => void
   lukk: () => void
   kanSkrive: boolean
+  // Dokumentbiblioteket på området, for vedlegg. Mangler den, vises bare vedleggene som finnes.
+  filer?: () => FilKilde
+  melding?: (tekst: string) => void
 }
 
 // Hele risken i et sidepanel. Nyttig for lange tekster og for å se alle tiltak samlet.
-export function Detaljpanel({ okt, doc, riskId, endre, lukk, kanSkrive }: Props) {
+export function Detaljpanel({ okt, doc, riskId, endre, lukk, kanSkrive, filer, melding }: Props) {
   const r = doc.risker.find((x) => x.id === riskId)
   const laastAv = r ? okt.laastAv(r.id)?.navn : undefined
   const sperret = !kanSkrive || !!laastAv
@@ -133,6 +138,9 @@ export function Detaljpanel({ okt, doc, riskId, endre, lukk, kanSkrive }: Props)
           </div>
         </div>
 
+        {(filer || r.vedlegg?.length) && (
+          <VedleggDel r={r} okt={okt} endre={endre} sperret={sperret || !filer} filer={filer ?? (() => { throw new Error('Ingen filer') })} melding={melding ?? alert} />
+        )}
         <h3>
           Tiltak <span className="liten">({r.tiltak.length})</span>
         </h3>

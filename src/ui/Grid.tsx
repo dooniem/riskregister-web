@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import type { Kolonne } from '../columns'
 import { GRUPPER, KOL, KOLONNER, editorTekst, formatDato, formatEndring, formatTall, tolkInput, visTekst } from '../columns'
 import type { Register, Risk, Tiltak } from '../model'
-import { KONSEKVENS, SANNSYNLIGHET, eksponering, eksponeringFarge, fagFarge, fv, nyRisk, nyttTiltak } from '../model'
+import { KONSEKVENS, MARKERINGER, SANNSYNLIGHET, eksponering, eksponeringFarge, fagFarge, fv, markering, nyRisk, nyttTiltak } from '../model'
 import type { Op, RiskFelt, TiltakFelt } from '../ops'
 import type { Tilstede } from '../store/backend'
 import type { Okt } from '../sync'
@@ -416,6 +416,23 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
     endre({ t: 'setRisk', riskId: r.id, felt: 'fag', verdi: fag, fra: r.fag ?? '' })
   }
 
+  // Fargemarkering på risknummeret (én eller flere risker) eller på ett tiltak. Tom verdi tar bort fargen.
+  const settMarkering = (ider: string[], verdi: string) => {
+    const valgte = ider.map((id) => doc.risker.find((r) => r.id === id)).filter((r): r is Risk => !!r && (r.markering ?? '') !== verdi)
+    const laaste = valgte.filter((r) => okt.laastAv(r.id))
+    const fri = valgte.filter((r) => !okt.laastAv(r.id))
+    if (fri.length) endre(...fri.map((r): Op => ({ t: 'setRisk', riskId: r.id, felt: 'markering', verdi: verdi || undefined, fra: r.markering })))
+    if (laaste.length) melding(`${nrListe(laaste)} redigeres av andre akkurat nå og fikk ikke ny farge.`)
+  }
+  const settTiltakMarkering = (p: Posisjon, verdi: string) => {
+    const r = doc.risker.find((x) => x.id === p.riskId)
+    const t = r?.tiltak.find((x) => x.id === p.tiltakId)
+    if (!r || !t || (t.markering ?? '') === verdi) return
+    const av = okt.laastAv(r.id)
+    if (av) return melding(`Risk ${r.nr} redigeres av ${av.navn} akkurat nå.`)
+    endre({ t: 'setTiltak', riskId: r.id, tiltakId: t.id, felt: 'markering', verdi: verdi || undefined, fra: t.markering })
+  }
+
   const nyttTiltakUnder = (p: Posisjon) => {
     const r = doc.risker.find((x) => x.id === p.riskId)
     if (!r) return
@@ -737,6 +754,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
       <>
         {aapne > 0 && <button onClick={() => (settStatus(merket, 'Lukket'), setKontekst(null))}>Lukk{antall(aapne)}</button>}
         {lukkede > 0 && <button onClick={() => (settStatus(merket, 'Åpen'), setKontekst(null))}>Gjenåpne{antall(lukkede)}</button>}
+        <MarkeringValg tittel="Farge på nr." valgt={felles(merkedeRisker.map((r) => r.markering ?? ''))} velg={(m) => (settMarkering(merket, m), setKontekst(null))} />
         <button className="fare" onClick={() => (slettRisker(merket), setKontekst(null))}>
           Slett
         </button>
@@ -871,6 +889,8 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   kostSkala={kostSkala}
                   person={visning.person}
                   byttSkarisk={byttSkarisk}
+                  aapne={aapneDetalj}
+                  visMarkering={!visning.skjulMarkering}
                 />
               ))}
           </Fragment>
@@ -929,13 +949,13 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
         />
       )}
       {kontekst && merket.length > 1 && merket.includes(kontekst.pos.riskId) ? (
-        <div className="kontekstmeny" style={{ left: Math.min(kontekst.x, window.innerWidth - 270), top: Math.max(8, Math.min(kontekst.y, window.innerHeight - 220)) }} onMouseLeave={() => setKontekst(null)}>
+        <div className="kontekstmeny" style={{ left: Math.min(kontekst.x, window.innerWidth - 330), top: Math.max(8, Math.min(kontekst.y, window.innerHeight - 260)) }} onMouseLeave={() => setKontekst(null)}>
           <div className="meny-tittel">{merket.length} risker merket</div>
           {kanSkrive && flereHandlinger()}
           <button onClick={() => (setMerket([]), setKontekst(null))}>Fjern merking</button>
         </div>
       ) : kontekst && (
-        <div className="kontekstmeny" style={{ left: Math.min(kontekst.x, window.innerWidth - 270), top: Math.max(8, Math.min(kontekst.y, window.innerHeight - 340)) }} onMouseLeave={() => setKontekst(null)}>
+        <div className="kontekstmeny" style={{ left: Math.min(kontekst.x, window.innerWidth - 270), top: Math.max(8, Math.min(kontekst.y, window.innerHeight - 420)) }} onMouseLeave={() => setKontekst(null)}>
           {(() => {
             const r = doc.risker.find((x) => x.id === kontekst.pos.riskId)
             return r && <RiskInfo r={r} />
@@ -954,6 +974,19 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                 )
               })()}
               <button onClick={() => (setFagVelger({ riskId: kontekst.pos.riskId, x: kontekst.x, y: kontekst.y }), setKontekst(null))}>Sett fag…</button>
+              {(() => {
+                const r = doc.risker.find((x) => x.id === kontekst.pos.riskId)
+                if (!r) return null
+                const t = KOL[kontekst.pos.kol]?.nivaa === 'tiltak' ? r.tiltak.find((x) => x.id === kontekst.pos.tiltakId) : undefined
+                return (
+                  <>
+                    <div className="meny-gruppe-tittel">Farge</div>
+                    <MarkeringValg tittel="Nr." etikett="Farge på risknummeret" valgt={r.markering ?? ''} velg={(m) => (settMarkering([r.id], m), setKontekst(null))} />
+                    {t && <MarkeringValg tittel="Tiltak" etikett="Farge på tiltaket" valgt={t.markering ?? ''} velg={(m) => (settTiltakMarkering(kontekst.pos, m), setKontekst(null))} />}
+                    {visning.skjulMarkering && (r.markering || t?.markering) && <p className="meny-hint">Fargene er skjult. Slå dem på under Mer › Vis fargemarkering.</p>}
+                  </>
+                )
+              })()}
               <button onClick={() => (nyttTiltakUnder(kontekst.pos), setKontekst(null))}>Nytt tiltak under</button>
               {kontekst.pos.tiltakId && <button onClick={() => (slettTiltak(kontekst.pos), setKontekst(null))}>Slett tiltaket</button>}
               <hr />
@@ -967,6 +1000,50 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
       )}
     </div>
     </>
+  )
+}
+
+// Binders med antall vedlegg. Klikk åpner risken i panelet, der vedleggene står.
+function VedleggMerke({ r, aapne }: { r: Risk; aapne: (id: string) => void }) {
+  const n = r.vedlegg?.length ?? 0
+  if (!n) return null
+  return (
+    <span
+      className="vedlegg-merke"
+      title={`${n} vedlegg: ${r.vedlegg!.map((v) => v.navn).join(', ')}. Klikk for å åpne risken.`}
+      onMouseDown={(ev) => (ev.stopPropagation(), ev.preventDefault(), aapne(r.id))}
+    >
+      <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden>
+        <path d="M10.5 4.5 5.8 9.2a1.5 1.5 0 0 0 2.1 2.1l5-5a3 3 0 0 0-4.2-4.2l-5.2 5.2a4.5 4.5 0 0 0 6.4 6.4l4.4-4.4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+      {n}
+    </span>
+  )
+}
+
+// Verdien når alle er like, ellers tom (ingen farge vises som valgt)
+const felles = (v: string[]) => (v.every((x) => x === v[0]) ? v[0] : undefined)
+
+// En rad med fargeprøver i høyreklikkmenyen. Den første tar bort fargen.
+function MarkeringValg({ tittel, etikett, valgt, velg }: { tittel: string; etikett?: string; valgt?: string; velg: (key: string) => void }) {
+  return (
+    <div className="markering-valg" role="group" aria-label={etikett ?? tittel}>
+      <span>{tittel}</span>
+      <div className="markering-prover">
+        <button className={'markering-prove ingen' + (valgt === '' ? ' valgt' : '')} title="Ingen farge" aria-label="Ingen farge" aria-pressed={valgt === ''} onClick={() => velg('')} />
+        {MARKERINGER.map((m) => (
+          <button
+            key={m.key}
+            className={'markering-prove' + (valgt === m.key ? ' valgt' : '')}
+            style={{ background: m.farge }}
+            title={m.navn}
+            aria-label={m.navn}
+            aria-pressed={valgt === m.key}
+            onClick={() => velg(m.key)}
+          />
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -1030,6 +1107,8 @@ interface RaderProps {
   egendef: string[]
   person?: string
   byttSkarisk: (riskId: string) => void
+  aapne: (riskId: string) => void
+  visMarkering: boolean
 }
 
 // Tallkolonnene som viser endring når et snapshot er aktivt
@@ -1080,6 +1159,9 @@ function RiskRader(p: RaderProps) {
     }
     if (andreHer.length) stil.boxShadow = `inset 0 0 0 2px ${andreHer[0].farge}`
     if (k.key === 'nr' && fag && p.moderne) (stil as Record<string, string>)['--fag'] = fagFarge(fag).bg
+    // Fargemarkering på risknummeret og på tiltaket (i samlet: hele tiltakskortet)
+    const mk = p.visMarkering ? markering(k.key === 'nr' ? r.markering : k.key === 'tiltak' ? t?.markering : undefined) : undefined
+    if (mk) (stil as Record<string, string>)['--markering'] = mk.farge
     const kl = [
       'k-' + k.key,
       k.frosset ? 'frosset' : '',
@@ -1090,6 +1172,7 @@ function RiskRader(p: RaderProps) {
       k.key === 'tiltakstatus' && t?.status ? 'ts-' + t.status.replace(/\s/g, '-').toLowerCase() : '',
       k.key === 'frist' && t?.frist && t.status !== 'Utført' && t.status !== 'Utføres ikke' && t.frist < new Date().toISOString().slice(0, 10) ? 'forfalt' : '',
       erAktiv ? 'aktiv' : '',
+      mk ? 'markert' : '',
       !k.felt ? 'lesecelle' : '',
       k.nivaa === 'tiltak' && rad > 0 ? 'tiltak-fortsatt' : '',
       // Med personfilter tones tiltakene som andre eier ned, så ens egne skiller seg ut
@@ -1112,6 +1195,7 @@ function RiskRader(p: RaderProps) {
             )
           )}
           <span className="nr-tall">{r.nr}</span>
+          {!p.samlet && <VedleggMerke r={r} aapne={p.aapne} />}
           {p.mot && !gammel && (
             <span className="ny-siden" title="Risken er lagt til etter snapshotet">
               ny
@@ -1212,6 +1296,7 @@ function RiskRader(p: RaderProps) {
           editor={kortNode ? { kol: p.redigerer!.kol, node: kortNode } : undefined}
           kanSkrive={p.kanSkrive}
           velg={(kol, ev) => ev.button === 0 && (ev.stopPropagation(), p.klikk({ ...pos, kol }, ev))}
+          vedlegg={<VedleggMerke r={r} aapne={p.aapne} />}
         />
       )
     if (k.key === 'fv') innhold = p.moderne ? <KostCelle r={r} skala={p.kostSkala} /> : formatTall(fv(r))
@@ -1388,10 +1473,12 @@ function BeskrivelseSamlet({
   editor,
   kanSkrive,
   velg,
+  vedlegg,
 }: {
   r: Risk
   doc: Register
   egendef: string[]
+  vedlegg?: React.ReactNode
   aktiv?: string
   editor?: { kol: string; node: React.ReactNode }
   kanSkrive: boolean
@@ -1413,6 +1500,7 @@ function BeskrivelseSamlet({
         <span className={kl('hendelse', 'linje')} onMouseDown={(ev) => velg('hendelse', ev)}>
           {tekst('hendelse', r.hendelse, 'Uten hendelse')}
         </span>
+        {vedlegg}
       </div>
       <dl>
         <dt className={kl('aarsak')} onMouseDown={(ev) => velg('aarsak', ev)}>

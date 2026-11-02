@@ -11,6 +11,7 @@ export interface Tiltak {
   frist: string // ISO-dato (YYYY-MM-DD) eller tom
   beskrivelse: string // fri tekst om status (kolonne V i Excel)
   status: string // valg fra lister.statusTiltak (kolonne W)
+  markering?: string // bakgrunnsfarge på tiltaket, nøkkel i MARKERINGER
 }
 
 // Fag er en farget merkelapp på risken, vist i Nr.-kolonnen
@@ -40,6 +41,19 @@ export const FAG_FARGER: { navn: string; bg: string; fg: string }[] = fagFarger.
   bg: `var(--fag-${i}, ${bg})`,
   fg: `var(--fag-${i}-tekst, ${fg})`,
 }))
+
+// Bakgrunnsfarger som brukerne kan legge på risknummeret og tiltakene, slik mange gjør i Excel-registeret
+// for å vise hvor modent arbeidet er. Lyse farger, så teksten er lett å lese. Alle kan skjules i visningen.
+export const MARKERINGER: { key: string; navn: string; farge: string }[] = [
+  { key: 'gul', navn: 'Gul', farge: '#fff0a6' },
+  { key: 'gronn', navn: 'Grønn', farge: '#cdeccf' },
+  { key: 'blaa', navn: 'Blå', farge: '#cfe3f7' },
+  { key: 'oransje', navn: 'Oransje', farge: '#fdd9b5' },
+  { key: 'rod', navn: 'Rød', farge: '#f7c9c9' },
+  { key: 'lilla', navn: 'Lilla', farge: '#e3d7f3' },
+  { key: 'graa', navn: 'Grå', farge: '#dfe3e8' },
+]
+export const markering = (key?: string) => (key ? MARKERINGER.find((m) => m.key === key) : undefined)
 
 export const fagFarge = (f: Fag) => FAG_FARGER[f.farge % FAG_FARGER.length]
 export const kortFag = (navn: string) => navn.replace(/[^\p{L}\p{N}]/gu, '').slice(0, 3).toUpperCase()
@@ -71,6 +85,19 @@ export interface Risk {
   lukket?: string // når status sist ble satt til Lukket
   lukketAv?: string
   kilde?: string // hvor risken kom fra, f.eks. delregisteret i Excel den ble hentet inn fra
+  vedlegg?: Vedlegg[]
+  markering?: string // bakgrunnsfarge på risknummeret, nøkkel i MARKERINGER
+}
+
+// En fil i SharePoint som hører til risken: lastet opp fra registeret eller valgt fra dokumentbiblioteket.
+// Risken lagrer bare lenken. Filen ligger i biblioteket og blir der selv om lenken fjernes eller risken slettes.
+export interface Vedlegg {
+  id: string // id-en til filen i dokumentbiblioteket
+  navn: string
+  url: string // åpner filen i SharePoint (Excel, Word osv. på nett)
+  mappeUrl?: string // mappen filen ligger i
+  lagtTilAv?: string
+  lagtTil?: string
 }
 
 export interface Deltaker {

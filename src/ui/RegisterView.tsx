@@ -423,6 +423,15 @@ export function RegisterView({ okt, tilbake }: Props) {
                       {navn}
                     </button>
                   ))}
+                  <button
+                    aria-pressed={!visning.skjulMarkering}
+                    className={'meny-valg' + (!visning.skjulMarkering ? ' valgt' : '')}
+                    onClick={() => setVisning((v) => ({ ...v, skjulMarkering: !v.skjulMarkering }))}
+                    title="Bakgrunnsfargene på risknummer og tiltak. Skru dem av før utskrift eller presentasjon. Fargene blir liggende i registeret."
+                  >
+                    <span className="boks" aria-hidden />
+                    Vis fargemarkering
+                  </button>
                 </div>
                 <hr />
                 <button onClick={() => setProsjekt('lister')}>Lister og valg…</button>
@@ -503,7 +512,7 @@ export function RegisterView({ okt, tilbake }: Props) {
           <div className="banner advarsel">
             <span>
               {manglende.length === 1 ? 'Kolonnen ' : 'Kolonnene '}
-              {manglende.map((k) => `«${k.kolonne}» (${LISTER[k.liste].visningsnavn})`).join(', ')} er slettet fra listene i SharePoint. Endringer i{' '}
+              {manglende.map((k) => `«${k.kolonne}» (${LISTER[k.liste].visningsnavn})`).join(', ')} mangler i listene i SharePoint (nye felt fra en oppdatering, eller slettet). Endringer i{' '}
               {manglende.length === 1 ? 'det feltet' : 'de feltene'} blir ikke lagret, resten lagres som vanlig.
               {b.kanSkrive && b.lager?.opprettKolonner && ' De kan lages på nytt, men verdiene som lå i dem, kommer ikke tilbake.'}
               {kolonneFeil && <span className="feil"> {kolonneFeil}</span>}
@@ -559,7 +568,7 @@ export function RegisterView({ okt, tilbake }: Props) {
             okt={okt}
             endre={endre}
             kanSkrive={b.kanSkrive}
-            detalj={(id, lukk) => <Detaljpanel okt={okt} doc={doc} riskId={id} endre={endre} lukk={lukk} kanSkrive={b.kanSkrive} />}
+            detalj={(id, lukk) => <Detaljpanel okt={okt} doc={doc} riskId={id} endre={endre} lukk={lukk} kanSkrive={b.kanSkrive && !b.snapshot} filer={filKilde} melding={melding} />}
             melding={melding}
             taSnapshot={() => setSnapshots('liste')}
             autoValgt={autoSnapshot}
@@ -678,7 +687,7 @@ export function RegisterView({ okt, tilbake }: Props) {
             forsteTreffTeller={forsteTreffTeller}
           />
           )}
-          {detalj && <Detaljpanel okt={okt} doc={doc} riskId={detalj} endre={endre} lukk={() => setDetalj(null)} kanSkrive={b.kanSkrive} />}
+          {detalj && <Detaljpanel okt={okt} doc={doc} riskId={detalj} endre={endre} lukk={() => setDetalj(null)} kanSkrive={b.kanSkrive && !b.snapshot} filer={filKilde} melding={melding} />}
         </div>
         </>
         )}
@@ -704,7 +713,7 @@ export function RegisterView({ okt, tilbake }: Props) {
             okt={okt}
             endre={endre}
             kanSkrive={b.kanSkrive}
-            detalj={(id, lukk) => <Detaljpanel okt={okt} doc={doc} riskId={id} endre={endre} lukk={lukk} kanSkrive={b.kanSkrive} />}
+            detalj={(id, lukk) => <Detaljpanel okt={okt} doc={doc} riskId={id} endre={endre} lukk={lukk} kanSkrive={b.kanSkrive && !b.snapshot} filer={filKilde} melding={melding} />}
             melding={melding}
             lukk={() => setStorMatrise(null)}
           />

@@ -1305,6 +1305,9 @@ table.enkel-tabell {
     outline: none !important;
     background: var(--flate) !important;
   }
+  .grid td.aktiv.markert {
+    background: var(--markering) !important;
+  }
   .grid td.aktiv .tiltak-samlet-tekst {
     max-height: none;
   }
@@ -4735,4 +4738,155 @@ td.aktiv .eier-felt .eier-tom {
   .merke-linje {
     display: none;
   }
+}
+
+/* Vedlegg: binders i tabellen og listen i detaljpanelet */
+.vedlegg-merke {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 8px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dempet);
+  background: var(--flate-dempet, #f0f0f0);
+  cursor: pointer;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+.vedlegg-merke:hover {
+  color: var(--aksent);
+}
+.vedlegg-del {
+  margin: 8px -8px 0;
+  padding: 0 8px 8px;
+  border: 2px dashed transparent;
+  border-radius: 8px;
+}
+.vedlegg-del.drar {
+  border-color: var(--aksent);
+  background: var(--aksent-lys);
+}
+.vedlegg-liste {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.vedlegg-liste li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.vedlegg-liste a {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--aksent);
+}
+.vedlegg-type {
+  flex: none;
+  min-width: 30px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  color: #fff;
+  background: #6b7280;
+}
+.vedlegg-type.excel {
+  background: #1d6f42;
+}
+.vedlegg-type.word {
+  background: #2b579a;
+}
+.vedlegg-type.powerpoint {
+  background: #b7472a;
+}
+.vedlegg-type.pdf {
+  background: #b30b00;
+}
+.vedlegg-liste a.vedlegg-mappe {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--dempet);
+  text-decoration: none;
+}
+.vedlegg-liste a.vedlegg-mappe:hover {
+  color: var(--aksent);
+}
+.vedlegg-legg-til {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+@media print {
+  .vedlegg-merke {
+    display: none;
+  }
+}
+
+/* Fargemarkering på risknummer og tiltak (høyreklikk › Farge på nr. / Farge på tiltaket).
+   Fargen står også ved hover og merking, så den ikke forsvinner. Skjules under Mer › Vis fargemarkering. */
+.grid td.markert,
+.grid tbody.risk:hover td.markert,
+.grid tbody.risk.merket td.markert,
+.stil-moderne .grid td.markert,
+.stil-moderne .grid tbody.risk:hover td.markert,
+.stil-moderne .grid tbody.risk.merket td.markert {
+  background: var(--markering);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.markering-valg {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 10px;
+}
+.markering-valg > span {
+  white-space: nowrap;
+}
+.markering-prover {
+  display: flex;
+  gap: 4px;
+}
+.markering-prove {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid rgb(0 0 0 / 0.18);
+  cursor: pointer;
+}
+.markering-prove:hover {
+  transform: scale(1.12);
+}
+.markering-prove.valgt {
+  outline: 2px solid var(--aksent);
+  outline-offset: 1px;
+}
+.markering-prove.ingen {
+  background: linear-gradient(to top right, transparent calc(50% - 1px), #c0392b calc(50% - 1px), #c0392b calc(50% + 1px), transparent calc(50% + 1px)), #fff;
+}
+.meny-hint {
+  margin: 2px 10px 4px;
+  font-size: 12px;
+  color: var(--dempet);
+  max-width: 240px;
+}
+.merke-linje .markering-valg {
+  padding: 0 6px;
 }

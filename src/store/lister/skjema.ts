@@ -4,7 +4,7 @@
 //
 // Kolonnene er bevisst enkle (tekst, tall og ja/nei), slik at dataene er lette å lese direkte i SharePoint
 // og å hente ut til et datavarehus. Datoer lagres som tekst på formen ÅÅÅÅ-MM-DD eller ISO-tid.
-import type { Register, Risk, Tiltak } from '../../model'
+import type { Register, Risk, Tiltak, Vedlegg } from '../../model'
 import { DEFAULT_LISTER, migrer, SCHEMA_VERSION, uid } from '../../model'
 
 export type ListeNavn = 'risker' | 'tiltak' | 'innstillinger' | 'tilstede' | 'snapshots' | 'snapshotdata'
@@ -51,6 +51,8 @@ const RISK_KOLONNER: Kolonne[] = [
   n('WC'),
   jn('TilSkarisk'),
   lt('Kilde'),
+  lt('Vedlegg'),
+  t('Markering'),
   t('EndretTid'),
   t('EndretAv'),
   t('OpprettetTid'),
@@ -68,7 +70,7 @@ export const LISTER: Record<ListeNavn, ListeDef> = {
   tiltak: {
     visningsnavn: 'Riskregister Tiltak',
     beskrivelse: 'Én rad per tiltak. RiskId peker på risken i Riskregister Risker.',
-    kolonner: [idx(t('RiskId')), t('TiltakId'), n('Rekkefolge'), lt('Tekst'), t('Eier'), t('Frist'), lt('Beskrivelse'), t('Status')],
+    kolonner: [idx(t('RiskId')), t('TiltakId'), n('Rekkefolge'), lt('Tekst'), t('Eier'), t('Frist'), lt('Beskrivelse'), t('Status'), t('Markering')],
   },
   innstillinger: {
     visningsnavn: 'Riskregister Klientinnstillinger',
@@ -105,6 +107,19 @@ const tekst = (v: unknown) => (v === null || v === undefined ? '' : String(v))
 const tall = (v: unknown) => (typeof v === 'number' ? v : Number(v) || 0)
 const valgfri = (v: unknown) => tekst(v) || undefined
 
+// Vedleggene ligger som JSON i én tekstkolonne. Ugyldig innhold gir ingen vedlegg i stedet for feil.
+function lesVedlegg(v: unknown): Vedlegg[] | undefined {
+  if (typeof v !== 'string' || !v.trim()) return undefined
+  try {
+    const liste = JSON.parse(v) as unknown
+    if (!Array.isArray(liste)) return undefined
+    const ok = liste.filter((x): x is Vedlegg => !!x && typeof x.id === 'string' && typeof x.navn === 'string' && typeof x.url === 'string')
+    return ok.length ? ok : undefined
+  } catch {
+    return undefined
+  }
+}
+
 export function riskTilFelt(r: Risk): Felt {
   return {
     Title: tittel(r.hendelse || r.aarsak || `Risk ${r.nr}`),
@@ -127,6 +142,8 @@ export function riskTilFelt(r: Risk): Felt {
     WC: r.wc,
     TilSkarisk: r.tilSkarisk,
     Kilde: r.kilde ?? '',
+    Vedlegg: r.vedlegg?.length ? JSON.stringify(r.vedlegg) : '',
+    Markering: r.markering ?? '',
     EndretTid: r.endret ?? '',
     EndretAv: r.endretAv ?? '',
     OpprettetTid: r.opprettet ?? '',
@@ -159,6 +176,8 @@ export function feltTilRisk(f: Record<string, unknown>): Risk {
     tilSkarisk: f.TilSkarisk === true || f.TilSkarisk === 'true' || f.TilSkarisk === 1,
     tiltak: [],
     kilde: valgfri(f.Kilde),
+    vedlegg: lesVedlegg(f.Vedlegg),
+    markering: valgfri(f.Markering),
     endret: valgfri(f.EndretTid),
     endretAv: valgfri(f.EndretAv),
     opprettet: valgfri(f.OpprettetTid),
@@ -179,6 +198,7 @@ export function tiltakTilFelt(tt: Tiltak, riskId: string, rekkefolge: number): F
     Frist: tt.frist,
     Beskrivelse: tt.beskrivelse,
     Status: tt.status,
+    Markering: tt.markering ?? '',
   }
 }
 
@@ -192,6 +212,7 @@ export function feltTilTiltak(f: Record<string, unknown>): Tiltak & { riskId: st
     frist: tekst(f.Frist).slice(0, 10),
     beskrivelse: tekst(f.Beskrivelse),
     status: tekst(f.Status),
+    markering: valgfri(f.Markering),
   }
 }
 
