@@ -135,8 +135,12 @@ export class GraphFiler implements FilKilde {
   }
   async lenke(id: string) {
     await this.klar
-    const i = await graphJson<DriveItem>(`${this.drive}/items/${id}?$select=id,name,webUrl`)
-    return { id: i.id, navn: i.name, url: i.webUrl }
+    return this.medMappe(await graphJson<DriveItem>(`${this.drive}/items/${id}?$select=id,name,webUrl,parentReference`))
+  }
+  // Lenken til filen og til mappen den ligger i. Mappelenken er ikke nødvendig, så feil der ignoreres.
+  private async medMappe(i: DriveItem) {
+    const mappe = await graphJson<{ webUrl: string }>(`/drives/${i.parentReference.driveId}/items/${i.parentReference.id}?$select=webUrl`).catch(() => undefined)
+    return { id: i.id, navn: i.name, url: i.webUrl, mappeUrl: mappe?.webUrl }
   }
   // Laster opp til en sti fra roten av biblioteket. Graph lager mappene som mangler. Finnes navnet, får filen et ledig navn.
   async lastOpp(sti: string[], navn: string, data: ArrayBuffer) {
@@ -148,7 +152,7 @@ export class GraphFiler implements FilKilde {
       headers: { 'Content-Type': 'application/octet-stream' },
       body: data,
     })
-    return { id: i.id, navn: i.name, url: i.webUrl }
+    return this.medMappe(i)
   }
   async lagre(mappeId: string, navn: string, data: ArrayBuffer) {
     await this.klar

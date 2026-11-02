@@ -40,6 +40,7 @@ export interface FilLenke {
   id: string
   navn: string
   url: string
+  mappeUrl?: string // mappen filen ligger i, i SharePoint
 }
 
 export const erExcel = (navn: string) => /\.xls[xm]$/i.test(navn)

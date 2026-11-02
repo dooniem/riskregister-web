@@ -108,6 +108,14 @@ export function VedleggDel({ r, okt, endre, sperret, filer, melding }: Props) {
                 <a href={v.url} target="_blank" rel="noreferrer" title={[v.lagtTilAv && `Lagt til av ${v.lagtTilAv}`, v.lagtTil && new Date(v.lagtTil).toLocaleDateString('nb-NO')].filter(Boolean).join(', ') || undefined}>
                   {v.navn}
                 </a>
+                {v.mappeUrl && (
+                  <a className="vedlegg-mappe" href={v.mappeUrl} target="_blank" rel="noreferrer" title="Åpne mappen filen ligger i, i SharePoint" aria-label={`Åpne mappen til ${v.navn}`}>
+                    <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden>
+                      <path d="M1.5 4.5a1 1 0 0 1 1-1h3.6l1.5 1.5h5.9a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                    </svg>
+                    Mappe
+                  </a>
+                )}
                 {!sperret && (
                   <button className="lenkeknapp" onClick={() => fjern(v)} title="Fjerner lenken. Filen blir liggende i dokumentbiblioteket.">
                     Fjern

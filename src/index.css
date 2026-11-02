@@ -4811,6 +4811,18 @@ td.aktiv .eier-felt .eier-tom {
 .vedlegg-type.pdf {
   background: #b30b00;
 }
+.vedlegg-liste a.vedlegg-mappe {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--dempet);
+  text-decoration: none;
+}
+.vedlegg-liste a.vedlegg-mappe:hover {
+  color: var(--aksent);
+}
 .vedlegg-legg-til {
   display: flex;
   align-items: center;

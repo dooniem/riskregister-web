@@ -80,6 +80,7 @@ export interface Vedlegg {
   id: string // id-en til filen i dokumentbiblioteket
   navn: string
   url: string // åpner filen i SharePoint (Excel, Word osv. på nett)
+  mappeUrl?: string // mappen filen ligger i
   lagtTilAv?: string
   lagtTil?: string
 }
