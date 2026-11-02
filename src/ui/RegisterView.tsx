@@ -346,7 +346,7 @@ export function RegisterView({ okt, tilbake }: Props) {
           </button>
           {moderne && profil?.logo && <img className="toppfelt-logo" src={profil.logo} alt={profil.navn} />}
           <div className="tittel">
-            <h1>{tittel}</h1>
+            <h1 title={tittel}>{tittel}</h1>
             <div className="undertittel">
               {b.type === 'demo' ? (
                 'Demomodus (lagres bare i denne nettleseren)'

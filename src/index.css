@@ -190,6 +190,10 @@ code {
 .undertittel {
   font-size: 12px;
   opacity: 0.8;
+  /* Én linje som tittelen, så toppfeltet ikke blir høyere når det er trangt */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .undertittel a {
   color: inherit;
