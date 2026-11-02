@@ -423,6 +423,15 @@ export function RegisterView({ okt, tilbake }: Props) {
                       {navn}
                     </button>
                   ))}
+                  <button
+                    aria-pressed={!visning.skjulMarkering}
+                    className={'meny-valg' + (!visning.skjulMarkering ? ' valgt' : '')}
+                    onClick={() => setVisning((v) => ({ ...v, skjulMarkering: !v.skjulMarkering }))}
+                    title="Bakgrunnsfargene på risknummer og tiltak. Skru dem av før utskrift eller presentasjon. Fargene blir liggende i registeret."
+                  >
+                    <span className="boks" aria-hidden />
+                    Vis fargemarkering
+                  </button>
                 </div>
                 <hr />
                 <button onClick={() => setProsjekt('lister')}>Lister og valg…</button>

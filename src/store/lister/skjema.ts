@@ -52,6 +52,7 @@ const RISK_KOLONNER: Kolonne[] = [
   jn('TilSkarisk'),
   lt('Kilde'),
   lt('Vedlegg'),
+  t('Markering'),
   t('EndretTid'),
   t('EndretAv'),
   t('OpprettetTid'),
@@ -69,7 +70,7 @@ export const LISTER: Record<ListeNavn, ListeDef> = {
   tiltak: {
     visningsnavn: 'Riskregister Tiltak',
     beskrivelse: 'Én rad per tiltak. RiskId peker på risken i Riskregister Risker.',
-    kolonner: [idx(t('RiskId')), t('TiltakId'), n('Rekkefolge'), lt('Tekst'), t('Eier'), t('Frist'), lt('Beskrivelse'), t('Status')],
+    kolonner: [idx(t('RiskId')), t('TiltakId'), n('Rekkefolge'), lt('Tekst'), t('Eier'), t('Frist'), lt('Beskrivelse'), t('Status'), t('Markering')],
   },
   innstillinger: {
     visningsnavn: 'Riskregister Klientinnstillinger',
@@ -142,6 +143,7 @@ export function riskTilFelt(r: Risk): Felt {
     TilSkarisk: r.tilSkarisk,
     Kilde: r.kilde ?? '',
     Vedlegg: r.vedlegg?.length ? JSON.stringify(r.vedlegg) : '',
+    Markering: r.markering ?? '',
     EndretTid: r.endret ?? '',
     EndretAv: r.endretAv ?? '',
     OpprettetTid: r.opprettet ?? '',
@@ -175,6 +177,7 @@ export function feltTilRisk(f: Record<string, unknown>): Risk {
     tiltak: [],
     kilde: valgfri(f.Kilde),
     vedlegg: lesVedlegg(f.Vedlegg),
+    markering: valgfri(f.Markering),
     endret: valgfri(f.EndretTid),
     endretAv: valgfri(f.EndretAv),
     opprettet: valgfri(f.OpprettetTid),
@@ -195,6 +198,7 @@ export function tiltakTilFelt(tt: Tiltak, riskId: string, rekkefolge: number): F
     Frist: tt.frist,
     Beskrivelse: tt.beskrivelse,
     Status: tt.status,
+    Markering: tt.markering ?? '',
   }
 }
 
@@ -208,6 +212,7 @@ export function feltTilTiltak(f: Record<string, unknown>): Tiltak & { riskId: st
     frist: tekst(f.Frist).slice(0, 10),
     beskrivelse: tekst(f.Beskrivelse),
     status: tekst(f.Status),
+    markering: valgfri(f.Markering),
   }
 }
 
