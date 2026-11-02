@@ -66,6 +66,7 @@ export function OmDialog({ demo, lukk }: { demo: boolean; lukk: () => void }) {
             Ta et snapshot før et møte eller en milepæl. Da kan du senere se hva som er endret siden, både i
             tabellen og i risikobildet.
           </li>
+          <li>Trykk / for å gå til søkefeltet og Alt+N for å lage en ny risk.</li>
           <li>Registeret kan eksporteres til Excel og skrives ut eller lagres som PDF fra Mer-menyen.</li>
         </ul>
       </div>

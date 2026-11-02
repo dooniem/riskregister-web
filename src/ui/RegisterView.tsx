@@ -146,6 +146,39 @@ export function RegisterView({ okt, tilbake }: Props) {
   const samlet = stil === 'samlet'
   // Moderne visning har to sider: registeret og risikobildet
   const [side, setSide] = useState<{ navn: 'register' | 'risikobilde'; rm: 'R' | 'M' }>({ navn: 'register', rm: 'R' })
+
+  // Tastatursnarveier: / går til søkefeltet og Alt+N lager en ny risk. Ingen av dem brukes av Windows eller nettleserne,
+  // og nettleseren får bare tastene når siden har fokus. De virker ikke når du skriver i et felt eller har en dialog åpen.
+  // Lyttes på i fangstfasen, så tabellen ikke tolker tastene som starten på en redigering.
+  const sokRef = useRef<HTMLInputElement>(null)
+  const kanLageRisk = b.kanSkrive && !b.snapshot && visning.fane !== 'skarisk' && !mobil
+  useEffect(() => {
+    if (mobil) return
+    const h = (e: KeyboardEvent) => {
+      if (e.repeat || e.ctrlKey || e.metaKey || e.isComposing) return
+      const sok = e.key === '/' && !e.altKey
+      const ny = e.altKey && !e.shiftKey && e.code === 'KeyN'
+      if (!sok && !ny) return
+      const el = document.activeElement
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement || (el instanceof HTMLElement && el.isContentEditable)) return
+      if (document.querySelector('dialog[open]')) return
+      if (ny && !kanLageRisk) return
+      e.preventDefault()
+      e.stopPropagation()
+      setMeny(false)
+      const tilRegister = moderne && side.navn !== 'register'
+      if (tilRegister) setSide((s) => ({ ...s, navn: 'register' }))
+      // Vent til registeret er tegnet hvis vi kom fra risikobildet
+      setTimeout(() => {
+        if (sok) {
+          sokRef.current?.focus()
+          sokRef.current?.select()
+        } else setNyRiskTeller((n) => n + 1)
+      }, 0)
+    }
+    window.addEventListener('keydown', h, true)
+    return () => window.removeEventListener('keydown', h, true)
+  }, [mobil, moderne, side.navn, kanLageRisk])
   const paaRisikobilde = moderne && side.navn === 'risikobilde'
   const autoSnapshot = useRef(false)
   const [snapshotsLukket, setSnapshotsLukket] = useState(0)
@@ -549,7 +582,7 @@ export function RegisterView({ okt, tilbake }: Props) {
           </nav>
           {visning.fane !== 'skarisk' && (
             <>
-            <input className="sok" placeholder="Søk i alle felt…" value={visning.sok} onChange={(e) => setVisning((v) => ({ ...v, sok: e.target.value }))} />
+            <input ref={sokRef} className="sok" placeholder="Søk i alle felt…" aria-keyshortcuts="/" title="Søk i alle felt (/)" value={visning.sok} onChange={(e) => setVisning((v) => ({ ...v, sok: e.target.value }))} />
             {!samlet && grupperValg}
             <FagMeny doc={doc} visning={visning} setVisning={setVisning} endre={endre} kanSkrive={b.kanSkrive} />
             {personValg}
@@ -572,7 +605,7 @@ export function RegisterView({ okt, tilbake }: Props) {
               {visning.fane !== 'skarisk' && !mobil && kolonneKnapp}
               {oversiktKnapp}
               {b.kanSkrive && visning.fane !== 'skarisk' && !mobil && (
-                <button className="knapp primær ny-risk" onClick={() => setNyRiskTeller((n) => n + 1)}>
+                <button className="knapp primær ny-risk" onClick={() => setNyRiskTeller((n) => n + 1)} aria-keyshortcuts="Alt+N" title="Ny risk (Alt+N)">
                   <Pluss /> Ny risk
                 </button>
               )}
