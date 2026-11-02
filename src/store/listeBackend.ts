@@ -318,11 +318,17 @@ class ListeSnapshots implements Snapshots {
   }
 
   // Riskene skrives først og snapshot-raden til slutt, så et snapshot som ble avbrutt underveis, aldri vises
-  async ta(navn: string, kommentar: string, doc: Register) {
+  async ta(navn: string, kommentar: string, doc: Register, fremdrift?: (ferdig: number, totalt: number) => void) {
     const id = uid()
-    const res = await this.lager.skriv(doc.risker.map((r) => ({ type: 'ny', liste: 'snapshotdata', felt: riskTilSnapshotFelt(r, id) })))
-    const feil = res.find((r) => !r.ok)
-    if (feil) throw 'feil' in feil ? feil.feil : new Error('Klarte ikke å lagre snapshotet.')
+    // I bolker på 20 (det samme som én Graph-batch), så brukeren ser hvor langt det har kommet
+    const totalt = doc.risker.length
+    fremdrift?.(0, totalt)
+    for (let i = 0; i < totalt; i += 20) {
+      const res = await this.lager.skriv(doc.risker.slice(i, i + 20).map((r) => ({ type: 'ny', liste: 'snapshotdata', felt: riskTilSnapshotFelt(r, id) })))
+      const feil = res.find((r) => !r.ok)
+      if (feil) throw 'feil' in feil ? feil.feil : new Error('Klarte ikke å lagre snapshotet.')
+      fremdrift?.(Math.min(i + 20, totalt), totalt)
+    }
     const info: SnapshotInfo = { id, navn: navn.slice(0, 255), tidspunkt: new Date().toISOString(), tattAv: this.bruker.navn, antallRisker: doc.risker.length, kommentar }
     const [h] = await this.lager.skriv([
       {

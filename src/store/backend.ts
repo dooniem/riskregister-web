@@ -30,7 +30,8 @@ export interface SnapshotInfo {
 
 export interface Snapshots {
   liste(): Promise<SnapshotInfo[]>
-  ta(navn: string, kommentar: string, doc: Register): Promise<SnapshotInfo>
+  // fremdrift: kalles etter hver bolk med hvor mange risker som er lagret
+  ta(navn: string, kommentar: string, doc: Register, fremdrift?: (ferdig: number, totalt: number) => void): Promise<SnapshotInfo>
   hent(id: string): Promise<{ info: SnapshotInfo; doc: Register }>
   slett(id: string): Promise<void>
 }

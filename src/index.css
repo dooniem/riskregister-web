@@ -2198,6 +2198,73 @@ td .valgpil.synlig {
   flex: 1;
   min-width: 200px;
 }
+.snapshot-fremdrift {
+  margin: 8px 0 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--linje);
+  border-left: 4px solid #4dabf7;
+  border-radius: 6px;
+  background: color-mix(in srgb, #4dabf7 8%, transparent);
+}
+.snapshot-fremdrift-topp {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.snapshot-fremdrift progress {
+  display: block;
+  width: 100%;
+  height: 8px;
+  margin: 10px 0 6px;
+  appearance: none;
+  border: none;
+  border-radius: 4px;
+  overflow: hidden;
+  background: color-mix(in srgb, #339af0 18%, transparent);
+}
+.snapshot-fremdrift progress::-webkit-progress-bar {
+  background: transparent;
+}
+.snapshot-fremdrift progress::-webkit-progress-value {
+  background: #339af0;
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+.snapshot-fremdrift progress::-moz-progress-bar {
+  background: #339af0;
+  border-radius: 4px;
+}
+.snapshot-fremdrift p {
+  margin: 0;
+}
+.spinner {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 3px solid color-mix(in srgb, #339af0 25%, transparent);
+  border-top-color: #339af0;
+  border-radius: 50%;
+  animation: spinn 0.8s linear infinite;
+}
+@keyframes spinn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2.4s;
+  }
+}
+.snapshotliste tr.snapshot-nytt td {
+  background: color-mix(in srgb, #51cf66 12%, transparent);
+}
+.snapshot-merke {
+  margin-left: 8px;
+  font-size: 12px;
+  color: #2b8a3e;
+  font-weight: 600;
+}
 .snapshotliste,
 .endringer {
   width: 100%;
