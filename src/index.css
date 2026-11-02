@@ -2003,6 +2003,26 @@ td .valgpil.synlig {
   width: min(640px, 100vw);
   min-width: 0;
 }
+/* Filer dras over vinduet: hele innholdet blir et slippområde */
+.modal-innhold.fv-slipp {
+  position: relative;
+}
+.modal-innhold.fv-slipp::after {
+  content: attr(data-slipptekst);
+  position: absolute;
+  inset: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--aksent, #1971c2);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--flate, #fff) 85%, var(--aksent, #1971c2) 15%);
+  color: var(--aksent, #1971c2);
+  font-weight: 600;
+  font-size: 16px;
+  pointer-events: none;
+  z-index: 5;
+}
 .fv-pc {
   display: flex;
   align-items: center;
