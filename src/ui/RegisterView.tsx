@@ -32,6 +32,7 @@ import { BruddDialog, bruddTekst, LaasDialog, visTid } from './LaasDialog'
 import { SnarveierDialog } from './Snarveier'
 import { SnapshotDialog } from './Snapshots'
 import { ByttFaseDialog } from './ByttFase'
+import { VelgFaseBanner } from './VelgFase'
 import { usikreFaser } from '../hvile'
 import { HistorikkDialog, HistorikkKontekst } from './Historikk'
 import { StorMatrise } from './StorMatrise'
@@ -684,6 +685,7 @@ export function RegisterView({ okt, tilbake }: Props) {
             </button>
           </div>
         )}
+        {kanSkrive && !b.snapshot && <VelgFaseBanner doc={doc} endre={endre} />}
         <AvklarDialog okt={okt} konflikter={snap.avklar} />
         <AvvikBanner okt={okt} />
         {manglende.length > 0 && (
