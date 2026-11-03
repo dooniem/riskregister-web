@@ -1,4 +1,5 @@
 // Datamodell for et riskregister. I SharePoint ligger registeret i lister på prosjektets område (se store/lister/skjema.ts).
+import type { VisningInnhold } from './view'
 
 export const SCHEMA_VERSION = 1
 
@@ -209,6 +210,17 @@ export interface Register {
   // Risker som hviler: skjult fra Åpne til en dato eller til prosjektet når en fase. Nøkkelen er risk-id.
   // Når tiden er ute, blir oppføringen stående, så risken kan vises som «Våknet» til noen fjerner merket.
   hviler?: Record<string, Hvile>
+  // Felles visninger (filter, sortering, gruppering og kolonner med et navn) som alle i registeret ser over registeret.
+  // Personlige visninger ligger i nettleseren til hver bruker.
+  visninger?: LagretVisning[]
+}
+
+export interface LagretVisning {
+  id: string
+  navn: string
+  innhold: VisningInnhold
+  av?: string
+  endret: string // ISO-tid
 }
 
 export interface Hvile {

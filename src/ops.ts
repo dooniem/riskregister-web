@@ -1,6 +1,6 @@
 // Endringer lagres som små operasjoner. Ved lagring legges de oppå siste versjon
 // fra SharePoint, slik at to brukere som endrer ulike risker aldri overskriver hverandre.
-import type { Deltaker, Gjennomgang, Hvile, Lister, Prosjekt, Register, RegisterLaas, Risk, Tiltak } from './model'
+import type { Deltaker, Gjennomgang, Hvile, LagretVisning, Lister, Prosjekt, Register, RegisterLaas, Risk, Tiltak } from './model'
 import { migrer } from './model'
 
 export type RiskFelt = Exclude<keyof Risk, 'id' | 'nr' | 'tiltak' | 'endret' | 'endretAv' | 'opprettet' | 'opprettetAv' | 'lukket' | 'lukketAv' | 'kilde'>
@@ -23,6 +23,7 @@ export type Op =
   | { t: 'setMilepael'; snapshotId: string; paa: boolean }
   | { t: 'byttFase'; fase: string; dato: string; snapshotId?: string }
   | { t: 'setHvile'; riskId: string; hvile: Hvile | null; fra?: Hvile | null }
+  | { t: 'setFellesVisning'; id: string; visning: LagretVisning | null; fra?: LagretVisning | null }
   | { t: 'erstatt'; doc: Register }
 
 export interface Konflikt {
@@ -152,6 +153,15 @@ export function brukOp(doc: Register, op: Op, bruker: Bruker): Konflikt | null {
     case 'setHvile': {
       const { [op.riskId]: _gammel, ...resten } = doc.hviler ?? {}
       doc.hviler = op.hvile ? { ...resten, [op.riskId]: { ...op.hvile, av: op.hvile.av ?? bruker.navn } } : resten
+      return null
+    }
+    case 'setFellesVisning': {
+      // Erstatter visningen på samme plass, så rekkefølgen på knappene ikke endrer seg når en visning oppdateres
+      const l = doc.visninger ?? []
+      const i = l.findIndex((x) => x.id === op.id)
+      if (!op.visning) doc.visninger = l.filter((x) => x.id !== op.id)
+      else if (i < 0) doc.visninger = [...l, op.visning]
+      else doc.visninger = l.map((x, j) => (j === i ? op.visning! : x))
       return null
     }
     case 'erstatt': {

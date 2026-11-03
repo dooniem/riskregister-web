@@ -22,6 +22,7 @@ import { Grid } from './Grid'
 import { Kortliste } from './Kortliste'
 import { Kolonneikon, Laas, Meny, Pil, Pluss } from './Ikoner'
 import { PersonMeny } from './PersonMeny'
+import { VisningKnapper } from './Visninger'
 import { HentOppsett } from './HentOppsett'
 import { Oversikt } from './Oversikt'
 import { Prosjektpanel } from './Prosjektpanel'
@@ -98,6 +99,8 @@ function motsatt(doc: Register, op: Op): Op | null {
     }
     case 'setHvile':
       return { ...op, hvile: op.fra ?? null, fra: op.hvile }
+    case 'setFellesVisning':
+      return { ...op, visning: op.fra ?? null, fra: op.visning }
     default:
       return null
   }
@@ -826,27 +829,32 @@ export function RegisterView({ okt, tilbake }: Props) {
             )}
           </div>
         )}
-        {visSnarveier && (
-          <div className="snarvei-rad" role="group" aria-label="Snarveier">
-            <span className="snarvei-etikett">Snarveier</span>
-            {SNARVEIER.filter((s) => (s.key !== 'nye' || snarveiFra) && (s.key !== 'vaaknet' || snarveiAntall.vaaknet || visning.filter.snarvei === 'vaaknet')).map((s) => {
-              const valgt = visning.filter.snarvei === s.key
-              const n = snarveiAntall[s.key]
-              const fra = s.key === 'nye' && sisteSnapshot ? ` («${sisteSnapshot.navn}», ${new Date(sisteSnapshot.tidspunkt).toLocaleDateString('nb-NO')})` : ''
-              return (
-                <button
-                  key={s.key}
-                  className={'snarvei' + (valgt ? ' valgt' : '') + (s.key === 'frist' && n ? ' varsel' : '')}
-                  aria-pressed={valgt}
-                  title={s.forklaring + fra + (valgt ? '. Klikk igjen for å vise alle.' : '')}
-                  onClick={() => velgSnarvei(s.key)}
-                >
-                  {s.tittel} <span className="teller">{n}</span>
-                </button>
-              )
-            })}
+        <div className="snarvei-rad">
+          <div className="visning-gruppe" role="group" aria-label="Visninger">
+            <VisningKnapper doc={doc} visning={visning} setVisning={setVisning} brukernavn={b.bruker.navn} kanLagreFelles={kanSkrive && !b.snapshot} endre={endre} melding={melding} snarveiFra={snarveiFra} />
           </div>
-        )}
+          {visSnarveier && (
+            <div className="snarvei-gruppe" role="group" aria-label="Snarveier">
+              <span className="snarvei-etikett">Snarveier</span>
+              {SNARVEIER.filter((s) => (s.key !== 'nye' || snarveiFra) && (s.key !== 'vaaknet' || snarveiAntall.vaaknet || visning.filter.snarvei === 'vaaknet')).map((s) => {
+                const valgt = visning.filter.snarvei === s.key
+                const n = snarveiAntall[s.key]
+                const fra = s.key === 'nye' && sisteSnapshot ? ` («${sisteSnapshot.navn}», ${new Date(sisteSnapshot.tidspunkt).toLocaleDateString('nb-NO')})` : ''
+                return (
+                  <button
+                    key={s.key}
+                    className={'snarvei' + (valgt ? ' valgt' : '') + (s.key === 'frist' && n ? ' varsel' : '')}
+                    aria-pressed={valgt}
+                    title={s.forklaring + fra + (valgt ? '. Klikk igjen for å vise alle.' : '')}
+                    onClick={() => velgSnarvei(s.key)}
+                  >
+                    {s.tittel} <span className="teller">{n}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
 
         <div className="hovedflate">
           {visning.fane === 'skarisk' ? (

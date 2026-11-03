@@ -218,7 +218,7 @@ export function feltTilTiltak(f: Record<string, unknown>): Tiltak & { riskId: st
 
 // Alt i registeret som ikke er risker og tiltak, med én rad per nøkkel i innstillingslisten.
 // Felt som endres sjelden og av få, så det holder at hver nøkkel er én JSON-verdi.
-export const INNSTILLINGER = ['registerId', 'opprettet', 'prosjekt', 'deltakere', 'gjennomganger', 'lister', 'nesteNr', 'excelNokkel', 'laas', 'milepaeler', 'faseHistorikk', 'hviler'] as const
+export const INNSTILLINGER = ['registerId', 'opprettet', 'prosjekt', 'deltakere', 'gjennomganger', 'lister', 'nesteNr', 'excelNokkel', 'laas', 'milepaeler', 'faseHistorikk', 'hviler', 'visninger'] as const
 export type Innstilling = (typeof INNSTILLINGER)[number]
 
 export function innstillingerFraRegister(doc: Register): Record<Innstilling, string> {
@@ -270,6 +270,7 @@ export function byggRegister(innst: Partial<Record<string, string>>, risker: Ris
     milepaeler: verdi<string[]>('milepaeler', []),
     faseHistorikk: verdi<NonNullable<Register['faseHistorikk']>>('faseHistorikk', []),
     hviler: verdi<NonNullable<Register['hviler']>>('hviler', {}),
+    visninger: verdi<NonNullable<Register['visninger']>>('visninger', []),
     risker: medTiltak,
   })
 }

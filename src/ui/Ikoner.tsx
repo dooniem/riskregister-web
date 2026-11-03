@@ -69,6 +69,17 @@ export function Person({ str = 14 }: { str?: number }) {
   )
 }
 
+// To personer: felles visninger, som alle i registeret ser
+export function Felles({ str = 14 }: { str?: number }) {
+  return (
+    <svg className="ikon" width={str} height={str} viewBox="0 0 24 24" aria-hidden="true" {...strek}>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20c1.2-3.2 3.6-4.8 6.5-4.8s5.3 1.6 6.5 4.8" />
+      <path d="M15.5 4.8a3.5 3.5 0 0 1 0 6.4M17.5 15.6c1.8.7 3.1 2.2 4 4.4" />
+    </svg>
+  )
+}
+
 // Gammeldags nøkkel (som 🗝️) foran «Lukk risken» og «Gjenåpne risken» i høyreklikkmenyen
 export function Nokkel({ str = 16 }: { str?: number }) {
   return (

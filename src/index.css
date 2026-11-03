@@ -5752,3 +5752,98 @@ button.hvile-merke.vaaknet:hover {
   margin-right: 6px;
   vertical-align: -2px;
 }
+
+/* Lagrede visninger: egen gruppe foran snarveiene i raden over registeret */
+.visning-gruppe,
+.snarvei-gruppe {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.snarvei-gruppe {
+  border-left: 1px solid var(--linje-sterk);
+  padding-left: 10px;
+  margin-left: 4px;
+}
+.visning-knapp {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.visning-knapp .ikon {
+  color: var(--dempet);
+}
+.visning-knapp.valgt .ikon {
+  color: inherit;
+}
+.endret-prikk {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--advarsel, #e8a317);
+}
+.snarvei.ny-visning {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-style: dashed;
+  color: var(--dempet);
+}
+.snarvei.ny-visning:hover {
+  color: var(--tekst);
+}
+.visning-oppdater {
+  font-size: 13px;
+}
+.visning-dialog {
+  width: 480px;
+}
+.visning-innhold {
+  background: var(--hode);
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+.visning-innhold ul {
+  margin: 4px 0 6px;
+  padding-left: 20px;
+}
+.visning-liste {
+  border-top: 1px solid var(--linje);
+  padding-top: 10px;
+}
+.visning-liste h3 {
+  font-size: 13px;
+  margin: 0 0 6px;
+}
+.visning-rad {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  min-height: 30px;
+}
+.visning-navn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.visning-slett {
+  display: inline-flex;
+  gap: 6px;
+}
+@media (max-width: 760px) {
+  .snarvei-gruppe {
+    border-left: none;
+    padding-left: 0;
+    margin-left: 0;
+  }
+}
+.visning-dialog .segment {
+  align-self: flex-start;
+}
