@@ -5743,18 +5743,6 @@ button.hvile-merke.vaaknet:hover {
 .hvile-dialog {
   max-width: 480px;
 }
-.fasebytte-hvile {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--linje);
-  border-radius: 8px;
-}
-.fasebytte-tabell tr.hviles td:nth-child(3) {
-  color: var(--dempet);
-}
 @media print {
   .hvile-info {
     display: none;
