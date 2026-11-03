@@ -68,3 +68,22 @@ export function Person({ str = 14 }: { str?: number }) {
     </svg>
   )
 }
+
+// Nøkkel foran «Lukk risken» og «Gjenåpne risken» i høyreklikkmenyen
+export function Nokkel({ str = 14 }: { str?: number }) {
+  return (
+    <svg className="ikon" width={str} height={str} viewBox="0 0 24 24" aria-hidden="true" {...strek}>
+      <circle cx="8" cy="15" r="4" />
+      <path d="m10.8 12.2 8.7-8.7M16.5 6.5l2.5 2.5M14 9l2 2" />
+    </svg>
+  )
+}
+
+// «Zzz» foran «Hvil risken» og «Vekk risken»
+export function Sov({ str = 14 }: { str?: number }) {
+  return (
+    <svg className="ikon" width={str} height={str} viewBox="0 0 24 24" aria-hidden="true" {...strek}>
+      <path d="M3 12h7l-7 8h7M13 4h5l-5 6h5M18 13h3l-3 4h3" />
+    </svg>
+  )
+}

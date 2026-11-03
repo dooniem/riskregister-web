@@ -5760,3 +5760,7 @@ button.hvile-merke.vaaknet:hover {
     display: none;
   }
 }
+.kontekstmeny > button.meny-uthevet .ikon {
+  margin-right: 6px;
+  vertical-align: -2px;
+}

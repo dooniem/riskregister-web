@@ -14,7 +14,7 @@ import { FagMerke, FagVelger, fagForNyRisk } from './Fag'
 import { HvileDialog } from './Hvile'
 import { KostEditor } from './KostEditor'
 import { VurderingEditor } from './VurderingEditor'
-import { Laas, Pil } from './Ikoner'
+import { Laas, Nokkel, Pil, Sov } from './Ikoner'
 import { RiskInfo } from './RiskInfo'
 import { HistorikkKontekst } from './Historikk'
 import { initialer, likNavn } from './Personer'
@@ -1102,16 +1102,16 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   <>
                   <hr />
                   <button className="meny-uthevet" onClick={() => (settStatus([r.id], lukket ? 'Åpen' : 'Lukket'), setKontekst(null))} title={lukket ? undefined : 'Risken beholdes med historikk og havner under «Lukkede»'}>
-                    {lukket ? 'Gjenåpne risken' : 'Lukk risken'}
+                    <Nokkel /> {lukket ? 'Gjenåpne risken' : 'Lukk risken'}
                   </button>
                   {!lukket &&
                     (hvileStatus(doc, r) === 'hviler' ? (
-                      <button onClick={() => (vekk([r.id]), setKontekst(null))} title={`Hviler til ${hvileTekst(doc.hviler![r.id])}`}>
-                        Vekk risken
+                      <button className="meny-uthevet" onClick={() => (vekk([r.id]), setKontekst(null))} title={`Hviler til ${hvileTekst(doc.hviler![r.id])}. Risken legges tilbake under «Åpne».`}>
+                        <Sov /> Vekk risken
                       </button>
                     ) : (
-                      <button onClick={() => (setHvileVelger([r.id]), setKontekst(null))} title="Skjul risken fra Åpne til en dato eller en fase">
-                        Hvil til…
+                      <button className="meny-uthevet" onClick={() => (setHvileVelger([r.id]), setKontekst(null))} title="Skjul risken fra Åpne til en dato eller en fase">
+                        <Sov /> Hvil risken…
                       </button>
                     ))}
                   <hr />
