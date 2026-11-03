@@ -154,7 +154,9 @@ export function Kortliste({ okt, doc, andre, visning, aapne, endre, kanSkrive, m
             <RiskInfo r={menyRisk} />
             <button onClick={() => (aapne(menyRisk.id), setMeny(null))}>Åpne risken</button>
             {visHistorikk && <button onClick={() => (visHistorikk(menyRisk.id), setMeny(null))}>Vis historikk…</button>}
-            <button onClick={() => (byttStjerne(menyRisk.id), setMeny(null))}>{visning.stjerner?.includes(menyRisk.id) ? 'Slutt å følge' : 'Følg risken'}</button>
+            <button onClick={() => (byttStjerne(menyRisk.id), setMeny(null))}>
+              <Stjerne fylt={visning.stjerner?.includes(menyRisk.id)} /> {visning.stjerner?.includes(menyRisk.id) ? 'Slutt å følge' : 'Følg risken'}
+            </button>
             {kanSkrive && (
               <>
                 <button onClick={() => (sjekkLaas(menyRisk.id) && setFagVelger({ ...meny }), setMeny(null))}>Sett fag…</button>

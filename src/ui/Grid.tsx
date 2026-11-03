@@ -951,7 +951,6 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   byttSkarisk={byttSkarisk}
                   vekk={(id) => vekk([id])}
                   stjerne={!!visning.stjerner?.includes(r.id)}
-                  byttStjerne={(id) => setVisning((v) => byttStjerner(v, [id]))}
                   iHviler={visning.fane === 'hviler'}
                   aapne={aapneDetalj}
                   aapneVedlegg={kanSkrive || r.vedlegg?.length ? aapneVedlegg : undefined}
@@ -1281,7 +1280,6 @@ interface RaderProps {
   byttSkarisk: (riskId: string) => void
   vekk: (riskId: string) => void
   stjerne: boolean // brukeren følger risken
-  byttStjerne: (riskId: string) => void
   iHviler: boolean // i Hviler-fanen står det i gruppen hva risken hviler til, så merket trengs ikke
   aapne: (riskId: string) => void
   aapneVedlegg?: (riskId: string, filer?: File[]) => void
@@ -1378,17 +1376,12 @@ function RiskRader(p: RaderProps) {
           <span className="nr-tall">{r.nr}</span>
           {!p.samlet && <VedleggMerke r={r} aapne={p.visVedlegg} />}
           {!p.iHviler && <HvileMerke doc={p.doc} r={r} kvitter={p.kanSkrive ? () => p.vekk(r.id) : undefined} />}
-          <button
-            type="button"
-            className={'stjerne-knapp' + (p.stjerne ? ' paa' : '')}
-            aria-pressed={p.stjerne}
-            aria-label={p.stjerne ? `Slutt å følge risk ${r.nr}` : `Følg risk ${r.nr}`}
-            title={p.stjerne ? 'Du følger risken. Klikk for å fjerne stjernen.' : 'Følg risken. Stjernen er bare synlig for deg.'}
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => (e.stopPropagation(), p.byttStjerne(r.id))}
-          >
-            <Stjerne str={14} fylt={p.stjerne} />
-          </button>
+          {/* Stjernen settes og fjernes med høyreklikk (Følg risken). Her er den bare et merke, så Nr.-cellen ikke får enda en knapp. */}
+          {p.stjerne && (
+            <span className="stjerne-merke" role="img" aria-label="Du følger risken" title="Du følger risken. Høyreklikk for å slutte å følge.">
+              <Stjerne str={14} fylt />
+            </span>
+          )}
           {p.mot && !gammel && (
             <span className="ny-siden" title="Risken er lagt til etter snapshotet">
               ny
