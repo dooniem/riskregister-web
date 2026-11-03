@@ -7,14 +7,14 @@ import type { Op, RiskFelt, TiltakFelt } from '../ops'
 import type { Tilstede } from '../store/backend'
 import type { Okt } from '../sync'
 import type { Gruppe, Visning } from '../view'
-import { aktivGruppering, filtrer, filterVerdier, grupper, sammenslaattSomStandard, sorter, summer } from '../view'
+import { aktivGruppering, byttStjerner, filtrer, filterVerdier, grupper, sammenslaattSomStandard, sorter, summer } from '../view'
 import type { Flytt } from './Editor'
 import { CelleEditor } from './Editor'
 import { FagMerke, FagVelger, fagForNyRisk } from './Fag'
 import { HvileDialog } from './Hvile'
 import { KostEditor } from './KostEditor'
 import { VurderingEditor } from './VurderingEditor'
-import { AapenLaas, Laas, Nokkel, Pil, Sov } from './Ikoner'
+import { AapenLaas, Laas, Nokkel, Pil, Sov, Stjerne } from './Ikoner'
 import { RiskInfo } from './RiskInfo'
 import { HistorikkKontekst } from './Historikk'
 import { initialer, likNavn } from './Personer'
@@ -950,6 +950,8 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   person={visning.person}
                   byttSkarisk={byttSkarisk}
                   vekk={(id) => vekk([id])}
+                  stjerne={!!visning.stjerner?.includes(r.id)}
+                  byttStjerne={(id) => setVisning((v) => byttStjerner(v, [id]))}
                   iHviler={visning.fane === 'hviler'}
                   aapne={aapneDetalj}
                   aapneVedlegg={kanSkrive || r.vedlegg?.length ? aapneVedlegg : undefined}
@@ -1045,6 +1047,14 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
       {kontekst && merket.length > 1 && merket.includes(kontekst.pos.riskId) ? (
         <div className="kontekstmeny" style={{ left: Math.min(kontekst.x, window.innerWidth - 330), top: Math.max(8, Math.min(kontekst.y, window.innerHeight - 260)) }} onMouseLeave={() => setKontekst(null)}>
           <div className="meny-tittel">{merket.length} risker merket</div>
+          {(() => {
+            const alleFulgt = merket.every((id) => visning.stjerner?.includes(id))
+            return (
+              <button onClick={() => (setVisning((v) => byttStjerner(v, merket, !alleFulgt)), setKontekst(null))}>
+                <Stjerne fylt={alleFulgt} /> {alleFulgt ? 'Slutt å følge' : 'Følg'}
+              </button>
+            )
+          })()}
           {kanSkrive && flereHandlinger()}
           <button onClick={() => (setMerket([]), setKontekst(null))}>Fjern merking</button>
         </div>
@@ -1056,6 +1066,14 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
           })()}
           <button onClick={() => (aapneDetalj(kontekst.pos.riskId), setKontekst(null))}>Åpne risk i eget panel</button>
           {visHistorikk && <button onClick={() => (visHistorikk(kontekst.pos.riskId), setKontekst(null))}>Vis historikk…</button>}
+          {(() => {
+            const paa = !!visning.stjerner?.includes(kontekst.pos.riskId)
+            return (
+              <button onClick={() => (setVisning((v) => byttStjerner(v, [kontekst.pos.riskId], !paa)), setKontekst(null))} title="Stjernen er bare synlig for deg. «Mine stjerner» i personmenyen viser riskene du følger.">
+                <Stjerne fylt={paa} /> {paa ? 'Slutt å følge' : 'Følg risken'}
+              </button>
+            )
+          })()}
           {(() => {
             const r = doc.risker.find((x) => x.id === kontekst.pos.riskId)
             const kanVedlegg = kanSkrive && !!filer
@@ -1262,6 +1280,8 @@ interface RaderProps {
   person?: string
   byttSkarisk: (riskId: string) => void
   vekk: (riskId: string) => void
+  stjerne: boolean // brukeren følger risken
+  byttStjerne: (riskId: string) => void
   iHviler: boolean // i Hviler-fanen står det i gruppen hva risken hviler til, så merket trengs ikke
   aapne: (riskId: string) => void
   aapneVedlegg?: (riskId: string, filer?: File[]) => void
@@ -1358,6 +1378,17 @@ function RiskRader(p: RaderProps) {
           <span className="nr-tall">{r.nr}</span>
           {!p.samlet && <VedleggMerke r={r} aapne={p.visVedlegg} />}
           {!p.iHviler && <HvileMerke doc={p.doc} r={r} kvitter={p.kanSkrive ? () => p.vekk(r.id) : undefined} />}
+          <button
+            type="button"
+            className={'stjerne-knapp' + (p.stjerne ? ' paa' : '')}
+            aria-pressed={p.stjerne}
+            aria-label={p.stjerne ? `Slutt å følge risk ${r.nr}` : `Følg risk ${r.nr}`}
+            title={p.stjerne ? 'Du følger risken. Klikk for å fjerne stjernen.' : 'Følg risken. Stjernen er bare synlig for deg.'}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => (e.stopPropagation(), p.byttStjerne(r.id))}
+          >
+            <Stjerne str={14} fylt={p.stjerne} />
+          </button>
           {p.mot && !gammel && (
             <span className="ny-siden" title="Risken er lagt til etter snapshotet">
               ny

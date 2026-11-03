@@ -40,6 +40,8 @@ export interface Visning {
   samletEgendef?: string[] // egendefinerte felt som vises i risikokortet i samlet utseende ('egendef', 'egendef2'). Tom = ingen
   skjulMarkering?: boolean // skjul fargemarkeringene på risknummer og tiltak, f.eks. før utskrift eller presentasjon
   kostSkala?: 'prosjekt' // kostspennet i moderne utseende: egen skala per risk (standard) eller felles skala for prosjektet
+  stjerner?: string[] // risker brukeren følger (personlig stjerne). Ligger i nettleseren sammen med resten av visningen
+  kunStjerner?: boolean // vis bare riskene brukeren følger («Mine stjerner» i personmenyen)
 }
 
 export const STANDARD_VISNING: Visning = {
@@ -245,6 +247,7 @@ export function filtrer(doc: Register, v: Visning, ignorer?: string): Risk[] {
     if (!iFane(r, v.fane, doc)) return false
     if (!iFag(r, doc, v.fag)) return false
     if (v.person && !harPerson(r, v.person)) return false
+    if (v.kunStjerner && !v.stjerner?.includes(r.id)) return false
     if (sok) {
       const hay = [r.nr, r.aarsak, r.hendelse, r.konsekvenser, r.eier, r.kategori, r.egendef, r.egendef2, ...r.tiltak.flatMap((t) => [t.tekst, t.eier, t.beskrivelse])]
         .join(' ')
@@ -352,7 +355,7 @@ export function summer(risker: Risk[], rm: 'R' | 'M'): Summer {
 
 // Lagrede visninger: det som bestemmer hvilke risker som vises og hvordan, med et navn.
 // Søket hører til det man leter etter akkurat nå og lagres ikke. Bredder, oversikten, fagmerker, fargemarkering og kostskala er personlige vaner og følger ikke med.
-export const VISNING_FELT = ['fane', 'sortering', 'filter', 'gruppering', 'grupperingLukkede', 'skjulteGrupper', 'skjulteKolonner', 'fag', 'person', 'samletUtenKategori', 'samletEgendef'] as const
+export const VISNING_FELT = ['fane', 'sortering', 'filter', 'gruppering', 'grupperingLukkede', 'skjulteGrupper', 'skjulteKolonner', 'fag', 'person', 'kunStjerner', 'samletUtenKategori', 'samletEgendef'] as const
 export type VisningInnhold = Partial<Pick<Visning, (typeof VISNING_FELT)[number]>>
 
 // Personfilteret på brukeren selv lagres som MEG, så «Mine tiltak» viser tiltakene til den som bruker visningen
@@ -374,6 +377,7 @@ export function visningInnhold(v: Visning, meg?: string): VisningInnhold {
     skjulteKolonner: v.skjulteKolonner,
     fag: v.fag?.length ? v.fag : undefined,
     person: v.person && meg && v.person === meg ? MEG : v.person,
+    kunStjerner: v.kunStjerner || undefined,
     samletUtenKategori: v.samletUtenKategori || undefined,
     samletEgendef: v.samletEgendef?.length ? v.samletEgendef : undefined,
   }
@@ -400,6 +404,7 @@ export function brukVisning(v: Visning, innhold: VisningInnhold, meg: string | u
     skjulteKolonner: innhold.skjulteKolonner ?? [],
     fag: innhold.fag ?? [],
     person: innhold.person === MEG ? meg : innhold.person,
+    kunStjerner: innhold.kunStjerner,
     samletUtenKategori: innhold.samletUtenKategori,
     samletEgendef: innhold.samletEgendef,
   }
@@ -428,6 +433,7 @@ export function beskrivVisning(doc: Register, innhold: VisningInnhold): string[]
   const f = innhold.filter
   if (f?.snarvei) ut.push(`Snarveien «${SNARVEIER.find((s) => s.key === f.snarvei)?.tittel}»`)
   if (innhold.person) ut.push(innhold.person === MEG ? 'Bare den som bruker visningen (risiko- eller tiltakseier)' : `Bare ${innhold.person}`)
+  if (innhold.kunStjerner) ut.push('Bare risker med stjerne (hver bruker ser sine egne)')
   if (innhold.fag?.length) ut.push(`Fag: ${innhold.fag.map((id) => (id === UTEN_FAG ? 'uten fag' : (doc.lister.fag.find((x) => x.id === id)?.navn ?? '?'))).join(', ')}`)
   for (const [k, verdier] of Object.entries(f?.verdier ?? {})) ut.push(`${kolTittel(doc, k)}: ${verdier.map((x) => x || '(tom)').join(', ')}`)
   for (const [k, t] of Object.entries(f?.tekst ?? {})) ut.push(`${kolTittel(doc, k)} inneholder «${t}»`)
@@ -445,4 +451,11 @@ export function beskrivVisning(doc: Register, innhold: VisningInnhold): string[]
 
 function kolTittel(doc: Register, key: string): string {
   return KOL[key] ? KOL[key].tittel(doc).replace(/\s+/g, ' ') : key
+}
+
+// Stjerne på en eller flere risker. Uten «paa» byttes stjernen på den første, og de andre får det samme.
+export function byttStjerner(v: Visning, ider: string[], paa?: boolean): Visning {
+  const l = v.stjerner ?? []
+  const sett = paa ?? !l.includes(ider[0])
+  return { ...v, stjerner: sett ? [...l, ...ider.filter((id) => !l.includes(id))] : l.filter((id) => !ider.includes(id)) }
 }

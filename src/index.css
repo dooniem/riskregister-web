@@ -5847,3 +5847,54 @@ button.hvile-merke.vaaknet:hover {
 .visning-dialog .segment {
   align-self: flex-start;
 }
+
+/* Personlig stjerne (Følg) nederst i Nr.-cellen. Den tomme ligger over cellen og vises bare når musen er over raden. */
+.stjerne-knapp {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  transform: translateX(-50%);
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--dempet);
+  cursor: pointer;
+  opacity: 0;
+}
+.stjerne-knapp.paa {
+  /* En risk med stjerne får plass til den under merkene, så den aldri dekker fagmerket */
+  position: static;
+  transform: none;
+  color: #e0a100;
+  opacity: 1;
+}
+.stil-moderne .grid td.nr-td .stjerne-knapp.paa {
+  margin-top: -21px; /* nærmere fagmerket enn det store mellomrommet i moderne */
+}
+.grid tr:hover .stjerne-knapp,
+.stjerne-knapp:focus-visible {
+  opacity: 1;
+}
+.stjerne-knapp:hover {
+  background: var(--hode);
+  color: #e0a100;
+}
+.kort-stjerne {
+  color: #e0a100;
+  display: inline-flex;
+}
+.person-knapp .ikon[fill='currentColor'],
+.kontekstmeny .ikon[fill='currentColor'] {
+  color: #e0a100;
+}
+@media print {
+  .stjerne-knapp,
+  .kort-stjerne {
+    display: none;
+  }
+}
