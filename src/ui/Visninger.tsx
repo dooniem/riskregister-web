@@ -3,7 +3,7 @@ import type { LagretVisning, Register } from '../model'
 import { uid } from '../model'
 import type { Op } from '../ops'
 import type { Visning, VisningInnhold } from '../view'
-import { beskrivVisning, brukVisning, eierNavn, likVisning, STANDARD_VISNING, visningInnhold } from '../view'
+import { beskrivVisning, brukVisning, eierNavn, filtrer, likVisning, STANDARD_VISNING, visningInnhold } from '../view'
 import { Felles, Pluss, Stjerne } from './Ikoner'
 import { Modal, ModalTittel } from './Modal'
 
@@ -60,7 +60,13 @@ export function VisningKnapper({ doc, visning, setVisning, brukernavn, kanLagreF
   // Felles først, så de er på samme plass for alle
   const alle: Lagret[] = useMemo(() => [...(doc.visninger ?? []).map((v) => ({ ...v, felles: true })), ...personlige.map((v) => ({ ...v, felles: false }))], [doc.visninger, personlige])
   const meg = megI(doc, brukernavn)
-  const antallStjerner = (visning.stjerner ?? []).filter((id) => doc.risker.some((r) => r.id === id)).length
+  const alleStjerner = (visning.stjerner ?? []).filter((id) => doc.risker.some((r) => r.id === id)).length
+  // Tallet følger filtrene som er på (fane, søk, kolonnefilter, snarveier osv.), som resten av registeret
+  const antallStjerner = useMemo(() => {
+    const s = new Set(visning.stjerner ?? [])
+    return s.size ? filtrer(doc, { ...visning, kunStjerner: false }).filter((r) => s.has(r.id)).length : 0
+  }, [doc, visning])
+  const skjulteStjerner = alleStjerner - antallStjerner
   const [aktivId, setAktivId] = useState<string | null>(null)
   const [dialog, setDialog] = useState(false)
   const aktiv = alle.find((v) => v.id === aktivId)
@@ -113,11 +119,14 @@ export function VisningKnapper({ doc, visning, setVisning, brukernavn, kanLagreF
     <>
       <span className="snarvei-etikett">Visninger</span>
       {/* Innebygd: riskene brukeren følger (stjerne). Vises bare når det finnes noen, så ingen trenger å sette den opp. */}
-      {(antallStjerner > 0 || visning.kunStjerner) && (
+      {(alleStjerner > 0 || visning.kunStjerner) && (
         <button
           className={'snarvei visning-knapp folger' + (visning.kunStjerner ? ' valgt' : '')}
           aria-pressed={!!visning.kunStjerner}
-          title={visning.kunStjerner ? 'Viser bare riskene du følger. Klikk igjen for å vise alle.' : 'Vis bare riskene du følger. Følg en risk med høyreklikk › Følg risken. Stjernene er bare synlige for deg.'}
+          title={
+            (visning.kunStjerner ? 'Viser bare riskene du følger. Klikk igjen for å vise alle.' : 'Vis bare riskene du følger. Følg en risk med høyreklikk › Følg risken. Stjernene er bare synlige for deg.') +
+            (skjulteStjerner > 0 ? ` Du følger ${alleStjerner} risker, ${skjulteStjerner} av dem skjules av filtrene som er på.` : '')
+          }
           onClick={() => setVisning((v) => ({ ...v, kunStjerner: !v.kunStjerner }))}
         >
           <Stjerne str={13} fylt />
