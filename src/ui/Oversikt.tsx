@@ -17,7 +17,7 @@ interface Props {
 
 // Summer for risiko og mulighet (som M:/R:-radene øverst i Excel) og en klikkbar risikomatrise
 export function Oversikt({ doc, visning, setVisning, mot, aapneMatrise, moderne, samlet }: Props) {
-  const grunnlagFor = (d: Register): Risk[] => (visning.kunFiltrerteSummer ? filtrer(d, visning) : d.risker.filter((r) => iFane(r, visning.fane)))
+  const grunnlagFor = (d: Register): Risk[] => (visning.kunFiltrerteSummer ? filtrer(d, visning) : d.risker.filter((r) => iFane(r, visning.fane, d)))
   const grunnlag = grunnlagFor(doc)
   const r = summer(grunnlag, 'R')
   const m = summer(grunnlag, 'M')

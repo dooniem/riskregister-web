@@ -115,7 +115,7 @@ function FagListe({ doc, visning, setVisning, endre, kanSkrive, lukk }: MenyProp
   const [rediger, setRediger] = useState(false)
   const ref = useKlikkUtenfor(lukk)
   const valgte = visning.fag ?? []
-  const iBruk = doc.risker.filter((r) => iFane(r, visning.fane))
+  const iBruk = doc.risker.filter((r) => iFane(r, visning.fane, doc))
   const kjent = new Set(doc.lister.fag.map((f) => f.id))
   const antall = (id: string) => iBruk.filter((r) => (id === UTEN_FAG ? !r.fag || !kjent.has(r.fag) : r.fag === id)).length
   const bytt = (id: string) => setVisning((v) => ({ ...v, fag: (v.fag ?? []).includes(id) ? (v.fag ?? []).filter((x) => x !== id) : [...(v.fag ?? []), id] }))

@@ -206,6 +206,37 @@ export interface Register {
   milepaeler?: string[]
   // Hver gang prosjektet har byttet fase med Mer › Bytt fase. Gir fasen en risk ble opprettet og lukket i, ut fra datoene.
   faseHistorikk?: Fasebytte[]
+  // Risker som hviler: skjult fra Åpne til en dato eller til prosjektet når en fase. Nøkkelen er risk-id.
+  // Når tiden er ute, blir oppføringen stående, så risken kan vises som «Våknet» til noen fjerner merket.
+  hviler?: Record<string, Hvile>
+}
+
+export interface Hvile {
+  til?: string // YYYY-MM-DD, risken våkner denne dagen
+  fase?: string // eller: risken våkner når prosjektet går over i denne fasen
+  satt: string // ISO-tid
+  av?: string
+}
+
+export const iDag = () => new Date().toLocaleDateString('sv-SE') // YYYY-MM-DD i lokal tid
+
+// Om prosjektet har nådd fasen etter at hvilen ble satt: fasen i prosjektinfo, eller et fasebytte til den etter at hvilen ble satt
+function naaddFase(doc: Register, h: Hvile): boolean {
+  if (!h.fase) return false
+  if (doc.prosjekt.fase === h.fase) return true
+  return (doc.faseHistorikk ?? []).some((b) => b.til === h.fase && b.dato >= h.satt.slice(0, 10))
+}
+
+// 'hviler' når risken er åpen og skal holdes ute av Åpne, 'vaaknet' når den har hvilt og tiden er ute
+export function hvileStatus(doc: Register, r: Risk, dag = iDag()): 'hviler' | 'vaaknet' | undefined {
+  const h = doc.hviler?.[r.id]
+  if (!h || r.status === 'Lukket') return undefined
+  const hviler = h.til ? h.til > dag : h.fase ? !naaddFase(doc, h) : false
+  return hviler ? 'hviler' : 'vaaknet'
+}
+
+export function hvileTekst(h: Hvile): string {
+  return h.fase ? `fasen ${h.fase}` : h.til ? new Date(h.til + 'T12:00').toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' }) : ''
 }
 
 export interface Fasebytte {

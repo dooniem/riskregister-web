@@ -3,9 +3,9 @@
 import type { Kolonne } from './columns'
 import { KOL, visTekst } from './columns'
 import type { Register, Risk } from './model'
-import { eksponering, eksponeringNivaa, faseVed, fv, nyligLukketDager } from './model'
+import { eksponering, eksponeringNivaa, faseVed, fv, hvileStatus, hvileTekst, nyligLukketDager } from './model'
 
-export type Fane = 'aapne' | 'lukkede' | 'alle' | 'skarisk'
+export type Fane = 'aapne' | 'hviler' | 'lukkede' | 'alle' | 'skarisk'
 
 export interface Sortering {
   key: string
@@ -101,6 +101,7 @@ export const GRUPPERINGER: { key: string; tittel: string; verdi: (r: Risk, doc: 
   { key: 'status', tittel: 'Status risk', verdi: (r) => r.status || '(tom)' },
   { key: 'lukket', tittel: 'Når lukket', verdi: (r, doc) => lukketGruppe(r, doc, nyligLukketDager(doc)) },
   { key: 'fase', tittel: 'Opprettet i fase', verdi: (r, doc) => faseVed(doc, r.opprettet) ?? '(ukjent fase)' },
+  { key: 'hvile', tittel: 'Hviler til', verdi: (r, doc) => hvileGruppe(r, doc) },
   { key: 'tiltakstatus', tittel: 'Status på tiltak', verdi: (r) => tiltakOppsummering(r) },
 ]
 
@@ -111,6 +112,7 @@ export function grupperinger(doc: Register, fane?: Fane) {
     (g) =>
       (g.key !== 'egendef2' || doc.lister.egendef2Aktiv) &&
       (g.key !== 'lukket' || fane === 'lukkede' || fane === 'alle') &&
+      (g.key !== 'hvile' || fane === 'hviler') &&
       // «Opprettet i fase» trenger at prosjektet har byttet fase i appen minst én gang
       (g.key !== 'fase' || !!doc.faseHistorikk?.length),
   ).map((g) =>
@@ -138,13 +140,22 @@ export function lukketGruppe(r: Risk, doc: Register, dager: number, naa = Date.n
 // Gruppene i «Når lukket» som er slått sammen til brukeren åpner dem: alt som er eldre enn de siste 90 dagene
 export const sammenslaattSomStandard = (gruppering: string, navn: string) => gruppering === 'lukket' && (navn.startsWith(LUKKET_AAR) || navn === LUKKET_UTEN_DATO)
 
+// Gruppen en hvilende risk står i: fasen eller dagen den våkner
+export function hvileGruppe(r: Risk, doc: Register): string {
+  const h = doc.hviler?.[r.id]
+  return h && hvileStatus(doc, r) === 'hviler' ? 'Til ' + hvileTekst(h) : '(hviler ikke)'
+}
+
 // Grupperingen som gjelder i fanen. Lukkede-fanen har sin egen, som er «Når lukket» til brukeren velger noe annet.
+// Hviler-fanen grupperes alltid etter når riskene våkner.
 export function aktivGruppering(v: Visning): string {
-  return v.fane === 'lukkede' ? (v.grupperingLukkede ?? 'lukket') : v.gruppering === 'lukket' && v.fane !== 'alle' ? '' : v.gruppering
+  if (v.fane === 'hviler') return 'hvile'
+  if (v.fane === 'lukkede') return v.grupperingLukkede ?? 'lukket'
+  return (v.gruppering === 'lukket' && v.fane !== 'alle') || v.gruppering === 'hvile' ? '' : v.gruppering
 }
 
 // Snarveier: ferdige utvalg som appen regner ut, for å finne det som haster eller er glemt når registeret har vokst
-export type Snarvei = 'frist' | 'ikkeVurdert' | 'nye' | 'utenTiltak'
+export type Snarvei = 'frist' | 'ikkeVurdert' | 'nye' | 'utenTiltak' | 'vaaknet'
 export const IKKE_VURDERT_MND = 6
 
 const avsluttet = (status: string) => status === 'Utført' || status === 'Utføres ikke'
@@ -154,9 +165,10 @@ export const SNARVEIER: { key: Snarvei; tittel: string; forklaring: string }[] =
   { key: 'ikkeVurdert', tittel: `Ikke endret på ${IKKE_VURDERT_MND} mnd`, forklaring: `Åpne risker der verken risken eller tiltakene er endret de siste ${IKKE_VURDERT_MND} månedene` },
   { key: 'nye', tittel: 'Nye siden siste snapshot', forklaring: 'Risker som er opprettet etter det siste snapshotet' },
   { key: 'utenTiltak', tittel: 'Uten tiltak', forklaring: 'Åpne risker som ikke har noen tiltak' },
+  { key: 'vaaknet', tittel: 'Våknet', forklaring: 'Risker som har hvilt og er tilbake blant de åpne. Merket fjernes ved å klikke på det i Nr.-kolonnen' },
 ]
 
-export function iSnarvei(r: Risk, s: Snarvei, fra?: string, naa = new Date()): boolean {
+export function iSnarvei(r: Risk, s: Snarvei, doc: Register, fra?: string, naa = new Date()): boolean {
   const aapen = r.status !== 'Lukket'
   switch (s) {
     case 'frist': {
@@ -173,6 +185,8 @@ export function iSnarvei(r: Risk, s: Snarvei, fra?: string, naa = new Date()): b
       return !!fra && !!r.opprettet && r.opprettet > fra
     case 'utenTiltak':
       return aapen && !r.tiltak.some((t) => t.tekst.trim())
+    case 'vaaknet':
+      return hvileStatus(doc, r) === 'vaaknet'
   }
 }
 
@@ -195,10 +209,13 @@ export function filterVerdier(k: Kolonne, r: Risk): string[] {
   return [visTekst(k, r) || '(tom)']
 }
 
-export function iFane(r: Risk, fane: Fane) {
+// Åpne viser ikke risker som hviler. De ligger i Hviler, og er med i Alle og Til Skarisk som før.
+export function iFane(r: Risk, fane: Fane, doc: Register) {
   if (fane === 'alle') return true
   if (fane === 'skarisk') return r.tilSkarisk && r.status !== 'Lukket'
-  return fane === 'lukkede' ? r.status === 'Lukket' : r.status !== 'Lukket'
+  if (fane === 'lukkede') return r.status === 'Lukket'
+  const hviler = hvileStatus(doc, r) === 'hviler'
+  return fane === 'hviler' ? hviler : r.status !== 'Lukket' && !hviler
 }
 
 // Om risken hører til et av de valgte fagene (ingen valgt = alle). Risker med et fag som ikke finnes lenger regnes som uten fag.
@@ -225,7 +242,7 @@ export function eierNavn(doc: Register): string[] {
 export function filtrer(doc: Register, v: Visning, ignorer?: string): Risk[] {
   const sok = v.sok.trim().toLowerCase()
   return doc.risker.filter((r) => {
-    if (!iFane(r, v.fane)) return false
+    if (!iFane(r, v.fane, doc)) return false
     if (!iFag(r, doc, v.fag)) return false
     if (v.person && !harPerson(r, v.person)) return false
     if (sok) {
@@ -243,7 +260,7 @@ export function filtrer(doc: Register, v: Visning, ignorer?: string): Risk[] {
       const t = tekst.toLowerCase()
       if (!filterVerdier(KOL[key], r).some((x) => x.toLowerCase().includes(t))) return false
     }
-    if (v.filter.snarvei && !iSnarvei(r, v.filter.snarvei, v.filter.snarveiFra)) return false
+    if (v.filter.snarvei && !iSnarvei(r, v.filter.snarvei, doc, v.filter.snarveiFra)) return false
     if (v.filter.matrise && (r.sannsynlighet !== v.filter.matrise.s || r.konsekvens !== v.filter.matrise.k)) return false
     return true
   })
@@ -300,6 +317,14 @@ export function grupper(doc: Register, risker: Risk[], key: string): Gruppe[] {
   if (key === 'nivaa') navn.sort((a, b) => NIVAA_REKKEFOLGE.indexOf(a) - NIVAA_REKKEFOLGE.indexOf(b))
   // Åpne først, så de nylig lukkede, så årene med det nyeste først, og til sist de uten dato
   else if (key === 'lukket') navn.sort((a, b) => lukketRang(a) - lukketRang(b) || b.localeCompare(a, 'nb'))
+  // Datoene i den rekkefølgen riskene våkner, så fasene
+  else if (key === 'hvile') {
+    const nokkel = (n: string) => {
+      const h = doc.hviler?.[m.get(n)![0].id]
+      return h?.til ?? (h?.fase ? '~' + h.fase : '~~')
+    }
+    navn.sort((a, b) => (nokkel(a) < nokkel(b) ? -1 : nokkel(a) > nokkel(b) ? 1 : 0))
+  }
   else navn.sort((a, b) => (a.startsWith('(') ? 1 : b.startsWith('(') ? -1 : a.localeCompare(b, 'nb')))
   return navn.map((n) => ({ navn: n, risker: m.get(n)! }))
 }

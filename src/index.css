@@ -5682,3 +5682,81 @@ td.aktiv .eier-felt .eier-tom {
 .brudd-tabell td:nth-child(n + 2) {
   white-space: nowrap;
 }
+
+/* Hvile: risker som er skjult fra Åpne til en dato eller en fase */
+.hvile-merke {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  line-height: 1.5;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--aksent-lys);
+  color: var(--aksent);
+  border: 0;
+  white-space: nowrap;
+}
+.fasebytte-tabell .hvile-merke {
+  margin-left: 6px;
+  text-transform: none;
+  font-weight: 600;
+}
+.hvile-merke.vaaknet {
+  background: #fff3bf;
+  color: #7a5b00;
+  font-family: inherit;
+}
+button.hvile-merke.vaaknet {
+  cursor: pointer;
+}
+button.hvile-merke.vaaknet:hover {
+  background: #ffe066;
+}
+.hvile-info {
+  padding: 0 14px 10px;
+  color: var(--dempet);
+  font-size: 13px;
+}
+.hvile-info .banner {
+  margin-top: 8px;
+}
+.hvile-felt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.hvile-felt > input {
+  min-width: 260px;
+}
+.hvile-dato {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.hvile-dato .knapp.valgt {
+  border-color: var(--aksent);
+  color: var(--aksent);
+}
+.hvile-dialog {
+  max-width: 480px;
+}
+.fasebytte-hvile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--linje);
+  border-radius: 8px;
+}
+.fasebytte-tabell tr.hviles td:nth-child(3) {
+  color: var(--dempet);
+}
+@media print {
+  .hvile-info {
+    display: none;
+  }
+}

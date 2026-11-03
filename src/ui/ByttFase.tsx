@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Register } from '../model'
+import { hvileStatus, hvileTekst } from '../model'
 import type { Op } from '../ops'
 import type { Snapshots } from '../store/backend'
+import { sjekkHvile, standardHvile, tilHvile } from '../hvile'
+import { HvileFelt } from './Hvile'
 import { Modal, ModalTittel } from './Modal'
 
 interface Props {
@@ -12,7 +15,12 @@ interface Props {
   melding: (tekst: string) => void
 }
 
-type Valg = 'behold' | 'lukk'
+type Valg = 'behold' | 'lukk' | 'hvil'
+const VALG: { key: Valg; tittel: string }[] = [
+  { key: 'behold', tittel: 'Behold' },
+  { key: 'hvil', tittel: 'Hvil' },
+  { key: 'lukk', tittel: 'Lukk' },
+]
 const STEG = ['Milepæl-snapshot', 'Åpne risker', 'Ny fase']
 const iDag = () => new Date().toLocaleDateString('sv-SE') // YYYY-MM-DD i lokal tid
 
@@ -36,12 +44,17 @@ export function ByttFaseDialog({ doc, snapshots, endre, lukk, melding }: Props) 
   const valgFor = (id: string): Valg => valg[id] ?? 'behold'
   const sett = (ider: string[], v: Valg) => setValg((x) => ({ ...x, ...Object.fromEntries(ider.map((id) => [id, v])) }))
   const lukkes = aapne.filter((r) => valgFor(r.id) === 'lukk')
+  const hviles = aapne.filter((r) => valgFor(r.id) === 'hvil')
+  const beholdes = aapne.length - lukkes.length - hviles.length
+  const [hvile, setHvile] = useState(() => standardHvile(doc))
 
   // Neste fase i listen foreslås, ellers den første som ikke er den gamle
   const faser = doc.lister.faser
   const [fase, setFase] = useState(() => faser[faser.indexOf(gammel) + 1] ?? faser.find((f) => f !== gammel) ?? '')
   const [dato, setDato] = useState(iDag)
   const ny = !!fase.trim() && !faser.includes(fase.trim())
+  // Risker som hviler til fasen det byttes til, og som ikke får et nytt valg her
+  const vaakner = aapne.filter((r) => valgFor(r.id) === 'behold' && hvileStatus(doc, r) === 'hviler' && !!fase.trim() && doc.hviler?.[r.id]?.fase === fase.trim())
 
   // Advarer hvis fanen lukkes mens snapshotet lagres
   useEffect(() => {
@@ -71,13 +84,19 @@ export function ByttFaseDialog({ doc, snapshots, endre, lukk, melding }: Props) 
     if (!fase.trim()) return setFeil('Velg den nye fasen eller skriv et navn.')
     if (fase.trim() === gammel) return setFeil(`Prosjektet er allerede i fasen «${gammel}».`)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dato)) return setFeil('Velg datoen den nye fasen gjelder fra.')
+    const hvileFeil = hviles.length ? sjekkHvile(doc, hvile, fase.trim()) : ''
+    if (hvileFeil) return setFeil(`Hvil: ${hvileFeil} Gå tilbake og velg en annen fase eller en dato.`)
+    const h = tilHvile(hvile)
     endre(
       ...lukkes.map((r): Op => ({ t: 'setRisk', riskId: r.id, felt: 'status', verdi: 'Lukket', fra: r.status })),
+      ...hviles.map((r): Op => ({ t: 'setHvile', riskId: r.id, hvile: h, fra: doc.hviler?.[r.id] ?? null })),
       // Et eget fasenavn legges til i fase-listen, så det kan velges i prosjektinfo og ved neste bytte
       ...(ny ? [{ t: 'setListe', key: 'faser', verdi: [...faser, fase.trim()] } as Op] : []),
       { t: 'byttFase', fase: fase.trim(), dato, snapshotId },
     )
-    melding(`Prosjektet er nå i fasen «${fase.trim()}».${lukkes.length ? ` ${lukkes.length} ${lukkes.length === 1 ? 'risk er' : 'risker er'} lukket.` : ''}`)
+    melding(
+      `Prosjektet er nå i fasen «${fase.trim()}».${lukkes.length ? ` ${lukkes.length} ${lukkes.length === 1 ? 'risk er' : 'risker er'} lukket.` : ''}${hviles.length ? ` ${hviles.length} ${hviles.length === 1 ? 'risk hviler' : 'risker hviler'} til ${hvileTekst(h)}.` : ''}${vaakner.length ? ` ${vaakner.length} ${vaakner.length === 1 ? 'risk' : 'risker'} våknet.` : ''}`,
+    )
     lukk()
   }
 
@@ -138,12 +157,11 @@ export function ByttFaseDialog({ doc, snapshots, endre, lukk, melding }: Props) 
               {merket.length > 0 ? (
                 <>
                   <span>{merket.length} merket:</span>
-                  <button className="knapp liten" onClick={() => sett(merket, 'behold')}>
-                    Behold
-                  </button>
-                  <button className="knapp liten" onClick={() => sett(merket, 'lukk')}>
-                    Lukk
-                  </button>
+                  {VALG.map((x) => (
+                    <button key={x.key} className="knapp liten" onClick={() => sett(merket, x.key)}>
+                      {x.tittel}
+                    </button>
+                  ))}
                 </>
               ) : (
                 <span className="liten">Ingen merket</span>
@@ -184,19 +202,22 @@ export function ByttFaseDialog({ doc, snapshots, endre, lukk, melding }: Props) 
                     const v = valgFor(r.id)
                     const m = merket.includes(r.id)
                     return (
-                      <tr key={r.id} className={(m ? 'merket' : '') + (v === 'lukk' ? ' lukkes' : '')}>
+                      <tr key={r.id} className={(m ? 'merket' : '') + (v === 'lukk' ? ' lukkes' : v === 'hvil' ? ' hviles' : '')}>
                         <td>
                           <input type="checkbox" aria-label={`Merk risk ${r.nr}`} checked={m} onChange={(e) => setMerket((x) => (e.target.checked ? [...x, r.id] : x.filter((id) => id !== r.id)))} />
                         </td>
                         <td className="tall">{r.nr}</td>
-                        <td>{r.hendelse || r.aarsak || <span className="liten">(uten tekst)</span>}</td>
+                        <td>
+                          {r.hendelse || r.aarsak || <span className="liten">(uten tekst)</span>}
+                          {hvileStatus(doc, r) === 'hviler' && <span className="hvile-merke" title="Hviler allerede. Behold lar hvilen stå.">hviler til {hvileTekst(doc.hviler![r.id])}</span>}
+                        </td>
                         <td>{r.kategori}</td>
                         <td>{r.eier}</td>
                         <td>
                           <div className="segment" role="radiogroup" aria-label={`Valg for risk ${r.nr}`}>
-                            {(['behold', 'lukk'] as const).map((x) => (
-                              <button key={x} role="radio" aria-checked={v === x} className={v === x ? 'valgt' : ''} onClick={() => sett([r.id], x)}>
-                                {x === 'behold' ? 'Behold' : 'Lukk'}
+                            {VALG.map((x) => (
+                              <button key={x.key} role="radio" aria-checked={v === x.key} className={v === x.key ? 'valgt' : ''} onClick={() => sett([r.id], x.key)}>
+                                {x.tittel}
                               </button>
                             ))}
                           </div>
@@ -208,8 +229,14 @@ export function ByttFaseDialog({ doc, snapshots, endre, lukk, melding }: Props) 
               </table>
             </div>
             <p className="liten">
-              {aapne.length - lukkes.length} beholdes · {lukkes.length} lukkes
+              {beholdes} beholdes · {hviles.length} hviler · {lukkes.length} lukkes
             </p>
+            {hviles.length > 0 && (
+              <div className="fasebytte-hvile">
+                <b>{hviles.length === 1 ? 'Risken' : `De ${hviles.length} riskene`} som hviler, våkner</b>
+                <HvileFelt doc={doc} verdi={hvile} sett={(v) => (setHvile(v), setFeil(''))} />
+              </div>
+            )}
           </div>
         )}
 
@@ -241,8 +268,18 @@ export function ByttFaseDialog({ doc, snapshots, endre, lukk, melding }: Props) 
               <ul>
                 {snapshotId && <li>Milepælen «{navn.trim()}» er lagret.</li>}
                 <li>
-                  {lukkes.length ? `${lukkes.length} ${lukkes.length === 1 ? 'risk' : 'risker'} lukkes` : 'Ingen risker lukkes'}, {aapne.length - lukkes.length} beholdes.
+                  {lukkes.length ? `${lukkes.length} ${lukkes.length === 1 ? 'risk' : 'risker'} lukkes` : 'Ingen risker lukkes'}, {beholdes} beholdes.
                 </li>
+                {hviles.length > 0 && (
+                  <li>
+                    {hviles.length} {hviles.length === 1 ? 'risk hviler' : 'risker hviler'} til {hvileTekst(tilHvile(hvile))}.
+                  </li>
+                )}
+                {vaakner.length > 0 && (
+                  <li>
+                    {vaakner.length} {vaakner.length === 1 ? 'risk' : 'risker'} som hviler til «{fase.trim()}», våkner og kommer tilbake under Åpne.
+                  </li>
+                )}
                 <li>
                   Fasen i prosjektinfo endres {gammel ? `fra «${gammel}» ` : ''}til «{fase || '…'}».
                 </li>
@@ -264,7 +301,12 @@ export function ByttFaseDialog({ doc, snapshots, endre, lukk, melding }: Props) 
             </button>
           )}
           {steg === 1 && (
-            <button className="knapp primær" onClick={() => setSteg(2)}>
+            <button className="knapp primær" onClick={() => {
+              const f = hviles.length ? sjekkHvile(doc, hvile) : ''
+              if (f) return setFeil(f)
+              setFeil('')
+              setSteg(2)
+            }}>
               Neste: velg fase
             </button>
           )}
