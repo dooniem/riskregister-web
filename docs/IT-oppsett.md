@@ -4,16 +4,18 @@ Riskregister er en nettapp som brukes som en ekstra klient til SharePoint-listen
 
 For å teste i en egen tenant uten IT, se [Testmiljo.md](Testmiljo.md).
 
-## Oversikt: dette trenger vi fra IT
+## Oversikt: dette trenger appen fra IT
 
 | # | Hva | Hvem | Avsnitt |
 | --- | --- | --- | --- |
-| 1 | Lage en appregistrering i Entra ID, med appens adresse som redirect URI | IT | [Appregistrering](#1-appregistrering) |
-| 2 | Sende klient-ID og tenant-ID til prosjektet | IT | [Appregistrering](#1-appregistrering) |
-| 3 | Legge en lenke til appen på prosjektområdene, f.eks. i navigasjonen | IT eller prosjektet | [Lenke fra prosjektområdet](#2-lenke-fra-prosjektområdet) |
-| 4 | Gi oss en oversikt over listene piloten bruker i dag, så appen kan tilpasses dem | IT | [Listene](#3-listene) |
-| 5 | Kun med `Sites.Selected`: gi appen tilgang til hvert pilotområde | IT | [Sites.Selected](#alternativ-sitesselected) |
-| 6 | Indeksere noen kolonner, og øke antall versjoner på Risker og Tiltak | IT | [Indeksering og versjoner](#4-indeksering-og-versjoner) |
+| 1 | Velge Graph-tillatelse for appen (anbefalt: `Sites.Manage.All`) | IT | [Valg av tillatelse](#valg-av-tillatelse) |
+| 2 | Lage en appregistrering i Entra ID, med appens adresse som redirect URI | IT | [Appregistrering](#1-appregistrering) |
+| 3 | Sende klient-ID og tenant-ID til prosjektet | IT | [Appregistrering](#1-appregistrering) |
+| 4 | Legge en lenke til appen på prosjektområdene, f.eks. i navigasjonen | IT eller prosjektet | [Lenke fra prosjektområdet](#2-lenke-fra-prosjektområdet) |
+| 5 | Sende prosjektet en oversikt over listene piloten bruker i dag, så appen kan tilpasses dem | IT | [Listene](#3-listene) |
+| 6 | Kun med `Sites.Selected`: gi appen tilgang til hvert pilotområde | IT | [Sites.Selected](#sitesselected-tilgang-per-område) |
+| 7 | Kun hvis brukerne ikke kan endre lister: lage kolonnene appen trenger | IT | [Hvem kan lage lister og kolonner](#hvem-kan-lage-lister-og-kolonner) |
+| 8 | Indeksere noen kolonner, og øke antall versjoner på Risker og Tiltak | IT | [Indeksering og versjoner](#4-indeksering-og-versjoner) |
 
 ## Hvor appen ligger
 
@@ -30,6 +32,21 @@ En SharePoint Framework-webdel (appen inne på prosjektsiden) er mulig senere, m
 
 ## 1. Appregistrering
 
+### Valg av tillatelse
+
+Tillatelsene er delegerte. Appen får aldri tilgang til mer enn den innloggede brukeren har i SharePoint. Har en bruker bare lesetilgang til området, kan registeret leses, men ikke endres. Valget avgjør hvilke områder appen kan nå, og om den kan lage lister og kolonner selv. Alternativene står i rekkefølgen appen foretrekker:
+
+| # | Tillatelse | Fordeler | Ulemper |
+| --- | --- | --- | --- |
+| 1 | `Sites.Manage.All` | Appen setter opp og vedlikeholder sine egne lister, kolonner og indekser. Virker på alle prosjektområder uten mer arbeid for IT. Søket etter områder på startsiden virker. | Bred tillatelse: gjelder alle områder brukeren har tilgang til, og at brukeren kan endre listestrukturen der. |
+| 2 | `Sites.Selected` med rollen `manage` | Appen når bare områdene IT gir den tilgang til, men kan fortsatt lage lister, kolonner og indekser der. | IT må gi tilgang til hvert område. Søket etter områder på startsiden virker ikke (lenken fra området virker). |
+| 3 | `Sites.ReadWrite.All` | Appen leser og skriver rader på alle områder brukeren har tilgang til. | Appen kan ikke lage lister, kolonner eller indekser. IT må gjøre det, også når en oppdatering av appen trenger en ny kolonne. |
+| 4 | `Sites.Selected` med rollen `write` | Smalest: bare rader, bare på utvalgte områder. | Ulempene fra både 2 og 3. |
+
+Tillatelsen henger ikke sammen med hvor appen ligger. Den er like stor på GitHub Pages som i Azure, og ingen data går via vertstjenesten. Flyttes appen til organisasjonens Azure, eier organisasjonen også koden som kjøres. Det kan være et naturlig tidspunkt å gå fra 2 til 1.
+
+### Registrering
+
 1. **Entra ID › App registrations › New registration**
    - Navn: `Riskregister`
    - Supported account types: *Accounts in this organizational directory only*
@@ -37,27 +54,33 @@ En SharePoint Framework-webdel (appen inne på prosjektsiden) er mulig senere, m
      - Pilot: `https://dooniem.github.io/riskregister-web/`
      - Ved flytting til Azure: legg i tillegg til den nye adressen, f.eks. `https://riskregister.firma.no/`
 2. **API permissions › Add › Microsoft Graph › Delegated:**
-   - `Sites.Manage.All` – lese og skrive listene på områder brukeren selv har tilgang til, og lage appens egne lister der de mangler (se [Listene](#3-listene)). Holder det at appen bare leser og skriver i lister som finnes, er `Sites.ReadWrite.All` nok.
+   - Tillatelsen dere valgte over: `Sites.Manage.All`, `Sites.ReadWrite.All` eller `Sites.Selected`.
    - `User.Read` – navnet på den innloggede brukeren.
    - `User.ReadBasic.All` – søk etter personer i organisasjonen (navn, e-post og stilling), så risikoeiere, tiltakseiere og deltakere kan kobles til ekte brukere. Appen ber om denne først når noen søker, så innloggingen virker også uten den.
 3. **Grant admin consent**, slik at brukerne ikke får samtykkedialog.
 4. Send **Application (client) ID** og **Directory (tenant) ID** til prosjektet. Ingen client secret trengs.
 
-Tillatelsene er delegerte. Appen får aldri tilgang til mer enn den innloggede brukeren har i SharePoint. Har en bruker bare lesetilgang til området, kan registeret leses, men ikke endres.
+### Sites.Selected: tilgang per område
 
-### Alternativ: Sites.Selected
+Bare for alternativ 2 og 4.
 
-Med delegert `Sites.Selected` i stedet for `Sites.Manage.All` når appen bare områdene IT eksplisitt gir den tilgang til, og fortsatt bare det brukeren selv har tilgang til der.
-
-1. **API permissions › Microsoft Graph › Delegated:** `Sites.Selected`, `User.Read` og `User.ReadBasic.All`. Grant admin consent.
-2. Gi appen tilgang til hvert pilotområde, f.eks. med PnP PowerShell:
+1. Gi appen tilgang til hvert pilotområde, f.eks. med PnP PowerShell:
    ```powershell
    Grant-PnPAzureADAppSitePermission -AppId <klient-id> -DisplayName Riskregister -Site <områdets adresse> -Permissions Manage
    ```
-   Eller med Graph: `POST /sites/{site-id}/permissions` med `{"roles": ["manage"], "grantedToIdentities": [{"application": {"id": "<klient-id>", "displayName": "Riskregister"}}]}`. Rollen `write` holder hvis appen ikke skal lage lister.
-3. Prosjektet stiller appen inn for `Sites.Selected` (se [Tilkobling](#tilkobling-i-appen)).
+   Eller med Graph: `POST /sites/{site-id}/permissions` med `{"roles": ["manage"], "grantedToIdentities": [{"application": {"id": "<klient-id>", "displayName": "Riskregister"}}]}`. Bruk `write` for alternativ 4.
+2. Prosjektet stiller appen inn for `Sites.Selected` (se [Tilkobling](#tilkobling-i-appen)).
 
-Brukerne åpner registeret med lenken på prosjektområdet, så det er ingen forskjell for dem. Søket etter områder på appens startside virker ikke med `Sites.Selected`, men det trengs bare når man åpner appen uten lenke.
+Brukerne åpner registeret med lenken på prosjektområdet, så det er ingen forskjell for dem.
+
+### Hvem kan lage lister og kolonner
+
+Med delegerte tillatelser må både appen og brukeren ha lov. Appen må ha alternativ 1 eller 2, og brukeren må kunne endre lister på området. Det kan eiere og brukere med tilgangsnivået **Rediger**. Med **Bidra** kan brukeren lese og skrive rader, men ikke lage kolonner, selv om appen har `Sites.Manage.All`.
+
+Det betyr:
+
+- Lister og kolonner som mangler, lages første gang registeret åpnes av en eier eller en bruker med Rediger. Til da sier appen fra om hva som mangler, og lagrer resten som vanlig.
+- Har ingen i prosjektet mer enn Bidra, må IT lage listene og kolonnene. Det gjelder også nye kolonner når appen oppdateres. Kolonnene står i [Appens standardoppsett](#appens-standardoppsett).
 
 ## 2. Lenke fra prosjektområdet
 
@@ -101,7 +124,7 @@ Lenken kan også ligge i områdemalen, så nye prosjektområder får den automat
 
 Appen skal tilpasses listene piloten allerede bruker, ikke omvendt. Koblingen mellom appen og listene ligger samlet i `src/store/lister/skjema.ts`, og kan endres uten å røre resten av appen.
 
-**Det vi trenger fra IT** er en oversikt over listene på et pilotområde: listenavn, og for hver kolonne visningsnavn, internnavn og type. Hvordan den hentes ut, er beskrevet i en egen instruks. Når vi har sett listene, kan vi også foreslå forenklinger, f.eks. om noen lister kan slås sammen.
+**Det appen trenger fra IT** er en oversikt over listene på et pilotområde: listenavn, og for hver kolonne visningsnavn, internnavn og type. Hvordan den hentes ut, er beskrevet i en egen instruks. Med oversikten kan prosjektet også foreslå forenklinger, f.eks. om noen lister kan slås sammen.
 
 Inntil oversikten finnes, bruker appen sitt eget standardoppsett. Det brukes også i demoen og når appen setter opp et nytt register selv.
 
@@ -118,7 +141,7 @@ Inntil oversikten finnes, bruker appen sitt eget standardoppsett. Det brukes ogs
 
 - Bare Risker og Tiltak må finnes for at registeret åpnes. Appen finner dem på visningsnavnet (store og små bokstaver spiller ingen rolle) og leser kolonnene med internnavn. Rekkefølgen på kolonnene spiller ingen rolle.
 - De andre listene lager appen første gang registeret åpnes av en eier av området. Til da virker registeret, men uten låsing av risker og uten snapshots.
-- Piloten har allerede en egen snapshot-liste. Appen tilpasses den når vi har sett oppsettet.
+- Piloten har allerede en egen snapshot-liste. Appen tilpasses den når oppsettet er kjent.
 - Kolonnene er tekst, tall og ja/nei, så de er lette å lese i SharePoint og å hente ut til et datavarehus. Datoer lagres som tekst (`ÅÅÅÅ-MM-DD` eller ISO-tid). `Title` er hendelsen for risker og teksten for tiltak.
 - Listene kan skjules fra navigasjonen. Brukerne trenger ikke å åpne dem direkte.
 - Eldre testregistre med listene «Riskregister Innstillinger» og «Riskregister Tilstede» åpnes som før.
@@ -162,7 +185,7 @@ Set-PnPField -List "Riskregister Tiltak"       -Identity RiskId     -Values @{ I
 
 Versjonshistorikken skal stå på, slik den gjør som standard. Appen bruker den til å vise historikken til en risk og til å hente tilbake tidligere verdier. SharePoint tar bare vare på et bestemt antall versjoner per rad, og sletter de eldste uten å si fra. Lister har ofte 50 som standard. En risk som følges opp i flere år, kan få mer enn 50 endringer.
 
-Vi anbefaler **500 hovedversjoner** for Risker, Tiltak og Klientinnstillinger. Radene er små, så det tar lite plass. Gevinsten er lengre historikk. Det gir ingen andre fordeler, og heller ingen ulemper for ytelsen.
+Anbefalt: **500 hovedversjoner** for Risker, Tiltak og Klientinnstillinger. Radene er små, så det tar lite plass. Gevinsten er lengre historikk. Det gir ingen andre fordeler, og heller ingen ulemper for ytelsen.
 
 **I SharePoint i nettleseren:** **Listeinnstillinger** › **Innstillinger for versjonskontroll** › **Behold følgende antall hovedversjoner**: 500.
 
@@ -194,7 +217,7 @@ Listene kan fortsatt redigeres i SharePoint i nettleseren. Appen tåler det, og 
 - **Risk kopiert,** slik at samme `RiskId` finnes flere ganger: den eldste raden brukes, og kopiene kan gjøres til egne risker eller slettes.
 - **Rad i Klientinnstillinger ødelagt:** raden skrives ikke over før brukeren velger det. Versjonsloggen til raden viser tidligere verdier.
 
-Vi anbefaler at versjonshistorikken på listene står på (det gjør den som standard), slik at enkeltrader kan gjenopprettes. Se [Versjoner](#versjoner).
+Versjonshistorikken på listene bør stå på (det gjør den som standard), slik at enkeltrader kan gjenopprettes. Se [Versjoner](#versjoner).
 
 ## Teknisk
 
