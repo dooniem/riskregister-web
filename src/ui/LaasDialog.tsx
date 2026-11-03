@@ -101,7 +101,7 @@ export function LaasDialog({ lukk, laas, andre, doc }: { lukk: () => void; laas:
             <span>Ingen andre er inne i registeret nå.</span>
           )}
           <small>
-            Låsen trer i kraft etter {LAAS_NEDTELLING_S} sekunder. Til da ser alle en nedtelling og rekker å fullføre det de holder på med. Du kan avbryte låsingen så lenge nedtellingen går.
+            Låsen trer i kraft etter {LAAS_NEDTELLING_S} sekunder. Alle brukere vil se en nedtelling, så de rekker å fullføre det de holder på med. Du kan avbryte låsingen så lenge nedtellingen går.
           </small>
         </div>
         {feil && <div className="banner feil">{feil}</div>}
