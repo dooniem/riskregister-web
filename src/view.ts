@@ -163,7 +163,7 @@ export function grupperinger(doc: Register, fane?: Fane) {
 
 // Lukkede risker eldes ut av synsfeltet: de som er lukket de siste dagene (90 som standard, kan endres for registeret)
 // står øverst, eldre grupperes per år og er slått sammen til man åpner gruppen. Ingenting slettes.
-// Har prosjektet byttet fase i appen, grupperes de eldre også på fasen de ble lukket i («Lukket i 2027 · B4-B6 Produksjon»).
+// Har prosjektet byttet fase i appen, grupperes de eldre også på fasen de ble lukket i («Lukket i 2027 · B4 Produksjon»).
 const NYLIG_LUKKET = 'Lukket siste '
 export const LUKKET_UTEN_DATO = 'Lukket, uten dato'
 const LUKKET_AAR = 'Lukket i '
