@@ -227,7 +227,9 @@ export function ByttFaseDialog({ doc, snapshots, endre, lukk, melding }: Props) 
                   ))}
               </datalist>
               <span className="liten">
-                Forslagene er fase-listen under Prosjekt › Lister og valg.{ny ? ' Et nytt navn legges til i listen.' : ''}
+                {ny
+                  ? `«${fase.trim()}» er et nytt navn. Det legges til i fase-listen (Prosjekt › Lister og valg) når du bytter fase.`
+                  : 'Velg en fase fra listen, eller skriv et nytt navn. Et nytt navn legges til i fase-listen når du bytter fase.'}
               </span>
             </label>
             <label className="felt">
