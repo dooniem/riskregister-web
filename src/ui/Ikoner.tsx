@@ -89,3 +89,13 @@ export function Sov({ str = 16 }: { str?: number }) {
     </svg>
   )
 }
+
+// Åpen hengelås foran «Gjenåpne risken» i høyreklikkmenyen
+export function AapenLaas({ str = 16 }: { str?: number }) {
+  return (
+    <svg className="ikon" width={str} height={str} viewBox="0 0 24 24" aria-hidden="true" {...strek} strokeWidth={2.2}>
+      <rect x="4" y="11" width="16" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 7.7-1.5" />
+    </svg>
+  )
+}

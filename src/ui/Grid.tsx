@@ -14,7 +14,7 @@ import { FagMerke, FagVelger, fagForNyRisk } from './Fag'
 import { HvileDialog } from './Hvile'
 import { KostEditor } from './KostEditor'
 import { VurderingEditor } from './VurderingEditor'
-import { Laas, Nokkel, Pil, Sov } from './Ikoner'
+import { AapenLaas, Laas, Nokkel, Pil, Sov } from './Ikoner'
 import { RiskInfo } from './RiskInfo'
 import { HistorikkKontekst } from './Historikk'
 import { initialer, likNavn } from './Personer'
@@ -1102,7 +1102,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   <>
                   <hr />
                   <button className="meny-uthevet" onClick={() => (settStatus([r.id], lukket ? 'Åpen' : 'Lukket'), setKontekst(null))} title={lukket ? undefined : 'Risken beholdes med historikk og havner under «Lukkede»'}>
-                    <Nokkel /> {lukket ? 'Gjenåpne risken' : 'Lukk risken'}
+                    {lukket ? <AapenLaas /> : <Nokkel />} {lukket ? 'Gjenåpne risken' : 'Lukk risken'}
                   </button>
                   {!lukket &&
                     (hvileStatus(doc, r) === 'hviler' ? (
