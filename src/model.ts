@@ -202,6 +202,28 @@ export interface Register {
   // Nøkkelen Excel-registeret bygger UnikID av (cellene AC2 og AC3 i Riskregister-arket). Tas vare på ved import fra Excel.
   excelNokkel?: { ac2: string; ac3: string }
   laas?: RegisterLaas | null
+  // Snapshots som er merket som milepæl («Sluttstatus tilbud»). De står øverst i snapshotlisten og kan ikke slettes uten å fjerne merket først.
+  milepaeler?: string[]
+  // Hver gang prosjektet har byttet fase med Mer › Bytt fase. Gir fasen en risk ble opprettet og lukket i, ut fra datoene.
+  faseHistorikk?: Fasebytte[]
+}
+
+export interface Fasebytte {
+  fra: string // fasen før byttet (kan være tom)
+  til: string
+  dato: string // YYYY-MM-DD, den nye fasen gjelder fra og med denne dagen
+  snapshotId?: string // milepæl-snapshotet som ble tatt ved byttet
+  av?: string
+}
+
+// Fasen prosjektet var i på et tidspunkt, ut fra fasehistorikken. Undefined når registeret aldri har byttet fase i appen.
+export function faseVed(doc: Register, iso: string | undefined): string | undefined {
+  const h = [...(doc.faseHistorikk ?? [])].sort((a, b) => a.dato.localeCompare(b.dato))
+  if (!h.length || !iso) return undefined
+  const d = iso.slice(0, 10)
+  let fase = h[0].fra
+  for (const b of h) if (b.dato <= d) fase = b.til
+  return fase || undefined
 }
 
 export const SANNSYNLIGHET = ['1 Veldig lav', '2 Lav', '3 Medium', '4 Høy', '5 Veldig høy']

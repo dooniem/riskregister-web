@@ -20,6 +20,8 @@ export type Op =
   | { t: 'deleteGjennomgang'; id: string }
   | { t: 'setListe'; key: keyof Lister; verdi: Lister[keyof Lister] }
   | { t: 'setLaas'; laas: RegisterLaas | null }
+  | { t: 'setMilepael'; snapshotId: string; paa: boolean }
+  | { t: 'byttFase'; fase: string; dato: string; snapshotId?: string }
   | { t: 'erstatt'; doc: Register }
 
 export interface Konflikt {
@@ -131,6 +133,16 @@ export function brukOp(doc: Register, op: Op, bruker: Bruker): Konflikt | null {
       return null
     case 'setLaas':
       doc.laas = op.laas
+      return null
+    case 'setMilepael': {
+      const l = (doc.milepaeler ?? []).filter((x) => x !== op.snapshotId)
+      doc.milepaeler = op.paa ? [...l, op.snapshotId] : l
+      return null
+    }
+    case 'byttFase':
+      doc.faseHistorikk = [...(doc.faseHistorikk ?? []), { fra: doc.prosjekt.fase, til: op.fase, dato: op.dato, snapshotId: op.snapshotId, av: bruker.navn }]
+      doc.prosjekt.fase = op.fase
+      if (op.snapshotId && !doc.milepaeler?.includes(op.snapshotId)) doc.milepaeler = [...(doc.milepaeler ?? []), op.snapshotId]
       return null
     case 'erstatt': {
       const ny = migrer(op.doc)

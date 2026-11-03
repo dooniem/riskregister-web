@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import type { Register } from '../model'
+import type { Op } from '../ops'
 import type { RiskEndring } from '../sammenlign'
 import { sammenlign } from '../sammenlign'
 import type { SnapshotInfo, Snapshots } from '../store/backend'
@@ -15,6 +16,12 @@ interface Props {
   // Gjør snapshotet til det registeret sammenlignes med (endringer i tall og piler i matrisen)
   aktiver: (s: { info: SnapshotInfo; doc: Register }) => void
   start?: { info: SnapshotInfo; doc: Register } // vis endringslisten for dette snapshotet med en gang
+  endre?: (...ops: Op[]) => void // merker snapshots som milepæl (lagres i registeret)
+}
+
+// Milepælene først, så de andre. Begge med det nyeste øverst (listen kommer sortert på tid).
+function sorterSnapshots(liste: SnapshotInfo[], milepaeler: string[] = []) {
+  return [...liste.filter((s) => milepaeler.includes(s.id)), ...liste.filter((s) => !milepaeler.includes(s.id))]
 }
 
 const tid = (iso: string) => (iso ? new Date(iso).toLocaleString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '')
@@ -28,7 +35,9 @@ export function snapshotLenke(id: string) {
   return '?' + p.toString()
 }
 
-export function SnapshotDialog({ snapshots, doc, kanSkrive, lukk, melding, aapneRisk, aktiver, start }: Props) {
+export function SnapshotDialog({ snapshots, doc, kanSkrive, lukk, melding, aapneRisk, aktiver, start, endre }: Props) {
+  const milepaeler = doc.milepaeler ?? []
+  const [milepael, setMilepael] = useState(false)
   const [liste, setListe] = useState<SnapshotInfo[] | null>(null)
   const [navn, setNavn] = useState(dagensNavn)
   const [kommentar, setKommentar] = useState('')
@@ -101,9 +110,11 @@ export function SnapshotDialog({ snapshots, doc, kanSkrive, lukk, melding, aapne
                   void jobb('Tar snapshot…', async () => {
                     try {
                       const s = await snapshots.ta(navn.trim() || dagensNavn(), kommentar.trim(), doc, (ferdig, totalt) => setTar({ ferdig, totalt }))
-                      melding(`Snapshot «${s.navn}» er lagret med ${s.antallRisker} risker.`)
+                      if (milepael) endre?.({ t: 'setMilepael', snapshotId: s.id, paa: true })
+                      melding(`${milepael ? 'Milepælen' : 'Snapshot'} «${s.navn}» er lagret med ${s.antallRisker} risker.`)
                       setNavn(dagensNavn())
                       setKommentar('')
+                      setMilepael(false)
                       setNyId(s.id)
                       setListe(await snapshots.liste())
                     } finally {
@@ -120,6 +131,12 @@ export function SnapshotDialog({ snapshots, doc, kanSkrive, lukk, melding, aapne
                   <span>Kommentar (valgfritt)</span>
                   <input value={kommentar} onChange={(e) => setKommentar(e.target.value)} />
                 </label>
+                {endre && (
+                  <label className="avkrysning" title="Milepæler står øverst i listen og kan ikke slettes uten å fjerne merket først">
+                    <input type="checkbox" checked={milepael} onChange={(e) => setMilepael(e.target.checked)} />
+                    Merk som milepæl
+                  </label>
+                )}
                 <button className="knapp primær" disabled={!!jobber}>
                   Ta snapshot nå
                 </button>
@@ -140,9 +157,20 @@ export function SnapshotDialog({ snapshots, doc, kanSkrive, lukk, melding, aapne
                   </tr>
                 </thead>
                 <tbody>
-                  {liste.map((s) => (
-                    <tr key={s.id} className={s.id === nyId ? 'snapshot-nytt' : undefined}>
+                  {sorterSnapshots(liste, milepaeler).map((s, i, alle) => {
+                    const erMilepael = milepaeler.includes(s.id)
+                    // Overskrift over de vanlige snapshotene når det finnes milepæler over dem
+                    const skille = !erMilepael && i > 0 && milepaeler.includes(alle[i - 1].id)
+                    return (
+                    <Fragment key={s.id}>
+                    {skille && (
+                      <tr className="snapshot-skille">
+                        <th colSpan={5}>Andre snapshots</th>
+                      </tr>
+                    )}
+                    <tr className={(s.id === nyId ? 'snapshot-nytt' : '') + (erMilepael ? ' milepael' : '')}>
                       <td>
+                        {erMilepael && <span className="milepael-merke">Milepæl</span>}
                         <b>{s.navn}</b>
                         {s.id === nyId && <span className="snapshot-merke">✓ Nettopp lagret</span>}
                         {s.kommentar && <div className="liten">{s.kommentar}</div>}
@@ -169,10 +197,21 @@ export function SnapshotDialog({ snapshots, doc, kanSkrive, lukk, melding, aapne
                         <a className="knapp liten" href={snapshotLenke(s.id)} target="_blank" rel="noreferrer" title="Åpner snapshotet skrivebeskyttet i en ny fane">
                           Åpne
                         </a>
+                        {kanSkrive && endre && (
+                          <button
+                            className="lenkeknapp"
+                            disabled={!!jobber}
+                            title={erMilepael ? 'Snapshotet blir et vanlig snapshot igjen' : 'Milepæler står øverst og kan ikke slettes uten å fjerne merket først'}
+                            onClick={() => endre({ t: 'setMilepael', snapshotId: s.id, paa: !erMilepael })}
+                          >
+                            {erMilepael ? 'Fjern milepæl' : 'Merk som milepæl'}
+                          </button>
+                        )}
                         {kanSkrive && (
                           <button
                             className="lenkeknapp fare"
-                            disabled={!!jobber}
+                            disabled={!!jobber || erMilepael}
+                            title={erMilepael ? 'Fjern milepælmerket først for å slette snapshotet' : undefined}
                             onClick={() => {
                               if (confirm(`Slette snapshotet «${s.navn}»?`))
                                 void jobb('Sletter…', async () => {
@@ -186,7 +225,9 @@ export function SnapshotDialog({ snapshots, doc, kanSkrive, lukk, melding, aapne
                         )}
                       </td>
                     </tr>
-                  ))}
+                    </Fragment>
+                    )
+                  })}
                 </tbody>
               </table>
             )}

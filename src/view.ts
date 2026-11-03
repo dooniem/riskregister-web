@@ -3,7 +3,7 @@
 import type { Kolonne } from './columns'
 import { KOL, visTekst } from './columns'
 import type { Register, Risk } from './model'
-import { eksponering, eksponeringNivaa, fv, nyligLukketDager } from './model'
+import { eksponering, eksponeringNivaa, faseVed, fv, nyligLukketDager } from './model'
 
 export type Fane = 'aapne' | 'lukkede' | 'alle' | 'skarisk'
 
@@ -99,31 +99,40 @@ export const GRUPPERINGER: { key: string; tittel: string; verdi: (r: Risk, doc: 
   { key: 'egendef', tittel: 'Egendefinert', verdi: (r) => r.egendef || '(tom)' },
   { key: 'egendef2', tittel: 'Egendefinert 2', verdi: (r) => r.egendef2 || '(tom)' },
   { key: 'status', tittel: 'Status risk', verdi: (r) => r.status || '(tom)' },
-  { key: 'lukket', tittel: 'Når lukket', verdi: (r, doc) => lukketGruppe(r, nyligLukketDager(doc)) },
+  { key: 'lukket', tittel: 'Når lukket', verdi: (r, doc) => lukketGruppe(r, doc, nyligLukketDager(doc)) },
+  { key: 'fase', tittel: 'Opprettet i fase', verdi: (r, doc) => faseVed(doc, r.opprettet) ?? '(ukjent fase)' },
   { key: 'tiltakstatus', tittel: 'Status på tiltak', verdi: (r) => tiltakOppsummering(r) },
 ]
 
 // Grupperingene som kan velges i registeret: de egendefinerte får navnet fra prosjektet, og felt 2 er bare med når det er aktivert
 // «Når lukket» gir bare mening der det finnes lukkede risker, altså i Lukkede og Alle.
 export function grupperinger(doc: Register, fane?: Fane) {
-  return GRUPPERINGER.filter((g) => (g.key !== 'egendef2' || doc.lister.egendef2Aktiv) && (g.key !== 'lukket' || fane === 'lukkede' || fane === 'alle')).map((g) =>
+  return GRUPPERINGER.filter(
+    (g) =>
+      (g.key !== 'egendef2' || doc.lister.egendef2Aktiv) &&
+      (g.key !== 'lukket' || fane === 'lukkede' || fane === 'alle') &&
+      // «Opprettet i fase» trenger at prosjektet har byttet fase i appen minst én gang
+      (g.key !== 'fase' || !!doc.faseHistorikk?.length),
+  ).map((g) =>
     g.key === 'egendef' ? { ...g, tittel: doc.lister.egendefNavn || g.tittel } : g.key === 'egendef2' ? { ...g, tittel: doc.lister.egendef2Navn || g.tittel } : g,
   )
 }
 
 // Lukkede risker eldes ut av synsfeltet: de som er lukket de siste dagene (90 som standard, kan endres for registeret)
 // står øverst, eldre grupperes per år og er slått sammen til man åpner gruppen. Ingenting slettes.
+// Har prosjektet byttet fase i appen, grupperes de eldre også på fasen de ble lukket i («Lukket i 2027 · B4-B6 Produksjon»).
 const NYLIG_LUKKET = 'Lukket siste '
 export const LUKKET_UTEN_DATO = 'Lukket, uten dato'
 const LUKKET_AAR = 'Lukket i '
 
-export function lukketGruppe(r: Risk, dager: number, naa = Date.now()): string {
+export function lukketGruppe(r: Risk, doc: Register, dager: number, naa = Date.now()): string {
   if (r.status !== 'Lukket') return 'Åpne'
   // Risker som er lukket før appen tok vare på tidspunktet (f.eks. importert fra Excel), bruker sist endret
   const t = Date.parse(r.lukket ?? r.endret ?? '')
   if (Number.isNaN(t)) return LUKKET_UTEN_DATO
   if (naa - t <= dager * 86_400_000) return `${NYLIG_LUKKET}${dager} dager`
-  return LUKKET_AAR + new Date(t).getFullYear()
+  const fase = faseVed(doc, new Date(t).toISOString())
+  return LUKKET_AAR + new Date(t).getFullYear() + (fase ? ` · ${fase}` : '')
 }
 
 // Gruppene i «Når lukket» som er slått sammen til brukeren åpner dem: alt som er eldre enn de siste 90 dagene
