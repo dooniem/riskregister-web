@@ -31,6 +31,7 @@ import { BruddDialog, bruddTekst, LaasDialog, visTid } from './LaasDialog'
 import { SnarveierDialog } from './Snarveier'
 import { SnapshotDialog } from './Snapshots'
 import { ByttFaseDialog } from './ByttFase'
+import { usikreFaser } from '../hvile'
 import { HistorikkDialog, HistorikkKontekst } from './Historikk'
 import { StorMatrise } from './StorMatrise'
 import { Risikobilde } from './Risikobilde'
@@ -95,6 +96,8 @@ function motsatt(doc: Register, op: Op): Op | null {
       if (!r || i < 0) return null
       return { t: 'addTiltak', riskId: r.id, tiltak: structuredClone(r.tiltak[i]), etter: r.tiltak[i - 1]?.id }
     }
+    case 'setHvile':
+      return { ...op, hvile: op.fra ?? null, fra: op.hvile }
     default:
       return null
   }
@@ -189,7 +192,7 @@ export function RegisterView({ okt, tilbake }: Props) {
   const [snarveier, setSnarveier] = useState(false)
   // Øker når Enter trykkes i søkefeltet, så tabellen markerer første treff
   const [forsteTreffTeller, setForsteTreffTeller] = useState(0)
-  const kanLageRisk = kanSkrive && !b.snapshot && visning.fane !== 'skarisk' && !mobil
+  const kanLageRisk = kanSkrive && !b.snapshot && visning.fane !== 'skarisk' && visning.fane !== 'hviler' && !mobil
   useEffect(() => {
     if (mobil) return
     const h = (e: KeyboardEvent) => {
@@ -299,7 +302,8 @@ export function RegisterView({ okt, tilbake }: Props) {
 
   const antall = useMemo(
     () => ({
-      aapne: doc.risker.filter((r) => r.status !== 'Lukket').length,
+      aapne: doc.risker.filter((r) => iFane(r, 'aapne', doc)).length,
+      hviler: doc.risker.filter((r) => iFane(r, 'hviler', doc)).length,
       lukkede: doc.risker.filter((r) => r.status === 'Lukket').length,
       alle: doc.risker.length,
       skarisk: doc.risker.filter((r) => r.tilSkarisk && r.status !== 'Lukket').length,
@@ -342,6 +346,7 @@ export function RegisterView({ okt, tilbake }: Props) {
 
   // Lukkede-fanen husker sin egen gruppering, så «Når lukket» der ikke endrer grupperingen i de andre fanene
   const gruppering = aktivGruppering(visning)
+  const usikre = useMemo(() => usikreFaser(doc), [doc])
   const velgGruppering = (key: string) => setVisning((v) => (v.fane === 'lukkede' ? { ...v, grupperingLukkede: key } : { ...v, gruppering: key }))
 
   // Snarveiene teller i fanen som vises, uten de andre filtrene, så tallene står fast mens man filtrerer
@@ -349,8 +354,8 @@ export function RegisterView({ okt, tilbake }: Props) {
   const snarveiFra = sisteSnapshot?.tidspunkt
   const snarveiAntall = useMemo(() => {
     const ut = {} as Record<Snarvei, number>
-    const iFanen = doc.risker.filter((r) => iFane(r, visning.fane))
-    for (const s of SNARVEIER) ut[s.key] = iFanen.filter((r) => iSnarvei(r, s.key, snarveiFra)).length
+    const iFanen = doc.risker.filter((r) => iFane(r, visning.fane, doc))
+    for (const s of SNARVEIER) ut[s.key] = iFanen.filter((r) => iSnarvei(r, s.key, doc, snarveiFra)).length
     return ut
   }, [doc, visning.fane, snarveiFra])
   const velgSnarvei = (key: Snarvei) =>
@@ -746,6 +751,8 @@ export function RegisterView({ okt, tilbake }: Props) {
             {(
               [
                 ['aapne', 'Åpne', antall.aapne],
+                // Hviler vises bare når noe hviler, så registre som ikke bruker det ser ut som før
+                ...(antall.hviler || visning.fane === 'hviler' ? [['hviler', 'Hviler', antall.hviler] as const] : []),
                 ['lukkede', 'Lukkede', antall.lukkede],
                 ['alle', 'Alle', antall.alle],
                 ['skarisk', 'Til Skarisk', antall.skarisk],
@@ -779,7 +786,7 @@ export function RegisterView({ okt, tilbake }: Props) {
                 }
               }}
             />
-            {!samlet && grupperValg}
+            {!samlet && visning.fane !== 'hviler' && grupperValg}
             <FagMeny doc={doc} visning={visning} setVisning={setVisning} endre={endre} kanSkrive={kanSkrive} />
             {personValg}
             {!mobil && !samlet && kolonneKnapp}
@@ -797,10 +804,10 @@ export function RegisterView({ okt, tilbake }: Props) {
           {/* Samlet: visningsvalgene og Ny risk samlet til høyre */}
           {samlet && (
             <div className="verktoy-hoyre">
-              {visning.fane !== 'skarisk' && grupperValg}
+              {visning.fane !== 'skarisk' && visning.fane !== 'hviler' && grupperValg}
               {visning.fane !== 'skarisk' && !mobil && kolonneKnapp}
               {oversiktKnapp}
-              {kanSkrive && visning.fane !== 'skarisk' && !mobil && (
+              {kanLageRisk && (
                 <button className="knapp primær ny-risk" onClick={() => setNyRiskTeller((n) => n + 1)} aria-keyshortcuts="Alt+N" title="Ny risk (Alt+N)">
                   <Pluss /> Ny risk
                 </button>
@@ -809,10 +816,20 @@ export function RegisterView({ okt, tilbake }: Props) {
           )}
         </div>
 
+        {visning.fane === 'hviler' && (
+          <div className="hvile-info">
+            Risker som hviler, er fortsatt åpne, men vises ikke under Åpne før de våkner. Høyreklikk for å vekke en risk med en gang.
+            {usikre.length > 0 && (
+              <div className="banner advarsel" role="status">
+                Noen risker venter på {usikre.length === 1 ? 'fasen' : 'fasene'} {usikre.map((f) => `«${f}»`).join(', ')}, som ikke står i fase-listen eller kommer før fasen prosjektet er i nå. De våkner kanskje aldri av seg selv. Vekk dem, eller hvil dem til en dato.
+              </div>
+            )}
+          </div>
+        )}
         {visSnarveier && (
           <div className="snarvei-rad" role="group" aria-label="Snarveier">
             <span className="snarvei-etikett">Snarveier</span>
-            {SNARVEIER.filter((s) => s.key !== 'nye' || snarveiFra).map((s) => {
+            {SNARVEIER.filter((s) => (s.key !== 'nye' || snarveiFra) && (s.key !== 'vaaknet' || snarveiAntall.vaaknet || visning.filter.snarvei === 'vaaknet')).map((s) => {
               const valgt = visning.filter.snarvei === s.key
               const n = snarveiAntall[s.key]
               const fra = s.key === 'nye' && sisteSnapshot ? ` («${sisteSnapshot.navn}», ${new Date(sisteSnapshot.tidspunkt).toLocaleDateString('nb-NO')})` : ''

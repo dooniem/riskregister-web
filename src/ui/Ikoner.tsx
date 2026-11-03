@@ -68,3 +68,34 @@ export function Person({ str = 14 }: { str?: number }) {
     </svg>
   )
 }
+
+// Gammeldags nøkkel (som 🗝️) foran «Lukk risken» og «Gjenåpne risken» i høyreklikkmenyen
+export function Nokkel({ str = 16 }: { str?: number }) {
+  return (
+    <svg className="ikon" width={str} height={str} viewBox="0 0 24 24" aria-hidden="true">
+      <g transform="translate(24 0) scale(-1 1)" {...strek} strokeWidth={2.4}>
+        <circle cx="6.5" cy="6.5" r="3.8" />
+        <path d="M9.2 9.2 20.5 20.5M18.3 18.3l-2.6 2.6M15.2 15.2l-2.6 2.6" />
+      </g>
+    </svg>
+  )
+}
+
+// «Zzz» foran «Hvil risken» og «Vekk risken»
+export function Sov({ str = 16 }: { str?: number }) {
+  return (
+    <svg className="ikon" width={str} height={str} viewBox="0 0 24 24" aria-hidden="true" {...strek}>
+      <path d="M3 12h7l-7 8h7M13 4h5l-5 6h5M18 13h3l-3 4h3" />
+    </svg>
+  )
+}
+
+// Åpen hengelås foran «Gjenåpne risken» i høyreklikkmenyen
+export function AapenLaas({ str = 16 }: { str?: number }) {
+  return (
+    <svg className="ikon" width={str} height={str} viewBox="0 0 24 24" aria-hidden="true" {...strek} strokeWidth={2.2}>
+      <rect x="4" y="11" width="16" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 7.7-1.5" />
+    </svg>
+  )
+}

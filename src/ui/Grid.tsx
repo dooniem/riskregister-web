@@ -2,7 +2,7 @@ import { Fragment, useCallback, useContext, useEffect, useLayoutEffect, useMemo,
 import type { Kolonne } from '../columns'
 import { GRUPPER, KOL, KOLONNER, editorTekst, formatDato, formatEndring, formatTall, tolkInput, visTekst } from '../columns'
 import type { Register, Risk, Tiltak } from '../model'
-import { KONSEKVENS, MARKERINGER, SANNSYNLIGHET, eksponering, eksponeringFarge, fagFarge, fv, markering, nyRisk, nyttTiltak } from '../model'
+import { KONSEKVENS, MARKERINGER, SANNSYNLIGHET, eksponering, eksponeringFarge, fagFarge, fv, hvileStatus, hvileTekst, markering, nyRisk, nyttTiltak } from '../model'
 import type { Op, RiskFelt, TiltakFelt } from '../ops'
 import type { Tilstede } from '../store/backend'
 import type { Okt } from '../sync'
@@ -11,9 +11,10 @@ import { aktivGruppering, filtrer, filterVerdier, grupper, sammenslaattSomStanda
 import type { Flytt } from './Editor'
 import { CelleEditor } from './Editor'
 import { FagMerke, FagVelger, fagForNyRisk } from './Fag'
+import { HvileDialog } from './Hvile'
 import { KostEditor } from './KostEditor'
 import { VurderingEditor } from './VurderingEditor'
-import { Laas, Pil } from './Ikoner'
+import { AapenLaas, Laas, Nokkel, Pil, Sov } from './Ikoner'
 import { RiskInfo } from './RiskInfo'
 import { HistorikkKontekst } from './Historikk'
 import { initialer, likNavn } from './Personer'
@@ -141,6 +142,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   }, [vedleggPop])
   useEffect(() => setVedleggUnder(false), [kontekst])
   const [fagVelger, setFagVelger] = useState<{ riskId: string; x: number; y: number } | null>(null)
+  const [hvileVelger, setHvileVelger] = useState<string[] | null>(null)
   const [lukketGrupper, setLukketGrupper] = useState<string[]>([])
   // Grupper som er slått sammen som standard (eldre lukkede risker), men som brukeren har åpnet
   const [aapnetGrupper, setAapnetGrupper] = useState<string[]>([])
@@ -520,6 +522,16 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
     setMerket([])
   }
 
+  // Vekk hvilende risker, eller fjern «Våknet»-merket. Begge deler tar bort hvilen.
+  const vekk = (ider: string[]) => {
+    const valgte = ider.map((id) => doc.risker.find((r) => r.id === id)).filter((r): r is Risk => !!r && !!doc.hviler?.[r.id])
+    if (!valgte.length) return
+    const sov = valgte.filter((r) => hvileStatus(doc, r) === 'hviler')
+    endre(...valgte.map((r): Op => ({ t: 'setHvile', riskId: r.id, hvile: null, fra: doc.hviler![r.id] })))
+    if (sov.length) melding(`${sov.length === 1 ? `Risk ${sov[0].nr} er` : `${sov.length} risker er`} vekket og ligger under «Åpne».`, { tekst: 'Angre', gjor: angre })
+    setMerket([])
+  }
+
   const slettRisker = (ider: string[]) => {
     const valgte = ider.map((id) => doc.risker.find((r) => r.id === id)).filter((r): r is Risk => !!r)
     if (valgte.length === 1) return slettRisk({ riskId: valgte[0].id, kol: 'nr' })
@@ -792,12 +804,16 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   const flereHandlinger = () => {
     const aapne = merkedeRisker.filter((r) => r.status !== 'Lukket').length
     const lukkede = merkedeRisker.length - aapne
+    const sover = merkedeRisker.filter((r) => hvileStatus(doc, r) === 'hviler').length
+    const vaakne = aapne - sover
     // Antallet vises bare når handlingen ikke gjelder alle de merkede
     const antall = (n: number) => (n < merkedeRisker.length ? ` ${n}` : '')
     return (
       <>
         {aapne > 0 && <button onClick={() => (settStatus(merket, 'Lukket'), setKontekst(null))}>Lukk{antall(aapne)}</button>}
         {lukkede > 0 && <button onClick={() => (settStatus(merket, 'Åpen'), setKontekst(null))}>Gjenåpne{antall(lukkede)}</button>}
+        {vaakne > 0 && <button onClick={() => (setHvileVelger(merkedeRisker.filter((r) => r.status !== 'Lukket' && hvileStatus(doc, r) !== 'hviler').map((r) => r.id)), setKontekst(null))}>Hvil{antall(vaakne)}…</button>}
+        {sover > 0 && <button onClick={() => (vekk(merket), setKontekst(null))}>Vekk{antall(sover)}</button>}
         <MarkeringValg tittel="Farge på nr." valgt={felles(merkedeRisker.map((r) => r.markering ?? ''))} velg={(m) => (settMarkering(merket, m), setKontekst(null))} />
         <button className="fare" onClick={() => (slettRisker(merket), setKontekst(null))}>
           Slett
@@ -933,6 +949,8 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   kostSkala={kostSkala}
                   person={visning.person}
                   byttSkarisk={byttSkarisk}
+                  vekk={(id) => vekk([id])}
+                  iHviler={visning.fane === 'hviler'}
                   aapne={aapneDetalj}
                   aapneVedlegg={kanSkrive || r.vedlegg?.length ? aapneVedlegg : undefined}
                   visVedlegg={visVedlegg}
@@ -1010,6 +1028,9 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
         const r = doc.risker.find((x) => x.id === vedleggVelger.riskId)
         return r ? <LeggTilVedlegg r={r} okt={okt} endre={endre} filer={filer} melding={melding} fil={vedleggVelger.fil} lukk={() => setVedleggVelger(null)} /> : null
       })()}
+      {hvileVelger && (
+        <HvileDialog doc={doc} risker={doc.risker.filter((r) => hvileVelger.includes(r.id))} endre={endre} melding={melding} lukk={() => (setHvileVelger(null), setMerket([]))} />
+      )}
       {fagVelger && (
         <FagVelger
           doc={doc}
@@ -1081,8 +1102,18 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
                   <>
                   <hr />
                   <button className="meny-uthevet" onClick={() => (settStatus([r.id], lukket ? 'Åpen' : 'Lukket'), setKontekst(null))} title={lukket ? undefined : 'Risken beholdes med historikk og havner under «Lukkede»'}>
-                    {lukket ? 'Gjenåpne risken' : 'Lukk risken'}
+                    {lukket ? <AapenLaas /> : <Nokkel />} {lukket ? 'Gjenåpne risken' : 'Lukk risken'}
                   </button>
+                  {!lukket &&
+                    (hvileStatus(doc, r) === 'hviler' ? (
+                      <button className="meny-uthevet" onClick={() => (vekk([r.id]), setKontekst(null))} title={`Hviler til ${hvileTekst(doc.hviler![r.id])}. Risken legges tilbake under «Åpne».`}>
+                        <Sov /> Vekk risken
+                      </button>
+                    ) : (
+                      <button className="meny-uthevet" onClick={() => (setHvileVelger([r.id]), setKontekst(null))} title="Skjul risken fra Åpne til en dato eller en fase">
+                        <Sov /> Hvil risken…
+                      </button>
+                    ))}
                   <hr />
                   </>
                 )
@@ -1230,6 +1261,8 @@ interface RaderProps {
   egendef: string[]
   person?: string
   byttSkarisk: (riskId: string) => void
+  vekk: (riskId: string) => void
+  iHviler: boolean // i Hviler-fanen står det i gruppen hva risken hviler til, så merket trengs ikke
   aapne: (riskId: string) => void
   aapneVedlegg?: (riskId: string, filer?: File[]) => void
   visVedlegg: (riskId: string, el: HTMLElement) => void
@@ -1324,6 +1357,7 @@ function RiskRader(p: RaderProps) {
           )}
           <span className="nr-tall">{r.nr}</span>
           {!p.samlet && <VedleggMerke r={r} aapne={p.visVedlegg} />}
+          {!p.iHviler && <HvileMerke doc={p.doc} r={r} kvitter={p.kanSkrive ? () => p.vekk(r.id) : undefined} />}
           {p.mot && !gammel && (
             <span className="ny-siden" title="Risken er lagt til etter snapshotet">
               ny
@@ -1927,5 +1961,29 @@ function KolonneMeny({
       )}
       <button onClick={lukk}>Lukk</button>
     </div>
+  )
+}
+
+// «Hviler» i Alle og Til Skarisk, «Våknet» når hvilen er over. Klikk på Våknet fjerner merket.
+function HvileMerke({ doc, r, kvitter }: { doc: Register; r: Risk; kvitter?: () => void }) {
+  const st = hvileStatus(doc, r)
+  const h = doc.hviler?.[r.id]
+  if (!st || !h) return null
+  if (st === 'hviler') return <span className="hvile-merke" title={`Hviler til ${hvileTekst(h)}`}>hviler</span>
+  const tittel = `Hvilte til ${hvileTekst(h)}${h.av ? ` (satt av ${h.av})` : ''}.`
+  return kvitter ? (
+    <button
+      type="button"
+      className="hvile-merke vaaknet"
+      title={tittel + ' Klikk for å fjerne merket.'}
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => (e.stopPropagation(), kvitter())}
+    >
+      våknet
+    </button>
+  ) : (
+    <span className="hvile-merke vaaknet" title={tittel}>
+      våknet
+    </span>
   )
 }
