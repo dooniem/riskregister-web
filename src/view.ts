@@ -349,3 +349,100 @@ export function summer(risker: Risk[], rm: 'R' | 'M'): Summer {
   }
   return s
 }
+
+// Lagrede visninger: det som bestemmer hvilke risker som vises og hvordan, med et navn.
+// Søket hører til det man leter etter akkurat nå og lagres ikke. Bredder, oversikten, fagmerker, fargemarkering og kostskala er personlige vaner og følger ikke med.
+export const VISNING_FELT = ['fane', 'sortering', 'filter', 'gruppering', 'grupperingLukkede', 'skjulteGrupper', 'skjulteKolonner', 'fag', 'person', 'samletUtenKategori', 'samletEgendef'] as const
+export type VisningInnhold = Partial<Pick<Visning, (typeof VISNING_FELT)[number]>>
+
+// Personfilteret på brukeren selv lagres som MEG, så «Mine tiltak» viser tiltakene til den som bruker visningen
+export const MEG = '@meg'
+
+export function visningInnhold(v: Visning, meg?: string): VisningInnhold {
+  const { snarveiFra: _f, ...filter } = v.filter
+  const ut: VisningInnhold = {
+    fane: v.fane,
+    sortering: v.sortering,
+    filter: {
+      ...filter,
+      verdier: { ...filter.verdier },
+      tekst: Object.fromEntries(Object.entries(filter.tekst).filter(([, t]) => t.trim())),
+    },
+    gruppering: v.gruppering,
+    grupperingLukkede: v.grupperingLukkede,
+    skjulteGrupper: v.skjulteGrupper,
+    skjulteKolonner: v.skjulteKolonner,
+    fag: v.fag?.length ? v.fag : undefined,
+    person: v.person && meg && v.person === meg ? MEG : v.person,
+    samletUtenKategori: v.samletUtenKategori || undefined,
+    samletEgendef: v.samletEgendef?.length ? v.samletEgendef : undefined,
+  }
+  // Tomme felt tas ikke med, så sammenligningen under ikke skiller på «mangler» og «tom»
+  for (const k of VISNING_FELT) if (ut[k] === undefined) delete ut[k]
+  return ut
+}
+
+export function brukVisning(v: Visning, innhold: VisningInnhold, meg: string | undefined, snarveiFra?: string): Visning {
+  const filter = innhold.filter ?? { verdier: {}, tekst: {} }
+  return {
+    ...v,
+    fane: innhold.fane ?? 'aapne',
+    sortering: innhold.sortering ?? [],
+    filter: {
+      ...filter,
+      verdier: filter.verdier ?? {},
+      tekst: filter.tekst ?? {},
+      snarveiFra: filter.snarvei === 'nye' ? snarveiFra : undefined,
+    },
+    gruppering: innhold.gruppering ?? '',
+    grupperingLukkede: innhold.grupperingLukkede,
+    skjulteGrupper: innhold.skjulteGrupper ?? [],
+    skjulteKolonner: innhold.skjulteKolonner ?? [],
+    fag: innhold.fag ?? [],
+    person: innhold.person === MEG ? meg : innhold.person,
+    samletUtenKategori: innhold.samletUtenKategori,
+    samletEgendef: innhold.samletEgendef,
+  }
+}
+
+// Om det som vises nå, er det samme som visningen. Rekkefølgen på nøklene spiller ingen rolle.
+export function likVisning(v: Visning, innhold: VisningInnhold, meg?: string): boolean {
+  return stabil(visningInnhold(v, meg)) === stabil(visningInnhold(brukVisning(v, innhold, meg), meg))
+}
+
+function stabil(x: unknown): string {
+  return JSON.stringify(x, (_k, verdi) => (verdi && typeof verdi === 'object' && !Array.isArray(verdi) ? Object.fromEntries(Object.entries(verdi).sort(([a], [b]) => a.localeCompare(b))) : verdi))
+}
+
+const FANE_NAVN: Record<Fane, string> = {
+  aapne: 'Åpne',
+  hviler: 'Hviler',
+  lukkede: 'Lukkede',
+  alle: 'Alle',
+  skarisk: 'Til Skarisk',
+}
+
+// Kort beskrivelse av visningen, i den rekkefølgen man ser den: fane, utvalg, sortering, gruppering og kolonner
+export function beskrivVisning(doc: Register, innhold: VisningInnhold): string[] {
+  const ut: string[] = [`Fanen ${FANE_NAVN[innhold.fane ?? 'aapne']}`]
+  const f = innhold.filter
+  if (f?.snarvei) ut.push(`Snarveien «${SNARVEIER.find((s) => s.key === f.snarvei)?.tittel}»`)
+  if (innhold.person) ut.push(innhold.person === MEG ? 'Bare den som bruker visningen (risiko- eller tiltakseier)' : `Bare ${innhold.person}`)
+  if (innhold.fag?.length) ut.push(`Fag: ${innhold.fag.map((id) => (id === UTEN_FAG ? 'uten fag' : (doc.lister.fag.find((x) => x.id === id)?.navn ?? '?'))).join(', ')}`)
+  for (const [k, verdier] of Object.entries(f?.verdier ?? {})) ut.push(`${kolTittel(doc, k)}: ${verdier.map((x) => x || '(tom)').join(', ')}`)
+  for (const [k, t] of Object.entries(f?.tekst ?? {})) ut.push(`${kolTittel(doc, k)} inneholder «${t}»`)
+  if (f?.matrise) ut.push(`Sannsynlighet ${f.matrise.s}, konsekvens ${f.matrise.k}`)
+  if (innhold.sortering?.length) ut.push(`Sortert på ${innhold.sortering.map((s) => `${kolTittel(doc, s.key)} (${s.stigende ? 'stigende' : 'synkende'})`).join(', ')}`)
+  const g = aktivGruppering({ ...STANDARD_VISNING, ...innhold } as Visning)
+  if (g) ut.push(`Gruppert på ${(GRUPPERINGER.find((x) => x.key === g)?.tittel ?? g).toLowerCase()}`)
+  const skjult = (innhold.skjulteKolonner?.length ?? 0) + (innhold.skjulteGrupper?.length ?? 0)
+  if (skjult)
+    ut.push(
+      `${innhold.skjulteKolonner?.length ? `${innhold.skjulteKolonner.length} kolonner skjult` : ''}${innhold.skjulteKolonner?.length && innhold.skjulteGrupper?.length ? ', ' : ''}${innhold.skjulteGrupper?.length ? `${innhold.skjulteGrupper.length} kolonnegrupper slått sammen` : ''}`,
+    )
+  return ut
+}
+
+function kolTittel(doc: Register, key: string): string {
+  return KOL[key] ? KOL[key].tittel(doc).replace(/\s+/g, ' ') : key
+}

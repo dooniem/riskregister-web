@@ -22,6 +22,7 @@ import { Grid } from './Grid'
 import { Kortliste } from './Kortliste'
 import { Kolonneikon, Laas, Meny, Pil, Pluss } from './Ikoner'
 import { PersonMeny } from './PersonMeny'
+import { VisningKnapper } from './Visninger'
 import { HentOppsett } from './HentOppsett'
 import { Oversikt } from './Oversikt'
 import { Prosjektpanel } from './Prosjektpanel'
@@ -98,6 +99,8 @@ function motsatt(doc: Register, op: Op): Op | null {
     }
     case 'setHvile':
       return { ...op, hvile: op.fra ?? null, fra: op.hvile }
+    case 'setFellesVisning':
+      return { ...op, visning: op.fra ?? null, fra: op.visning }
     default:
       return null
   }
@@ -114,7 +117,8 @@ export function RegisterView({ okt, tilbake }: Props) {
   const laas = b.snapshot ? null : aktivLaas(doc, naa)
   const kommende = b.snapshot ? null : kommendeLaas(doc, naa)
   const laastAvMeg = !!laas && laas.avId === b.bruker.id
-  const kanSkrive = b.kanSkrive && !laas
+  // Den som låste, kan fortsatt endre (f.eks. rette en risk eller en visning under gjennomgangen). Alle andre kan bare lese.
+  const kanSkrive = b.kanSkrive && (!laas || laastAvMeg)
   const laasNokkel = doc.laas ? `${doc.laas.fra ?? ''}|${doc.laas.til}` : ''
   useEffect(() => {
     if (!laasNokkel) return
@@ -278,14 +282,14 @@ export function RegisterView({ okt, tilbake }: Props) {
   )
 
   const angre = useCallback(() => {
-    if (laas) return melding(`Registeret er låst for redigering av ${laas.av}.`)
+    if (laas && !laastAvMeg) return melding(`Registeret er låst for redigering av ${laas.av}.`)
     const ops = angreStabel.current.pop()
     if (!ops) return melding('Ingenting å angre.')
     const r = ops.map((o) => ('riskId' in o ? o.riskId : 'risk' in o ? o.risk.id : '')).find(Boolean)
     if (r && okt.laastAv(r)) return melding('Kan ikke angre: risken redigeres av en annen akkurat nå.')
     // Oppdater «fra» til nåværende verdi slik at angring ikke rapporteres som konflikt
     okt.utfor(...ops)
-  }, [okt, melding, laas])
+  }, [okt, melding, laas, laastAvMeg])
 
   // Esc lukker paneler
   useEffect(() => {
@@ -520,7 +524,7 @@ export function RegisterView({ okt, tilbake }: Props) {
                     <button
                       className="meny-med-ikon"
                       onClick={() => (laas || kommende ? laasOpp() : setLaasDialog(true))}
-                      title={laas ? 'Åpne registeret for redigering igjen nå' : kommende ? 'Stopp nedtellingen, så blir registeret ikke låst' : 'Ingen kan endre registeret før det åpner igjen. Alle kan fortsatt lese det.'}
+                      title={laas ? 'Åpne registeret for redigering igjen nå' : kommende ? 'Stopp nedtellingen, så blir registeret ikke låst' : 'Ingen andre enn deg kan endre registeret før det åpner igjen. Alle kan fortsatt lese det.'}
                     >
                       <Laas str={14} />
                       {laas ? 'Lås opp riskregister' : kommende ? 'Avbryt låsingen' : 'Lås riskregister…'}
@@ -605,8 +609,16 @@ export function RegisterView({ okt, tilbake }: Props) {
           <div className="banner registerlaas" role="status">
             <Laas str={15} />
             <span>
-              <b>Registeret er låst for redigering</b> av {laastAvMeg ? 'deg' : laas.av}. Det åpner igjen {visTid(laas.til)}. Du kan fortsatt lese, søke, skrive ut og
-              eksportere.
+              {laastAvMeg ? (
+                <>
+                  <b>Registeret er låst for redigering</b> av deg. Det åpner igjen {visTid(laas.til)}. Du kan fortsatt endre risker og visninger. Alle andre kan bare lese.
+                </>
+              ) : (
+                <>
+                  <b>Registeret er låst for redigering</b> av {laas.av}. Det åpner igjen {visTid(laas.til)}. Bare {laas.av} kan endre. Du kan fortsatt lese, søke, skrive ut og
+                  eksportere.
+                </>
+              )}
             </span>
             {laastAvMeg && (
               <button className="knapp" onClick={laasOpp}>
@@ -826,27 +838,32 @@ export function RegisterView({ okt, tilbake }: Props) {
             )}
           </div>
         )}
-        {visSnarveier && (
-          <div className="snarvei-rad" role="group" aria-label="Snarveier">
-            <span className="snarvei-etikett">Snarveier</span>
-            {SNARVEIER.filter((s) => (s.key !== 'nye' || snarveiFra) && (s.key !== 'vaaknet' || snarveiAntall.vaaknet || visning.filter.snarvei === 'vaaknet')).map((s) => {
-              const valgt = visning.filter.snarvei === s.key
-              const n = snarveiAntall[s.key]
-              const fra = s.key === 'nye' && sisteSnapshot ? ` («${sisteSnapshot.navn}», ${new Date(sisteSnapshot.tidspunkt).toLocaleDateString('nb-NO')})` : ''
-              return (
-                <button
-                  key={s.key}
-                  className={'snarvei' + (valgt ? ' valgt' : '') + (s.key === 'frist' && n ? ' varsel' : '')}
-                  aria-pressed={valgt}
-                  title={s.forklaring + fra + (valgt ? '. Klikk igjen for å vise alle.' : '')}
-                  onClick={() => velgSnarvei(s.key)}
-                >
-                  {s.tittel} <span className="teller">{n}</span>
-                </button>
-              )
-            })}
+        <div className="snarvei-rad">
+          <div className="visning-gruppe" role="group" aria-label="Visninger">
+            <VisningKnapper doc={doc} visning={visning} setVisning={setVisning} brukernavn={b.bruker.navn} kanLagreFelles={kanSkrive && !b.snapshot} endre={endre} melding={melding} snarveiFra={snarveiFra} />
           </div>
-        )}
+          {visSnarveier && (
+            <div className="snarvei-gruppe" role="group" aria-label="Snarveier">
+              <span className="snarvei-etikett">Snarveier</span>
+              {SNARVEIER.filter((s) => (s.key !== 'nye' || snarveiFra) && (s.key !== 'vaaknet' || snarveiAntall.vaaknet || visning.filter.snarvei === 'vaaknet')).map((s) => {
+                const valgt = visning.filter.snarvei === s.key
+                const n = snarveiAntall[s.key]
+                const fra = s.key === 'nye' && sisteSnapshot ? ` («${sisteSnapshot.navn}», ${new Date(sisteSnapshot.tidspunkt).toLocaleDateString('nb-NO')})` : ''
+                return (
+                  <button
+                    key={s.key}
+                    className={'snarvei' + (valgt ? ' valgt' : '') + (s.key === 'frist' && n ? ' varsel' : '')}
+                    aria-pressed={valgt}
+                    title={s.forklaring + fra + (valgt ? '. Klikk igjen for å vise alle.' : '')}
+                    onClick={() => velgSnarvei(s.key)}
+                  >
+                    {s.tittel} <span className="teller">{n}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
 
         <div className="hovedflate">
           {visning.fane === 'skarisk' ? (
@@ -882,7 +899,7 @@ export function RegisterView({ okt, tilbake }: Props) {
             filer={b.snapshot ? undefined : filKilde}
             melding={melding}
             kanSkrive={kanSkrive}
-            sperretTekst={laas ? `Registeret er låst for redigering av ${laastAvMeg ? 'deg' : laas.av} til ${visTid(laas.til)}.` : undefined}
+            sperretTekst={laas && !laastAvMeg ? `Registeret er låst for redigering av ${laas.av} til ${visTid(laas.til)}.` : undefined}
             mot={motRisker}
             moderne={moderne}
             samlet={samlet}

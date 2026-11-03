@@ -163,7 +163,8 @@ export class ListeBackend implements Backend {
     }
     const nokkel = `${laas.fra ?? laas.tid}|${laas.til}`
     const fra = Date.parse(laas.fra ?? laas.tid) + LAAS_SLINGRING_MS
-    const etter = (e: Element) => !!e.endret && Date.parse(e.endret) > fra
+    // Den som låste, kan fortsatt endre i appen, så endringene deres er ikke brudd
+    const etter = (e: Element) => !!e.endret && Date.parse(e.endret) > fra && e.endretAv !== laas.av
     type Endring = LaasBrudd['endringer'][number]
     const ut = new Map<string, Endring>()
     for (const e of re) {
@@ -183,7 +184,7 @@ export class ListeBackend implements Backend {
     const tidligere = this.laasBrudd?.laas === nokkel ? this.laasBrudd.endringer.filter((x) => x.hva === 'slettet') : []
     for (const x of tidligere) ut.set(x.riskId, x)
     if (forrigeLaas && `${forrigeLaas.fra ?? forrigeLaas.tid}|${forrigeLaas.til}` === nokkel && Date.parse(forrigeLaas.fra ?? forrigeLaas.tid) <= naa) {
-      for (const [id, r] of forrige!.risker) if (!riskerNa.has(id)) ut.set(id, { riskId: id, nr: r.nr, tittel: r.tittel, hva: 'slettet', tid: new Date(naa).toISOString() })
+      for (const [id, r] of forrige!.risker) if (!riskerNa.has(id) && !laas.slettet?.includes(id)) ut.set(id, { riskId: id, nr: r.nr, tittel: r.tittel, hva: 'slettet', tid: new Date(naa).toISOString() })
     }
     this.laasBrudd = { laas: nokkel, endringer: [...ut.values()].sort((a, b) => (b.tid ?? '').localeCompare(a.tid ?? '')) }
   }

@@ -179,8 +179,10 @@ export class Okt {
   // ---- Endringer ----
   utfor(...ops: Op[]) {
     if (!this.backend.kanSkrive) return
-    // Når registeret er låst, går bare endringer av selve låsen gjennom, uansett hvor i appen de kommer fra
-    if (aktivLaas(this.visning)) {
+    // Når registeret er låst, går bare endringer av selve låsen gjennom, uansett hvor i appen de kommer fra.
+    // Den som låste, kan fortsatt endre, f.eks. for å rette en risk under gjennomgangen registeret ble låst for.
+    const laas = aktivLaas(this.visning)
+    if (laas && laas.avId !== this.backend.bruker.id) {
       const stoppet = ops.filter((o) => o.t !== 'setLaas').length
       ops = ops.filter((o) => o.t === 'setLaas')
       // F.eks. en celle som ble redigert idet låsen trådte i kraft. Brukeren skal få vite at endringen ikke ble lagret.
