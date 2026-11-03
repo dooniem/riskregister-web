@@ -66,7 +66,7 @@ export function LaasDialog({ lukk, laas, andre, doc }: { lukk: () => void; laas:
         }}
       >
         <p>
-          Ingen kan endre registeret mens det er låst, heller ikke du. Alle kan fortsatt lese, søke, skrive ut og eksportere. Du kan låse opp før tiden.
+          Bare du kan endre registeret mens det er låst, for eksempel for å rette en risk under gjennomgangen. Alle andre kan fortsatt lese, søke, skrive ut og eksportere. Du kan låse opp før tiden.
         </p>
         <div className="felt">
           <span id="laas-aapner">Åpner igjen</span>

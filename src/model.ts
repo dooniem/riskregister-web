@@ -172,6 +172,9 @@ export interface RegisterLaas {
   tid: string // når låsen ble satt
   fra?: string // når låsen trer i kraft (mangler den, gjelder låsen fra «tid»)
   til: string // når det åpner igjen av seg selv
+  // Risker den som låste, har slettet i appen mens registeret var låst. Den som låste, kan fortsatt endre,
+  // så disse skal ikke vises som slettet direkte i SharePoint.
+  slettet?: string[]
 }
 
 // Sekundene fra låsen settes til den trer i kraft
