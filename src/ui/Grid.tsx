@@ -7,7 +7,7 @@ import type { Op, RiskFelt, TiltakFelt } from '../ops'
 import type { Tilstede } from '../store/backend'
 import type { Okt } from '../sync'
 import type { Gruppe, Visning } from '../view'
-import { filtrer, filterVerdier, grupper, sorter, summer } from '../view'
+import { aktivGruppering, filtrer, filterVerdier, grupper, sammenslaattSomStandard, sorter, summer } from '../view'
 import type { Flytt } from './Editor'
 import { CelleEditor } from './Editor'
 import { FagMerke, FagVelger, fagForNyRisk } from './Fag'
@@ -142,6 +142,8 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   useEffect(() => setVedleggUnder(false), [kontekst])
   const [fagVelger, setFagVelger] = useState<{ riskId: string; x: number; y: number } | null>(null)
   const [lukketGrupper, setLukketGrupper] = useState<string[]>([])
+  // Grupper som er slått sammen som standard (eldre lukkede risker), men som brukeren har åpnet
+  const [aapnetGrupper, setAapnetGrupper] = useState<string[]>([])
   const [kostEditor, setKostEditor] = useState<{ riskId: string; anker: DOMRect } | null>(null)
   const [vurdEditor, setVurdEditor] = useState<{ riskId: string; anker: DOMRect } | null>(null)
   const boks = useRef<HTMLDivElement>(null)
@@ -171,20 +173,32 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   const risker = useMemo(() => sorter(filtrer(doc, visning), visning.sortering), [doc, visning])
   // Felles skala for kostspennet når brukeren har valgt det i FV-kolonnen, ellers egen skala per risk
   const kostSkala = useMemo(() => (visning.kostSkala === 'prosjekt' ? prosjektSkala(doc.risker) : undefined), [doc.risker, visning.kostSkala])
-  const grupperte: Gruppe[] = useMemo(() => grupper(doc, risker, visning.gruppering), [doc, risker, visning.gruppering])
+  const gruppering = aktivGruppering(visning)
+  const grupperte: Gruppe[] = useMemo(() => grupper(doc, risker, gruppering), [doc, risker, gruppering])
+  // Når man søker, vises treffene også i gruppene som ellers er slått sammen
+  const sok = !!visning.sok.trim()
+  const erLukket = useCallback(
+    (navn: string) => !!navn && (lukketGrupper.includes(navn) || (sammenslaattSomStandard(gruppering, navn) && !sok && !aapnetGrupper.includes(navn))),
+    [lukketGrupper, aapnetGrupper, gruppering, sok],
+  )
+  const byttGruppe = (navn: string) => {
+    const lukk = !erLukket(navn)
+    setLukketGrupper((l) => (lukk ? [...l, navn] : l.filter((x) => x !== navn)))
+    setAapnetGrupper((l) => (lukk ? l.filter((x) => x !== navn) : [...l, navn]))
+  }
 
   // Alle synlige linjer i rekkefølge. En risk tar like mange linjer som den har tiltak (minst én).
   const linjer = useMemo(() => {
     const ut: Linje[] = []
     for (const g of grupperte) {
-      if (g.navn && lukketGrupper.includes(g.navn)) continue
+      if (erLukket(g.navn)) continue
       for (const r of g.risker) {
         const n = Math.max(1, r.tiltak.length)
         for (let i = 0; i < n; i++) ut.push({ risk: r, tiltak: r.tiltak[i], forste: i === 0, span: n })
       }
     }
     return ut
-  }, [grupperte, lukketGrupper])
+  }, [grupperte, erLukket])
 
   // Riskene i den rekkefølgen de vises, for Shift-merking
   const riskRekke = useMemo(() => linjer.filter((l) => l.forste).map((l) => l.risk.id), [linjer])
@@ -871,12 +885,12 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
               <GruppeOverskrift
                 gruppe={g}
                 antallKol={kolonner.length}
-                lukket={lukketGrupper.includes(g.navn)}
-                bytt={() => setLukketGrupper((l) => (l.includes(g.navn) ? l.filter((x) => x !== g.navn) : [...l, g.navn]))}
+                lukket={erLukket(g.navn)}
+                bytt={() => byttGruppe(g.navn)}
                 mot={mot}
               />
             )}
-            {!lukketGrupper.includes(g.navn) &&
+            {!erLukket(g.navn) &&
               g.risker.map((r) => (
                 <RiskRader
                   key={r.id}

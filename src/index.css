@@ -468,6 +468,44 @@ table.summer td.fv {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
   font-weight: 600;
 }
+/* Snarveier: ferdige utvalg under verktøylinjen, med antall */
+.snarvei-rad {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 14px 10px;
+}
+.snarvei-etikett {
+  color: var(--dempet);
+  font-size: 13px;
+  margin-right: 2px;
+}
+.snarvei {
+  border: 1px solid var(--linje-sterk);
+  background: var(--flate);
+  color: var(--tekst);
+  border-radius: 999px;
+  padding: 3px 11px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.snarvei:hover {
+  border-color: var(--aksent);
+}
+.snarvei.valgt {
+  background: var(--aksent);
+  border-color: var(--aksent);
+  color: #fff;
+}
+.snarvei.valgt .teller {
+  color: inherit;
+}
+.snarvei.varsel:not(.valgt) .teller {
+  color: var(--fare-tekst, var(--fare));
+  font-weight: 600;
+}
 .teller {
   font-size: 11px;
   color: #52606e; /* litt mørkere enn --dempet, så kontrasten holder også på grå bakgrunn */
@@ -1263,6 +1301,7 @@ table.enkel-tabell {
   .toppfelt .ikonknapp,
   .meny-holder,
   .verktoylinje,
+  .snarvei-rad,
   .detaljpanel,
   .meldinger,
   .ny-rad,
@@ -1541,6 +1580,9 @@ table.enkel-tabell {
   .verktoylinje {
     padding: 10px 12px;
     gap: 8px;
+  }
+  .snarvei-rad {
+    padding: 0 12px 8px;
   }
   .sok {
     width: 100%;
@@ -3160,6 +3202,9 @@ td .valgpil.synlig {
 /* Verktøylinje */
 .stil-moderne .verktoylinje {
   padding: 14px 20px 10px;
+}
+.stil-moderne .snarvei-rad {
+  padding: 0 20px 12px;
 }
 .stil-moderne .faner {
   background: var(--flate-mork);

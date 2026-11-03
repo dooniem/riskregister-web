@@ -3,7 +3,7 @@
 import type { Kolonne } from './columns'
 import { KOL, visTekst } from './columns'
 import type { Register, Risk } from './model'
-import { eksponering, eksponeringNivaa, fv } from './model'
+import { eksponering, eksponeringNivaa, fv, nyligLukketDager } from './model'
 
 export type Fane = 'aapne' | 'lukkede' | 'alle' | 'skarisk'
 
@@ -17,6 +17,8 @@ export interface Filter {
   verdier: Record<string, string[]>
   tekst: Record<string, string>
   matrise?: { s: number; k: number }
+  snarvei?: Snarvei // ferdig utvalg fra snarveiraden over registeret
+  snarveiFra?: string // tidspunktet «Nye siden siste snapshot» regnes fra (ISO-tid)
 }
 
 export interface Visning {
@@ -25,6 +27,7 @@ export interface Visning {
   sortering: Sortering[]
   filter: Filter
   gruppering: string // '' = ingen
+  grupperingLukkede?: string // egen gruppering i Lukkede-fanen. Mangler den, grupperes lukkede risker etter når de ble lukket
   skjulteGrupper: string[] // kolonnegrupper som er slått sammen
   skjulteKolonner: string[]
   bredder: Record<string, number>
@@ -96,14 +99,72 @@ export const GRUPPERINGER: { key: string; tittel: string; verdi: (r: Risk, doc: 
   { key: 'egendef', tittel: 'Egendefinert', verdi: (r) => r.egendef || '(tom)' },
   { key: 'egendef2', tittel: 'Egendefinert 2', verdi: (r) => r.egendef2 || '(tom)' },
   { key: 'status', tittel: 'Status risk', verdi: (r) => r.status || '(tom)' },
+  { key: 'lukket', tittel: 'Når lukket', verdi: (r, doc) => lukketGruppe(r, nyligLukketDager(doc)) },
   { key: 'tiltakstatus', tittel: 'Status på tiltak', verdi: (r) => tiltakOppsummering(r) },
 ]
 
 // Grupperingene som kan velges i registeret: de egendefinerte får navnet fra prosjektet, og felt 2 er bare med når det er aktivert
-export function grupperinger(doc: Register) {
-  return GRUPPERINGER.filter((g) => g.key !== 'egendef2' || doc.lister.egendef2Aktiv).map((g) =>
+// «Når lukket» gir bare mening der det finnes lukkede risker, altså i Lukkede og Alle.
+export function grupperinger(doc: Register, fane?: Fane) {
+  return GRUPPERINGER.filter((g) => (g.key !== 'egendef2' || doc.lister.egendef2Aktiv) && (g.key !== 'lukket' || fane === 'lukkede' || fane === 'alle')).map((g) =>
     g.key === 'egendef' ? { ...g, tittel: doc.lister.egendefNavn || g.tittel } : g.key === 'egendef2' ? { ...g, tittel: doc.lister.egendef2Navn || g.tittel } : g,
   )
+}
+
+// Lukkede risker eldes ut av synsfeltet: de som er lukket de siste dagene (90 som standard, kan endres for registeret)
+// står øverst, eldre grupperes per år og er slått sammen til man åpner gruppen. Ingenting slettes.
+const NYLIG_LUKKET = 'Lukket siste '
+export const LUKKET_UTEN_DATO = 'Lukket, uten dato'
+const LUKKET_AAR = 'Lukket i '
+
+export function lukketGruppe(r: Risk, dager: number, naa = Date.now()): string {
+  if (r.status !== 'Lukket') return 'Åpne'
+  // Risker som er lukket før appen tok vare på tidspunktet (f.eks. importert fra Excel), bruker sist endret
+  const t = Date.parse(r.lukket ?? r.endret ?? '')
+  if (Number.isNaN(t)) return LUKKET_UTEN_DATO
+  if (naa - t <= dager * 86_400_000) return `${NYLIG_LUKKET}${dager} dager`
+  return LUKKET_AAR + new Date(t).getFullYear()
+}
+
+// Gruppene i «Når lukket» som er slått sammen til brukeren åpner dem: alt som er eldre enn de siste 90 dagene
+export const sammenslaattSomStandard = (gruppering: string, navn: string) => gruppering === 'lukket' && (navn.startsWith(LUKKET_AAR) || navn === LUKKET_UTEN_DATO)
+
+// Grupperingen som gjelder i fanen. Lukkede-fanen har sin egen, som er «Når lukket» til brukeren velger noe annet.
+export function aktivGruppering(v: Visning): string {
+  return v.fane === 'lukkede' ? (v.grupperingLukkede ?? 'lukket') : v.gruppering === 'lukket' && v.fane !== 'alle' ? '' : v.gruppering
+}
+
+// Snarveier: ferdige utvalg som appen regner ut, for å finne det som haster eller er glemt når registeret har vokst
+export type Snarvei = 'frist' | 'ikkeVurdert' | 'nye' | 'utenTiltak'
+export const IKKE_VURDERT_MND = 6
+
+const avsluttet = (status: string) => status === 'Utført' || status === 'Utføres ikke'
+
+export const SNARVEIER: { key: Snarvei; tittel: string; forklaring: string }[] = [
+  { key: 'frist', tittel: 'Frist passert', forklaring: 'Åpne risker med minst ett tiltak der fristen er passert og som ikke er utført' },
+  { key: 'ikkeVurdert', tittel: `Ikke endret på ${IKKE_VURDERT_MND} mnd`, forklaring: `Åpne risker der verken risken eller tiltakene er endret de siste ${IKKE_VURDERT_MND} månedene` },
+  { key: 'nye', tittel: 'Nye siden siste snapshot', forklaring: 'Risker som er opprettet etter det siste snapshotet' },
+  { key: 'utenTiltak', tittel: 'Uten tiltak', forklaring: 'Åpne risker som ikke har noen tiltak' },
+]
+
+export function iSnarvei(r: Risk, s: Snarvei, fra?: string, naa = new Date()): boolean {
+  const aapen = r.status !== 'Lukket'
+  switch (s) {
+    case 'frist': {
+      const d = naa.toISOString().slice(0, 10)
+      return aapen && r.tiltak.some((t) => !!t.frist && t.frist < d && !avsluttet(t.status))
+    }
+    case 'ikkeVurdert': {
+      const grense = new Date(naa)
+      grense.setMonth(grense.getMonth() - IKKE_VURDERT_MND)
+      const sist = r.endret ?? r.opprettet
+      return aapen && (!sist || Date.parse(sist) < grense.getTime())
+    }
+    case 'nye':
+      return !!fra && !!r.opprettet && r.opprettet > fra
+    case 'utenTiltak':
+      return aapen && !r.tiltak.some((t) => t.tekst.trim())
+  }
 }
 
 function tiltakOppsummering(r: Risk): string {
@@ -173,6 +234,7 @@ export function filtrer(doc: Register, v: Visning, ignorer?: string): Risk[] {
       const t = tekst.toLowerCase()
       if (!filterVerdier(KOL[key], r).some((x) => x.toLowerCase().includes(t))) return false
     }
+    if (v.filter.snarvei && !iSnarvei(r, v.filter.snarvei, v.filter.snarveiFra)) return false
     if (v.filter.matrise && (r.sannsynlighet !== v.filter.matrise.s || r.konsekvens !== v.filter.matrise.k)) return false
     return true
   })
@@ -209,6 +271,8 @@ export function sorter(risker: Risk[], sortering: Sortering[]): Risk[] {
   })
 }
 
+const lukketRang = (n: string) => (n === 'Åpne' ? 0 : n.startsWith(NYLIG_LUKKET) ? 1 : n === LUKKET_UTEN_DATO ? 3 : 2)
+
 export interface Gruppe {
   navn: string
   risker: Risk[]
@@ -225,6 +289,8 @@ export function grupper(doc: Register, risker: Risk[], key: string): Gruppe[] {
   }
   const navn = [...m.keys()]
   if (key === 'nivaa') navn.sort((a, b) => NIVAA_REKKEFOLGE.indexOf(a) - NIVAA_REKKEFOLGE.indexOf(b))
+  // Åpne først, så de nylig lukkede, så årene med det nyeste først, og til sist de uten dato
+  else if (key === 'lukket') navn.sort((a, b) => lukketRang(a) - lukketRang(b) || b.localeCompare(a, 'nb'))
   else navn.sort((a, b) => (a.startsWith('(') ? 1 : b.startsWith('(') ? -1 : a.localeCompare(b, 'nb')))
   return navn.map((n) => ({ navn: n, risker: m.get(n)! }))
 }
