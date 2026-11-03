@@ -321,6 +321,28 @@ export class GraphLister implements ListeLager {
     return !!this.lister[liste]
   }
 
+  private async kolonnerMedIndeks(liste: ListeNavn) {
+    return (await graphJson<{ value: { id: string; name: string; indexed?: boolean }[] }>(`${this.sti(liste)}/columns?$select=id,name,indexed&$top=500`)).value
+  }
+
+  async uindekserte(lister: ListeNavn[]) {
+    const ut: { liste: ListeNavn; kolonne: string }[] = []
+    for (const liste of lister.filter((l) => this.lister[l])) {
+      const kolonner = await this.kolonnerMedIndeks(liste)
+      for (const k of LISTER[liste].kolonner.filter((x) => x.indeksert)) {
+        const fins = kolonner.find((x) => x.name.toLowerCase() === k.navn.toLowerCase())
+        if (fins && !fins.indexed) ut.push({ liste, kolonne: k.navn })
+      }
+    }
+    return ut
+  }
+
+  async indekser(liste: ListeNavn, kolonne: string) {
+    const k = (await this.kolonnerMedIndeks(liste)).find((x) => x.name.toLowerCase() === kolonne.toLowerCase())
+    if (!k) throw new Error(`Kolonnen «${kolonne}» finnes ikke i «${LISTER[liste].visningsnavn}».`)
+    await graphJson(`${this.sti(liste)}/columns/${k.id}`, jsonInit('PATCH', { indexed: true }))
+  }
+
   listeUrl(liste: ListeNavn) {
     return this.lister[liste]?.webUrl
   }

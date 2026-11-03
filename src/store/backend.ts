@@ -34,7 +34,17 @@ export interface Snapshots {
   ta(navn: string, kommentar: string, doc: Register, fremdrift?: (ferdig: number, totalt: number) => void): Promise<SnapshotInfo>
   hent(id: string): Promise<{ info: SnapshotInfo; doc: Register }>
   slett(id: string): Promise<void>
+  // Snapshotlistene filtreres på SnapshotId. Over 5 000 rader feiler det hvis kolonnen ikke er indeksert.
+  // Når en av listene nærmer seg grensen, prøver appen å slå på indeksen selv. Gir svar om det ikke lyktes.
+  sjekkIndekser?(liste: SnapshotInfo[]): Promise<IndeksVarsel | null>
 }
+
+export interface IndeksVarsel {
+  kolonner: { liste: string; kolonne: string; rader: number }[] // visningsnavn på listen
+}
+
+// Grensen der SharePoint slutter å filtrere på kolonner uten indeks er 5 000 rader. Appen reagerer litt før.
+export const INDEKS_VARSEL_RADER = 4000
 
 export type LagreSvar = { ok: true; etag: string } | { ok: false; konflikt: true }
 

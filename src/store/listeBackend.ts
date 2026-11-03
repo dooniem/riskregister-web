@@ -7,15 +7,17 @@
 import type { Register } from '../model'
 import { aktivLaas, migrer, uid, type RegisterLaas } from '../model'
 import type { Bruker } from '../ops'
-import type { Avvik, Backend, LaasBrudd, LagreSvar, RadHistorikk, SnapshotInfo, Snapshots, Tilstede, Versjon } from './backend'
+import type { Avvik, Backend, IndeksVarsel, LaasBrudd, LagreSvar, RadHistorikk, SnapshotInfo, Snapshots, Tilstede, Versjon } from './backend'
+import { INDEKS_VARSEL_RADER } from './backend'
 import { GraphFeil } from './graph'
 import type { Element, Endring, ListeLager } from './lister/lager'
-import type { Felt } from './lister/skjema'
+import type { Felt, ListeNavn } from './lister/skjema'
 import {
   byggRegister,
   feltTilRisk,
   feltTilTiltak,
   innstillingerFraRegister,
+  LISTER,
   odelagteInnstillinger,
   REGISTERLISTER,
   riskTilFelt,
@@ -377,6 +379,24 @@ class ListeSnapshots implements Snapshots {
       antallRisker: Number(f.AntallRisker) || 0,
       kommentar: String(f.Kommentar ?? ''),
     }
+  }
+
+  async sjekkIndekser(liste: SnapshotInfo[]): Promise<IndeksVarsel | null> {
+    if (!this.lager.uindekserte) return null
+    // Snapshotdata har én rad per risk per snapshot. Antallet regnes fra snapshot-radene, så listen ikke må hentes.
+    const rader: Partial<Record<ListeNavn, number>> = { snapshots: liste.length, snapshotdata: liste.reduce((s, x) => s + x.antallRisker, 0) }
+    const store = (Object.keys(rader) as ListeNavn[]).filter((l) => (rader[l] ?? 0) >= INDEKS_VARSEL_RADER)
+    if (!store.length) return null
+    const mangler = await this.lager.uindekserte(store)
+    const feilet: IndeksVarsel['kolonner'] = []
+    for (const k of mangler) {
+      try {
+        await this.lager.indekser!(k.liste, k.kolonne)
+      } catch {
+        feilet.push({ liste: LISTER[k.liste].visningsnavn, kolonne: k.kolonne, rader: rader[k.liste] ?? 0 })
+      }
+    }
+    return feilet.length ? { kolonner: feilet } : null
   }
 
   async liste() {

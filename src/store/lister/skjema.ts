@@ -227,6 +227,16 @@ export function innstillingerFraRegister(doc: Register): Record<Innstilling, str
   return ut
 }
 
+// Hver innstilling ligger som JSON i én tekstkolonne (flere tekstlinjer). SharePoint tar 63 999 tegn i en slik kolonne.
+// Appen varsler når en innstilling har brukt tre fjerdedeler, så det er tid til å rydde før lagringen feiler.
+export const INNSTILLING_MAKS_TEGN = 63_999
+export const INNSTILLING_VARSEL_TEGN = 48_000
+
+export function fulleInnstillinger(doc: Register): { nokkel: Innstilling; tegn: number }[] {
+  const v = innstillingerFraRegister(doc)
+  return INNSTILLINGER.map((k) => ({ nokkel: k, tegn: v[k].length })).filter((x) => x.tegn >= INNSTILLING_VARSEL_TEGN)
+}
+
 // Innstillinger som ikke kan leses (f.eks. JSON som er ødelagt ved redigering i SharePoint)
 export function odelagteInnstillinger(innst: Partial<Record<string, string>>): Innstilling[] {
   return INNSTILLINGER.filter((k) => {
