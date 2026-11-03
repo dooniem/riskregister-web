@@ -69,6 +69,15 @@ export function Person({ str = 14 }: { str?: number }) {
   )
 }
 
+// Stjerne for risker brukeren følger. Fylt når risken følges.
+export function Stjerne({ str = 14, fylt }: { str?: number; fylt?: boolean }) {
+  return (
+    <svg className="ikon" width={str} height={str} viewBox="0 0 24 24" aria-hidden="true" {...strek} fill={fylt ? 'currentColor' : 'none'}>
+      <path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" />
+    </svg>
+  )
+}
+
 // To personer: felles visninger, som alle i registeret ser
 export function Felles({ str = 14 }: { str?: number }) {
   return (

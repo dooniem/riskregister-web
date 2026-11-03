@@ -9,7 +9,7 @@ import type { Konflikt, Op } from '../ops'
 import { SimulertKollega } from '../sim'
 import type { Okt } from '../sync'
 import type { Snarvei, Stil, Visning } from '../view'
-import { STANDARD_VISNING, SNARVEIER, aktivGruppering, grupperinger, iFane, iSnarvei, STILER, filtrer, lagreStil, lesStil } from '../view'
+import { STANDARD_VISNING, SNARVEIER, aktivGruppering, byttStjerner, grupperinger, iFane, iSnarvei, STILER, filtrer, lagreStil, lesStil } from '../view'
 import { DemoFiler, type FilKilde } from '../store/filer'
 import { GraphFiler } from '../store/graphFiler'
 import { GraphLister, omraadeLenke } from '../store/lister/graphLister'
@@ -329,7 +329,7 @@ export function RegisterView({ okt, tilbake }: Props) {
     melding(laas ? 'Registeret er åpnet for redigering igjen.' : 'Låsingen er avbrutt.')
   }
 
-  const filterAktivt = !!visning.sok || Object.keys(visning.filter.verdier).length > 0 || Object.values(visning.filter.tekst).some(Boolean) || !!visning.filter.matrise || !!visning.filter.snarvei || !!visning.fag?.length || !!visning.person
+  const filterAktivt = !!visning.sok || Object.keys(visning.filter.verdier).length > 0 || Object.values(visning.filter.tekst).some(Boolean) || !!visning.filter.matrise || !!visning.filter.snarvei || !!visning.fag?.length || !!visning.person || !!visning.kunStjerner
   const tittel = [doc.prosjekt.nummer, doc.prosjekt.navn].filter(Boolean).join(' ') || 'Riskregister uten navn'
   // Endringer samles noen sekunder før de lagres. Så lenge noen venter, sier vi det i stedet for «lagret».
   const visStatus = status === 'lagret' && snap.ventende ? 'lagrer' : status
@@ -808,7 +808,7 @@ export function RegisterView({ okt, tilbake }: Props) {
           {filterAktivt && visning.fane !== 'skarisk' && (
             <span className="filterinfo">
               Viser {antall.vist} av {antall[visning.fane]}
-              <button className="lenkeknapp" onClick={() => setVisning((v) => ({ ...v, sok: '', fag: [], person: undefined, filter: { verdier: {}, tekst: {} } }))}>
+              <button className="lenkeknapp" onClick={() => setVisning((v) => ({ ...v, sok: '', fag: [], person: undefined, kunStjerner: false, filter: { verdier: {}, tekst: {} } }))}>
                 Fjern alle filtre
               </button>
             </span>
@@ -883,7 +883,7 @@ export function RegisterView({ okt, tilbake }: Props) {
                   + Ny risk
                 </button>
               )}
-              <Kortliste okt={okt} doc={doc} andre={andre} visning={visning} aapne={setDetalj} endre={endre} kanSkrive={kanSkrive} melding={melding} />
+              <Kortliste okt={okt} doc={doc} andre={andre} visning={visning} aapne={setDetalj} endre={endre} kanSkrive={kanSkrive} melding={melding} byttStjerne={(id) => setVisning((v) => byttStjerner(v, [id]))} />
             </div>
           ) : (
           <Grid

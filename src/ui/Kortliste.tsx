@@ -8,7 +8,7 @@ import type { Okt } from '../sync'
 import type { Visning } from '../view'
 import { aktivGruppering, filtrer, grupper, sorter } from '../view'
 import { FagMerke, FagVelger } from './Fag'
-import { Laas } from './Ikoner'
+import { Laas, Stjerne } from './Ikoner'
 import { RiskInfo } from './RiskInfo'
 import { HistorikkKontekst } from './Historikk'
 
@@ -21,13 +21,14 @@ type Props = {
   endre: (op: Op) => void
   kanSkrive: boolean
   melding: (t: string) => void
+  byttStjerne: (riskId: string) => void
 }
 
 const LANGT_TRYKK_MS = 500
 
 // Kortvisning: ett kort per risk. Brukes på mobil i alle utseender.
 // Trykk åpner risken i panelet. Høyreklikk eller langt trykk åpner en meny med info og handlinger.
-export function Kortliste({ okt, doc, andre, visning, aapne, endre, kanSkrive, melding }: Props) {
+export function Kortliste({ okt, doc, andre, visning, aapne, endre, kanSkrive, melding, byttStjerne }: Props) {
   const visHistorikk = useContext(HistorikkKontekst)
   const grupperte = useMemo(() => grupper(doc, sorter(filtrer(doc, visning), visning.sortering), aktivGruppering(visning)), [doc, visning])
   const idag = new Date().toISOString().slice(0, 10)
@@ -100,6 +101,11 @@ export function Kortliste({ okt, doc, andre, visning, aapne, endre, kanSkrive, m
                   <span className="eksp-merke" style={{ background: f?.bg, color: f?.fg }} title="Eksponering">
                     {e || '–'}
                   </span>
+                  {visning.stjerner?.includes(r.id) && (
+                    <span className="kort-stjerne" title="Du følger risken">
+                      <Stjerne str={13} fylt />
+                    </span>
+                  )}
                   <span className="fv">FV {formatTall(fv(r))}</span>
                 </div>
                 <div className="riskkort-tittel">{r.hendelse || <em>Uten beskrivelse</em>}</div>
@@ -148,6 +154,7 @@ export function Kortliste({ okt, doc, andre, visning, aapne, endre, kanSkrive, m
             <RiskInfo r={menyRisk} />
             <button onClick={() => (aapne(menyRisk.id), setMeny(null))}>Åpne risken</button>
             {visHistorikk && <button onClick={() => (visHistorikk(menyRisk.id), setMeny(null))}>Vis historikk…</button>}
+            <button onClick={() => (byttStjerne(menyRisk.id), setMeny(null))}>{visning.stjerner?.includes(menyRisk.id) ? 'Slutt å følge' : 'Følg risken'}</button>
             {kanSkrive && (
               <>
                 <button onClick={() => (sjekkLaas(menyRisk.id) && setFagVelger({ ...meny }), setMeny(null))}>Sett fag…</button>
