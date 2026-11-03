@@ -22,7 +22,7 @@ Alle registerdata blir dermed liggende i prosjektets SharePoint-område.
 |---:|---|---|---|
 | 1 | Velge Microsoft Graph-tillatelse for appen. Anbefalt løsning er `Sites.Manage.All`. | IT | [Valg av Graph-tillatelse](#4-valg-av-graph-tillatelse) |
 | 2 | Opprette en appregistrering i Microsoft Entra ID. | IT | [Appregistrering i Entra ID](#5-appregistrering-i-entra-id) |
-| 3 | Sende klient-ID og tenant-ID til prosjektet. | IT | [Opplysninger prosjektet trenger](#opplysninger-prosjektet-trenger) |
+| 3 | Sende klient-ID og tenant-ID til utvikleren av klienten. | IT | [Opplysninger prosjektet trenger](#opplysninger-prosjektet-trenger) |
 | 4 | Legge inn lenke til appen på aktuelle prosjektområder. | IT eller prosjektet | [Lenke fra prosjektområdet](#7-lenke-fra-prosjektområdet) |
 | 5 | Levere en oversikt over SharePoint-listene som brukes i piloten. | IT | [Eksisterende SharePoint-lister](#8-eksisterende-sharepoint-lister) |
 | 6 | Ved bruk av `Sites.Selected`: gi appen tilgang til hvert pilotområde. | IT | [Tilgang til hvert område med Sites.Selected](#6-tilgang-til-hvert-område-med-sitesselected) |
@@ -33,7 +33,7 @@ Alle registerdata blir dermed liggende i prosjektets SharePoint-område.
 
 1. Velg Graph-tillatelse.
 2. Opprett appregistreringen.
-3. Send klient-ID og tenant-ID til prosjektet.
+3. Send klient-ID og tenant-ID til utvikleren av klienten.
 4. Avklar hvor appen skal publiseres i piloten og etter piloten.
 5. Kartlegg eksisterende lister og kolonner.
 6. Opprett eller juster lister, kolonner, indekser og versjonsinnstillinger.
