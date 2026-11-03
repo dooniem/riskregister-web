@@ -8,8 +8,8 @@ import { aktivLaas, kommendeLaas, LAAS_NEDTELLING_S, nyRisk } from '../model'
 import type { Konflikt, Op } from '../ops'
 import { SimulertKollega } from '../sim'
 import type { Okt } from '../sync'
-import type { Stil, Visning } from '../view'
-import { STANDARD_VISNING, grupperinger, STILER, filtrer, lagreStil, lesStil } from '../view'
+import type { Snarvei, Stil, Visning } from '../view'
+import { STANDARD_VISNING, SNARVEIER, aktivGruppering, grupperinger, iFane, iSnarvei, STILER, filtrer, lagreStil, lesStil } from '../view'
 import { DemoFiler, type FilKilde } from '../store/filer'
 import { GraphFiler } from '../store/graphFiler'
 import { GraphLister, omraadeLenke } from '../store/lister/graphLister'
@@ -220,6 +220,21 @@ export function RegisterView({ okt, tilbake }: Props) {
   const paaRisikobilde = moderne && side.navn === 'risikobilde'
   const autoSnapshot = useRef(false)
   const [snapshotsLukket, setSnapshotsLukket] = useState(0)
+  // Det siste snapshotet, som snarveien «Nye siden siste snapshot» regner fra. Hentes på nytt når snapshotvinduet lukkes.
+  const [sisteSnapshot, setSisteSnapshot] = useState<SnapshotInfo | null>(null)
+  useEffect(() => {
+    if (!b.snapshots || b.snapshot) return
+    let aktiv = true
+    b.snapshots
+      .liste()
+      .then((l) => aktiv && setSisteSnapshot(l.reduce<SnapshotInfo | null>((m, x) => (!m || x.tidspunkt > m.tidspunkt ? x : m), null)))
+      .catch(() => {
+        /* snarveien vises ikke uten snapshots */
+      })
+    return () => {
+      aktiv = false
+    }
+  }, [b.snapshots, b.snapshot, snapshotsLukket])
   // I moderne visning åpner matrisen seg som siden Risikobilde, i klassisk som et vindu over registeret
   const aapneMatrise = (rm: 'R' | 'M') => (moderne ? setSide({ navn: 'risikobilde', rm }) : setStorMatrise(rm))
 
@@ -304,7 +319,7 @@ export function RegisterView({ okt, tilbake }: Props) {
     melding(laas ? 'Registeret er åpnet for redigering igjen.' : 'Låsingen er avbrutt.')
   }
 
-  const filterAktivt = !!visning.sok || Object.keys(visning.filter.verdier).length > 0 || Object.values(visning.filter.tekst).some(Boolean) || !!visning.filter.matrise || !!visning.fag?.length || !!visning.person
+  const filterAktivt = !!visning.sok || Object.keys(visning.filter.verdier).length > 0 || Object.values(visning.filter.tekst).some(Boolean) || !!visning.filter.matrise || !!visning.filter.snarvei || !!visning.fag?.length || !!visning.person
   const tittel = [doc.prosjekt.nummer, doc.prosjekt.navn].filter(Boolean).join(' ') || 'Riskregister uten navn'
   // Endringer samles noen sekunder før de lagres. Så lenge noen venter, sier vi det i stedet for «lagret».
   const visStatus = status === 'lagret' && snap.ventende ? 'lagrer' : status
@@ -323,12 +338,28 @@ export function RegisterView({ okt, tilbake }: Props) {
     [b, okt, kanSkrive],
   )
 
+  // Lukkede-fanen husker sin egen gruppering, så «Når lukket» der ikke endrer grupperingen i de andre fanene
+  const gruppering = aktivGruppering(visning)
+  const velgGruppering = (key: string) => setVisning((v) => (v.fane === 'lukkede' ? { ...v, grupperingLukkede: key } : { ...v, gruppering: key }))
+
+  // Snarveiene teller i fanen som vises, uten de andre filtrene, så tallene står fast mens man filtrerer
+  const visSnarveier = !b.snapshot && (visning.fane === 'aapne' || visning.fane === 'alle')
+  const snarveiFra = sisteSnapshot?.tidspunkt
+  const snarveiAntall = useMemo(() => {
+    const ut = {} as Record<Snarvei, number>
+    const iFanen = doc.risker.filter((r) => iFane(r, visning.fane))
+    for (const s of SNARVEIER) ut[s.key] = iFanen.filter((r) => iSnarvei(r, s.key, snarveiFra)).length
+    return ut
+  }, [doc, visning.fane, snarveiFra])
+  const velgSnarvei = (key: Snarvei) =>
+    setVisning((v) => ({ ...v, filter: v.filter.snarvei === key ? { ...v.filter, snarvei: undefined, snarveiFra: undefined } : { ...v.filter, snarvei: key, snarveiFra } }))
+
   const grupperValg = samlet ? (
     // Ser ut som en knapp («Grupper: Ingen»), men er en vanlig nedtrekksliste under, så tastatur og skjermleser virker som før
     <label className="knapp grupper-knapp">
-      Grupper: {visning.gruppering ? grupperinger(doc).find((g) => g.key === visning.gruppering)?.tittel : 'Ingen'} <Pil />
-      <select aria-label="Grupper etter" value={visning.gruppering} onChange={(e) => setVisning((v) => ({ ...v, gruppering: e.target.value }))}>
-        {grupperinger(doc).map((g) => (
+      Grupper: {gruppering ? grupperinger(doc, visning.fane).find((g) => g.key === gruppering)?.tittel : 'Ingen'} <Pil />
+      <select aria-label="Grupper etter" value={gruppering} onChange={(e) => velgGruppering(e.target.value)}>
+        {grupperinger(doc, visning.fane).map((g) => (
           <option key={g.key} value={g.key}>
             {g.tittel}
           </option>
@@ -338,8 +369,8 @@ export function RegisterView({ okt, tilbake }: Props) {
   ) : (
     <label className="velg">
       Grupper etter
-      <select value={visning.gruppering} onChange={(e) => setVisning((v) => ({ ...v, gruppering: e.target.value }))}>
-        {grupperinger(doc).map((g) => (
+      <select value={gruppering} onChange={(e) => velgGruppering(e.target.value)}>
+        {grupperinger(doc, visning.fane).map((g) => (
           <option key={g.key} value={g.key}>
             {g.tittel}
           </option>
@@ -713,7 +744,7 @@ export function RegisterView({ okt, tilbake }: Props) {
                 ['skarisk', 'Til Skarisk', antall.skarisk],
               ] as const
             ).map(([k, t, n]) => (
-              <button key={k} className={visning.fane === k ? 'valgt' : ''} onClick={() => setVisning((v) => ({ ...v, fane: k }))}>
+              <button key={k} className={visning.fane === k ? 'valgt' : ''} onClick={() => setVisning((v) => ({ ...v, fane: k, filter: k === 'aapne' || k === 'alle' ? v.filter : { ...v.filter, snarvei: undefined, snarveiFra: undefined } }))}>
                 {t} <span className="teller">{n}</span>
               </button>
             ))}
@@ -770,6 +801,28 @@ export function RegisterView({ okt, tilbake }: Props) {
             </div>
           )}
         </div>
+
+        {visSnarveier && (
+          <div className="snarvei-rad" role="group" aria-label="Snarveier">
+            <span className="snarvei-etikett">Snarveier</span>
+            {SNARVEIER.filter((s) => s.key !== 'nye' || snarveiFra).map((s) => {
+              const valgt = visning.filter.snarvei === s.key
+              const n = snarveiAntall[s.key]
+              const fra = s.key === 'nye' && sisteSnapshot ? ` («${sisteSnapshot.navn}», ${new Date(sisteSnapshot.tidspunkt).toLocaleDateString('nb-NO')})` : ''
+              return (
+                <button
+                  key={s.key}
+                  className={'snarvei' + (valgt ? ' valgt' : '') + (s.key === 'frist' && n ? ' varsel' : '')}
+                  aria-pressed={valgt}
+                  title={s.forklaring + fra + (valgt ? '. Klikk igjen for å vise alle.' : '')}
+                  onClick={() => velgSnarvei(s.key)}
+                >
+                  {s.tittel} <span className="teller">{n}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
 
         <div className="hovedflate">
           {visning.fane === 'skarisk' ? (

@@ -6,7 +6,7 @@ import type { Tilstede } from '../store/backend'
 import type { Op } from '../ops'
 import type { Okt } from '../sync'
 import type { Visning } from '../view'
-import { filtrer, grupper, sorter } from '../view'
+import { aktivGruppering, filtrer, grupper, sorter } from '../view'
 import { FagMerke, FagVelger } from './Fag'
 import { Laas } from './Ikoner'
 import { RiskInfo } from './RiskInfo'
@@ -29,7 +29,7 @@ const LANGT_TRYKK_MS = 500
 // Trykk åpner risken i panelet. Høyreklikk eller langt trykk åpner en meny med info og handlinger.
 export function Kortliste({ okt, doc, andre, visning, aapne, endre, kanSkrive, melding }: Props) {
   const visHistorikk = useContext(HistorikkKontekst)
-  const grupperte = useMemo(() => grupper(doc, sorter(filtrer(doc, visning), visning.sortering), visning.gruppering), [doc, visning])
+  const grupperte = useMemo(() => grupper(doc, sorter(filtrer(doc, visning), visning.sortering), aktivGruppering(visning)), [doc, visning])
   const idag = new Date().toISOString().slice(0, 10)
   const [meny, setMeny] = useState<{ riskId: string; x: number; y: number } | null>(null)
   const [fagVelger, setFagVelger] = useState<{ riskId: string; x: number; y: number } | null>(null)
