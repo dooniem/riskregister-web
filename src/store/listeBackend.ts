@@ -5,9 +5,9 @@
 // rad i mellomtiden, avvises lagringen, registeret hentes på nytt og endringene legges oppå (se sync.ts).
 // To brukere som endrer ulike risker, kommer dermed aldri i konflikt.
 import type { Register } from '../model'
-import { migrer, uid } from '../model'
+import { aktivLaas, migrer, uid, type RegisterLaas } from '../model'
 import type { Bruker } from '../ops'
-import type { Avvik, Backend, LagreSvar, RadHistorikk, SnapshotInfo, Snapshots, Tilstede, Versjon } from './backend'
+import type { Avvik, Backend, LaasBrudd, LagreSvar, RadHistorikk, SnapshotInfo, Snapshots, Tilstede, Versjon } from './backend'
 import { GraphFeil } from './graph'
 import type { Element, Endring, ListeLager } from './lister/lager'
 import type { Felt } from './lister/skjema'
@@ -32,6 +32,9 @@ interface Rad {
   verdi: string
 }
 
+// Endringer som appen selv lagrer like etter at låsen trer i kraft (gjort under nedtellingen), regnes ikke som brudd
+const LAAS_SLINGRING_MS = 20_000
+
 // Registeret hentes uansett på nytt så ofte, i tilfelle en endring ikke ble fanget opp av sistEndret
 const FULL_HENT_MS = 30_000
 const oktId = Math.random().toString(36).slice(2, 8)
@@ -54,6 +57,9 @@ export class ListeBackend implements Backend {
   private tilstedeKo: Promise<unknown> = Promise.resolve()
   private ryddet = false
   avvik: Avvik = { innstillinger: [], doble: [], forelderlose: [] }
+  laasBrudd?: LaasBrudd
+  // Låsen og riskene ved forrige henting, for å se om noe er slettet eller låsen fjernet i SharePoint
+  private forrige?: { laas: RegisterLaas | null; risker: Map<string, { nr: number; tittel: string }> }
 
   constructor(lager: ListeLager, bruker: Bruker) {
     this.lager = lager
@@ -132,7 +138,54 @@ export class ListeBackend implements Backend {
       forelderlose.set(riskId, f)
     }
     this.avvik = { innstillinger: odelagt, doble: [...doble.values()], forelderlose: [...forelderlose.values()] }
-    return { doc: byggRegister(innst, risker, tiltak), etag: this.etagFra(tid) }
+    const doc = byggRegister(innst, risker, tiltak)
+    this.sjekkLaas(doc, re, te, ie.find((e) => e.felt.Title === 'laas'))
+    return { doc, etag: this.etagFra(tid) }
+  }
+
+  // Mens registeret er låst, skriver ikke appen til riskene og tiltakene. En rad som er endret etter at låsen trådte i kraft,
+  // er derfor endret direkte i SharePoint. Fjernes låsen før tiden av en annen enn den som låste, er det også gjort utenfor appen.
+  private sjekkLaas(doc: Register, re: Element[], te: Element[], laasRad?: Element) {
+    const naa = Date.now()
+    const laas = aktivLaas(doc, naa)
+    const forrige = this.forrige
+    const riskerNa = new Map(doc.risker.map((r) => [r.id, { nr: r.nr, tittel: r.hendelse || r.aarsak }]))
+    this.forrige = { laas, risker: riskerNa }
+    const forrigeLaas = forrige?.laas && Date.parse(forrige.laas.til) > naa ? forrige.laas : null
+    if (!laas) {
+      // Låsen er borte før tiden, og raden er sist endret av en annen enn den som låste (eller slettet)
+      if (forrigeLaas && !doc.laas && (!laasRad || laasRad.endretAv !== forrigeLaas.av)) {
+        const nokkel = `${forrigeLaas.fra ?? forrigeLaas.tid}|${forrigeLaas.til}`
+        const endringer = this.laasBrudd?.laas === nokkel ? this.laasBrudd.endringer : []
+        this.laasBrudd = { laas: nokkel, endringer, fjernet: { av: laasRad?.endretAv, tid: laasRad?.endret, laastAv: forrigeLaas.av } }
+      }
+      return
+    }
+    const nokkel = `${laas.fra ?? laas.tid}|${laas.til}`
+    const fra = Date.parse(laas.fra ?? laas.tid) + LAAS_SLINGRING_MS
+    const etter = (e: Element) => !!e.endret && Date.parse(e.endret) > fra
+    type Endring = LaasBrudd['endringer'][number]
+    const ut = new Map<string, Endring>()
+    for (const e of re) {
+      if (!etter(e)) continue
+      const r = feltTilRisk(e.felt)
+      if (r.id) ut.set(r.id, { riskId: r.id, nr: r.nr, tittel: r.hendelse || r.aarsak, hva: 'risk', av: e.endretAv, tid: e.endret })
+    }
+    for (const e of te) {
+      if (!etter(e)) continue
+      const t = feltTilTiltak(e.felt)
+      const r = riskerNa.get(t.riskId)
+      const f = ut.get(t.riskId)
+      // Én linje per risk: den siste endringen vises
+      if (r && (!f || (e.endret ?? '') > (f.tid ?? ''))) ut.set(t.riskId, { riskId: t.riskId, nr: r.nr, tittel: r.tittel, hva: f ? 'risk' : 'tiltak', av: e.endretAv, tid: e.endret })
+    }
+    // Slettede risker: de var med ved forrige henting under samme lås. SharePoint sier ikke hvem som slettet.
+    const tidligere = this.laasBrudd?.laas === nokkel ? this.laasBrudd.endringer.filter((x) => x.hva === 'slettet') : []
+    for (const x of tidligere) ut.set(x.riskId, x)
+    if (forrigeLaas && `${forrigeLaas.fra ?? forrigeLaas.tid}|${forrigeLaas.til}` === nokkel && Date.parse(forrigeLaas.fra ?? forrigeLaas.tid) <= naa) {
+      for (const [id, r] of forrige!.risker) if (!riskerNa.has(id)) ut.set(id, { riskId: id, nr: r.nr, tittel: r.tittel, hva: 'slettet', tid: new Date(naa).toISOString() })
+    }
+    this.laasBrudd = { laas: nokkel, endringer: [...ut.values()].sort((a, b) => (b.tid ?? '').localeCompare(a.tid ?? '')) }
   }
 
   // Radene til risken og tiltakene den har nå. Tiltak som er slettet, er ikke med.

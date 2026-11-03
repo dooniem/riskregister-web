@@ -5484,3 +5484,25 @@ td.aktiv .eier-felt .eier-tom {
 .laas-andre small {
   color: var(--dempet);
 }
+/* Endringer gjort i SharePoint mens registeret er låst: ett gult banner under det røde, knappene til høyre */
+.banner.laas-brudd > span {
+  flex: 1;
+}
+.brudd-dialog {
+  width: min(720px, 100vw - 32px);
+}
+.brudd-tabell {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.brudd-tabell th,
+.brudd-tabell td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--linje);
+  vertical-align: top;
+}
+.brudd-tabell td:nth-child(n + 2) {
+  white-space: nowrap;
+}
