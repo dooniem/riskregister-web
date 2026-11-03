@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { KopiValg, Register } from '../model'
 import type { PrefixValg } from '../model'
-import { brukPrefixValg, kopierRegister, nyttRegister } from '../model'
+import { brukPrefixValg, DEFAULT_LISTER, kopierRegister, nyttRegister } from '../model'
 import { appUrl } from '../store/auth'
 import { demoFinnes, opprettDemo } from '../store/demoBackend'
 import { skrivNyttRegister } from '../store/listeBackend'
@@ -31,6 +31,10 @@ export function NyttRegisterDialog({ kilde, importert, filnavn, backendType, luk
     lukkede: !!importert,
   })
   const [prefix, setPrefix] = useState<PrefixValg>('behold')
+  // Fasen prosjektet er i nå. Listen er den registeret får: fra kilden hvis listene følger med, ellers standardlisten.
+  const faser = kilde && behold.lister ? kilde.lister.faser : DEFAULT_LISTER.faser
+  const [valgtFase, setFase] = useState(() => (kilde?.prosjekt.fase && (importert || behold.prosjektinfo) ? kilde.prosjekt.fase : ''))
+  const fase = valgtFase || faser[0] || ''
   const [jobber, setJobber] = useState(false)
   const [feil, setFeil] = useState('')
   const [ferdig, setFerdig] = useState<{ lenke: string; nettside?: string } | null>(null)
@@ -41,6 +45,7 @@ export function NyttRegisterDialog({ kilde, importert, filnavn, backendType, luk
     const fra = kilde && importert ? { ...kilde, risker: brukPrefixValg(kilde.risker, prefix, filnavn ?? kilde.prosjekt.navn) } : kilde
     const doc = fra ? kopierRegister(fra, { navn: navn.trim(), behold }) : nyttRegister(navn.trim())
     if (importert && kilde) doc.prosjekt = { ...doc.prosjekt, nummer: behold.prosjektinfo ? kilde.prosjekt.nummer : '' }
+    doc.prosjekt.fase = fase
     setJobber(true)
     try {
       if (hvor === 'demo') {
@@ -131,6 +136,17 @@ export function NyttRegisterDialog({ kilde, importert, filnavn, backendType, luk
                 Det kan være ett riskregister per område. Appen lager listene {Object.values(LISTER).map((l) => `«${l.visningsnavn}»`).join(', ')}. Du må være eier av
                 området.
               </small>
+            </label>
+          )}
+          {faser.length > 0 && (
+            <label className="felt">
+              <span>Fasen prosjektet er i nå</span>
+              <select value={fase} onChange={(e) => setFase(e.target.value)}>
+                {[...new Set([...faser, fase])].filter(Boolean).map((f) => (
+                  <option key={f}>{f}</option>
+                ))}
+              </select>
+              <small>Kan rettes senere under Prosjekt og deltakere. Når prosjektet går videre, bruker du Mer › Bytt fase.</small>
             </label>
           )}
           {kilde && (
