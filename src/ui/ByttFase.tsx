@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Register } from '../model'
-import { hvileStatus, hvileTekst } from '../model'
+import { hvileStatus } from '../model'
 import type { Op } from '../ops'
 import type { Snapshots } from '../store/backend'
 import { Modal, ModalTittel } from './Modal'
@@ -13,17 +13,12 @@ interface Props {
   melding: (tekst: string) => void
 }
 
-// Hvile settes i registeret (høyreklikk › Hvil risken…), der hver gruppe kan få sin egen tid
-type Valg = 'behold' | 'lukk'
-const VALG: { key: Valg; tittel: string }[] = [
-  { key: 'behold', tittel: 'Behold' },
-  { key: 'lukk', tittel: 'Lukk' },
-]
-const STEG = ['Milepæl-snapshot', 'Åpne risker', 'Ny fase']
+const STEG = ['Milepæl-snapshot', 'Ny fase']
 const iDag = () => new Date().toLocaleDateString('sv-SE') // YYYY-MM-DD i lokal tid
 
-// Mer › Bytt fase: tar et milepæl-snapshot av registeret slik det er nå, går gjennom de åpne riskene (behold eller lukk)
-// og setter ny fase. Byttet lagres i fasehistorikken, så appen vet hvilken fase hver risk ble opprettet og lukket i.
+// Mer › Bytt fase: tar et milepæl-snapshot av registeret slik det er nå, og setter ny fase. Riskene er gjennomgått i
+// riskmøtene før fasebyttet, så de åpne riskene blir stående som de er. Hvile settes i registeret (høyreklikk › Hvil risken…).
+// Byttet lagres i fasehistorikken, så appen vet hvilken fase hver risk ble opprettet og lukket i.
 export function ByttFaseDialog({ doc, snapshots, endre, lukk, melding }: Props) {
   const gammel = doc.prosjekt.fase
   const [steg, setSteg] = useState(0)
@@ -34,23 +29,14 @@ export function ByttFaseDialog({ doc, snapshots, endre, lukk, melding }: Props) 
   const [feil, setFeil] = useState('')
 
   const aapne = useMemo(() => doc.risker.filter((r) => r.status !== 'Lukket').sort((a, b) => a.nr - b.nr), [doc.risker])
-  const [valg, setValg] = useState<Record<string, Valg>>({})
-  const [merket, setMerket] = useState<string[]>([])
-  const [kategori, setKategori] = useState('')
-  const kategorier = useMemo(() => [...new Set(aapne.map((r) => r.kategori).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'nb')), [aapne])
-  const synlige = aapne.filter((r) => !kategori || r.kategori === kategori)
-  const valgFor = (id: string): Valg => valg[id] ?? 'behold'
-  const sett = (ider: string[], v: Valg) => setValg((x) => ({ ...x, ...Object.fromEntries(ider.map((id) => [id, v])) }))
-  const lukkes = aapne.filter((r) => valgFor(r.id) === 'lukk')
-  const beholdes = aapne.length - lukkes.length
 
   // Neste fase i listen foreslås, ellers den første som ikke er den gamle
   const faser = doc.lister.faser
   const [fase, setFase] = useState(() => faser[faser.indexOf(gammel) + 1] ?? faser.find((f) => f !== gammel) ?? '')
   const [dato, setDato] = useState(iDag)
   const ny = !!fase.trim() && !faser.includes(fase.trim())
-  // Risker som hviler til fasen det byttes til, og som ikke får et nytt valg her
-  const vaakner = aapne.filter((r) => valgFor(r.id) === 'behold' && hvileStatus(doc, r) === 'hviler' && !!fase.trim() && doc.hviler?.[r.id]?.fase === fase.trim())
+  // Risker som hviler til fasen det byttes til
+  const vaakner = aapne.filter((r) => hvileStatus(doc, r) === 'hviler' && !!fase.trim() && doc.hviler?.[r.id]?.fase === fase.trim())
 
   // Advarer hvis fanen lukkes mens snapshotet lagres
   useEffect(() => {
@@ -81,13 +67,12 @@ export function ByttFaseDialog({ doc, snapshots, endre, lukk, melding }: Props) 
     if (fase.trim() === gammel) return setFeil(`Prosjektet er allerede i fasen «${gammel}».`)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dato)) return setFeil('Velg datoen den nye fasen gjelder fra.')
     endre(
-      ...lukkes.map((r): Op => ({ t: 'setRisk', riskId: r.id, felt: 'status', verdi: 'Lukket', fra: r.status })),
       // Et eget fasenavn legges til i fase-listen, så det kan velges i prosjektinfo og ved neste bytte
       ...(ny ? [{ t: 'setListe', key: 'faser', verdi: [...faser, fase.trim()] } as Op] : []),
       { t: 'byttFase', fase: fase.trim(), dato, snapshotId },
     )
     melding(
-      `Prosjektet er nå i fasen «${fase.trim()}».${lukkes.length ? ` ${lukkes.length} ${lukkes.length === 1 ? 'risk er' : 'risker er'} lukket.` : ''}${vaakner.length ? ` ${vaakner.length} ${vaakner.length === 1 ? 'risk' : 'risker'} våknet.` : ''}`,
+      `Prosjektet er nå i fasen «${fase.trim()}».${vaakner.length ? ` ${vaakner.length} ${vaakner.length === 1 ? 'risk' : 'risker'} våknet.` : ''}`,
     )
     lukk()
   }
@@ -114,7 +99,7 @@ export function ByttFaseDialog({ doc, snapshots, endre, lukk, melding }: Props) 
             {/* Fasebyttet lagres med dato og styrer «Lukket i … · fase» og risker som hviler til en fase, så det skal ikke brukes til å rette en feil */}
             <div className="fasebytte-merknad liten">
               <p>
-                <b>Bytt fase</b> er for når prosjektet går over i neste fase. Byttet lagres med dato, og brukes til å vise hvilken fase risker ble lukket i og til å vekke risker
+                <b>Bytt fase</b> er for når prosjektet går over i neste fase, etter at riskene er gjennomgått i riskmøtene. De åpne riskene blir stående som de er. Byttet lagres med dato, og brukes til å vise hvilken fase risker ble lukket i og til å vekke risker
                 som hviler til en fase.
               </p>
               <p>
@@ -125,8 +110,8 @@ export function ByttFaseDialog({ doc, snapshots, endre, lukk, melding }: Props) 
               </p>
             </div>
             <p>
-              Ta et snapshot av registeret slik det er nå, før riskene gjennomgås. Det merkes som milepæl, så det står øverst i snapshotlisten og kan brukes til å se hva som har
-              skjedd siden.
+              Ta et snapshot av registeret slik det står ved slutten av fasen. Det merkes som milepæl, så det står øverst i snapshotlisten og kan brukes til å se hva som har
+              skjedd i den nye fasen.
             </p>
             {snapshots ? (
               <>
@@ -154,92 +139,6 @@ export function ByttFaseDialog({ doc, snapshots, endre, lukk, melding }: Props) 
         )}
 
         {steg === 1 && (
-          <div className="fasebytte-risker">
-            <p>
-              Velg hva som skal skje med de {aapne.length} åpne riskene. Lukkede risker blir liggende under Lukkede med historikken sin. Merk flere for å velge for alle samtidig.
-            </p>
-            <div className="fasebytte-verktoy">
-              {merket.length > 0 ? (
-                <>
-                  <span>{merket.length} merket:</span>
-                  {VALG.map((x) => (
-                    <button key={x.key} className="knapp liten" onClick={() => sett(merket, x.key)}>
-                      {x.tittel}
-                    </button>
-                  ))}
-                </>
-              ) : (
-                <span className="liten">Ingen merket</span>
-              )}
-              {kategorier.length > 1 && (
-                <label className="velg fasebytte-kategori">
-                  Kategori
-                  <select value={kategori} onChange={(e) => (setKategori(e.target.value), setMerket([]))}>
-                    <option value="">Alle</option>
-                    {kategorier.map((k) => (
-                      <option key={k}>{k}</option>
-                    ))}
-                  </select>
-                </label>
-              )}
-            </div>
-            <div className="fasebytte-tabell">
-              <table>
-                <thead>
-                  <tr>
-                    <th>
-                      <input
-                        type="checkbox"
-                        aria-label="Merk alle"
-                        checked={synlige.length > 0 && synlige.every((r) => merket.includes(r.id))}
-                        onChange={(e) => setMerket(e.target.checked ? synlige.map((r) => r.id) : [])}
-                      />
-                    </th>
-                    <th>Nr.</th>
-                    <th>Hendelse</th>
-                    <th>Kategori</th>
-                    <th>Risikoeier</th>
-                    <th>Valg</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {synlige.map((r) => {
-                    const v = valgFor(r.id)
-                    const m = merket.includes(r.id)
-                    return (
-                      <tr key={r.id} className={(m ? 'merket' : '') + (v === 'lukk' ? ' lukkes' : '')}>
-                        <td>
-                          <input type="checkbox" aria-label={`Merk risk ${r.nr}`} checked={m} onChange={(e) => setMerket((x) => (e.target.checked ? [...x, r.id] : x.filter((id) => id !== r.id)))} />
-                        </td>
-                        <td className="tall">{r.nr}</td>
-                        <td>
-                          {r.hendelse || r.aarsak || <span className="liten">(uten tekst)</span>}
-                          {hvileStatus(doc, r) === 'hviler' && <span className="hvile-merke" title="Hviler allerede. Behold lar hvilen stå.">hviler til {hvileTekst(doc.hviler![r.id])}</span>}
-                        </td>
-                        <td>{r.kategori}</td>
-                        <td>{r.eier}</td>
-                        <td>
-                          <div className="segment" role="radiogroup" aria-label={`Valg for risk ${r.nr}`}>
-                            {VALG.map((x) => (
-                              <button key={x.key} role="radio" aria-checked={v === x.key} className={v === x.key ? 'valgt' : ''} onClick={() => sett([r.id], x.key)}>
-                                {x.tittel}
-                              </button>
-                            ))}
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <p className="liten">
-              {beholdes} beholdes · {lukkes.length} lukkes. Risker som skal hvile, setter du etterpå i registeret med høyreklikk › Hvil risken…
-            </p>
-          </div>
-        )}
-
-        {steg === 2 && (
           <div className="skjema">
             <label className="felt">
               <span>Ny fase</span>
@@ -267,7 +166,7 @@ export function ByttFaseDialog({ doc, snapshots, endre, lukk, melding }: Props) 
               <ul>
                 {snapshotId && <li>Milepælen «{navn.trim()}» er lagret.</li>}
                 <li>
-                  {lukkes.length ? `${lukkes.length} ${lukkes.length === 1 ? 'risk' : 'risker'} lukkes` : 'Ingen risker lukkes'}, {beholdes} beholdes.
+                  De {aapne.length} åpne riskene blir stående som de er.
                 </li>
                 {vaakner.length > 0 && (
                   <li>
@@ -295,11 +194,6 @@ export function ByttFaseDialog({ doc, snapshots, endre, lukk, melding }: Props) 
             </button>
           )}
           {steg === 1 && (
-            <button className="knapp primær" onClick={() => setSteg(2)}>
-              Neste: velg fase
-            </button>
-          )}
-          {steg === 2 && (
             <button className="knapp primær" onClick={fullfor}>
               Bytt fase
             </button>

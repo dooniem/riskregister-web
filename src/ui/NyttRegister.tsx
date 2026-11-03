@@ -34,7 +34,8 @@ export function NyttRegisterDialog({ kilde, importert, filnavn, backendType, luk
   // Fasen prosjektet er i nå. Listen er den registeret får: fra kilden hvis listene følger med, ellers standardlisten.
   const faser = kilde && behold.lister ? kilde.lister.faser : DEFAULT_LISTER.faser
   const [valgtFase, setFase] = useState(() => (kilde?.prosjekt.fase && (importert || behold.prosjektinfo) ? kilde.prosjekt.fase : ''))
-  const fase = valgtFase || faser[0] || ''
+  // Den andre fasen (B1 Tilbudsarbeid i standardlisten) er den vanligste når et register opprettes
+  const fase = valgtFase || faser[1] || faser[0] || ''
   const [jobber, setJobber] = useState(false)
   const [feil, setFeil] = useState('')
   const [ferdig, setFerdig] = useState<{ lenke: string; nettside?: string } | null>(null)

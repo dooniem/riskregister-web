@@ -60,12 +60,12 @@ function Inn({ verdi, onLagre, disabled, ...rest }: { verdi: string; onLagre: (v
 
 function ProsjektInfo({ doc, endre, kanSkrive }: { doc: Register; endre: Props['endre']; kanSkrive: boolean }) {
   const felt: [keyof Prosjekt, string, string[]?][] = [
+    ['fase', 'Prosjektfase', doc.lister.faser],
     ['nummer', 'Prosjektnummer'],
     ['navn', 'Prosjektnavn'],
     ['eier', 'Prosjekteier'],
     ['sjef', 'Prosjektsjef'],
     ['leder', 'Prosjektleder'],
-    ['fase', 'Prosjektfase', doc.lister.faser],
     ['virksomhet', 'Virksomhetsområde', doc.lister.virksomhet],
   ]
   return (

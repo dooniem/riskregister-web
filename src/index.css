@@ -2366,52 +2366,6 @@ td .valgpil.synlig {
   border-color: var(--ok);
   color: var(--ok);
 }
-.fasebytte-verktoy {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 8px;
-}
-.fasebytte-kategori {
-  margin-left: auto;
-}
-.fasebytte-tabell {
-  max-height: min(50vh, 460px);
-  overflow: auto;
-  border: 1px solid var(--linje);
-  border-radius: 6px;
-}
-.fasebytte-tabell table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.fasebytte-tabell th,
-.fasebytte-tabell td {
-  text-align: left;
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--linje);
-  vertical-align: middle;
-}
-.fasebytte-tabell th {
-  position: sticky;
-  top: 0;
-  background: var(--hode);
-  font-size: 13px;
-  color: var(--dempet);
-  font-weight: 600;
-  z-index: 1;
-}
-.fasebytte-tabell td.tall {
-  text-align: right;
-}
-.fasebytte-tabell tr.merket td {
-  background: var(--aksent-lys);
-}
-.fasebytte-tabell tr.lukkes td:nth-child(3) {
-  color: var(--dempet);
-  text-decoration: line-through;
-}
 .segment {
   display: inline-flex;
   border: 1px solid var(--linje-sterk);
