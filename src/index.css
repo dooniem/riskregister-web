@@ -2434,6 +2434,14 @@ td .valgpil.synlig {
   background: var(--aksent);
   color: #fff;
 }
+.fasebytte-merknad {
+  background: var(--hode);
+  border-radius: 6px;
+  padding: 4px 14px;
+}
+.fasebytte-merknad p {
+  margin: 8px 0;
+}
 .fasebytte-oppsummering {
   background: var(--hode);
   border-radius: 6px;

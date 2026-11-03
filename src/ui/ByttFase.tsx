@@ -111,6 +111,19 @@ export function ByttFaseDialog({ doc, snapshots, endre, lukk, melding }: Props) 
 
         {steg === 0 && (
           <div className="skjema">
+            {/* Fasebyttet lagres med dato og styrer «Lukket i … · fase» og risker som hviler til en fase, så det skal ikke brukes til å rette en feil */}
+            <div className="fasebytte-merknad liten">
+              <p>
+                <b>Bytt fase</b> er for når prosjektet går over i neste fase. Byttet lagres med dato, og brukes til å vise hvilken fase risker ble lukket i og til å vekke risker
+                som hviler til en fase.
+              </p>
+              <p>
+                <b>Står det feil fase?</b> Rett den under Prosjekt og deltakere › Prosjektfase. Da endres fasen uten at det lagres som et fasebytte.
+              </p>
+              <p>
+                <b>Milepæl uten fasebytte,</b> for eksempel for hvert tilbud som leveres: ta et snapshot under Mer › Snapshots og sammenligning og merk det som milepæl.
+              </p>
+            </div>
             <p>
               Ta et snapshot av registeret slik det er nå, før riskene gjennomgås. Det merkes som milepæl, så det står øverst i snapshotlisten og kan brukes til å se hva som har
               skjedd siden.
