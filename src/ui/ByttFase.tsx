@@ -41,6 +41,7 @@ export function ByttFaseDialog({ doc, snapshots, endre, lukk, melding }: Props) 
   const faser = doc.lister.faser
   const [fase, setFase] = useState(() => faser[faser.indexOf(gammel) + 1] ?? faser.find((f) => f !== gammel) ?? '')
   const [dato, setDato] = useState(iDag)
+  const ny = !!fase.trim() && !faser.includes(fase.trim())
 
   // Advarer hvis fanen lukkes mens snapshotet lagres
   useEffect(() => {
@@ -67,10 +68,13 @@ export function ByttFaseDialog({ doc, snapshots, endre, lukk, melding }: Props) 
   }
 
   const fullfor = () => {
-    if (!fase.trim()) return setFeil('Velg den nye fasen.')
+    if (!fase.trim()) return setFeil('Velg den nye fasen eller skriv et navn.')
+    if (fase.trim() === gammel) return setFeil(`Prosjektet er allerede i fasen «${gammel}».`)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dato)) return setFeil('Velg datoen den nye fasen gjelder fra.')
     endre(
       ...lukkes.map((r): Op => ({ t: 'setRisk', riskId: r.id, felt: 'status', verdi: 'Lukket', fra: r.status })),
+      // Et eget fasenavn legges til i fase-listen, så det kan velges i prosjektinfo og ved neste bytte
+      ...(ny ? [{ t: 'setListe', key: 'faser', verdi: [...faser, fase.trim()] } as Op] : []),
       { t: 'byttFase', fase: fase.trim(), dato, snapshotId },
     )
     melding(`Prosjektet er nå i fasen «${fase.trim()}».${lukkes.length ? ` ${lukkes.length} ${lukkes.length === 1 ? 'risk er' : 'risker er'} lukket.` : ''}`)
@@ -213,15 +217,18 @@ export function ByttFaseDialog({ doc, snapshots, endre, lukk, melding }: Props) 
           <div className="skjema">
             <label className="felt">
               <span>Ny fase</span>
-              <select value={fase} onChange={(e) => setFase(e.target.value)}>
-                {!faser.includes(fase) && <option value={fase}>{fase || 'Velg fase'}</option>}
-                {faser.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
-                    {f === gammel ? ' (nåværende)' : ''}
-                  </option>
-                ))}
-              </select>
+              {/* Forslagene kommer fra fase-listen under Lister og valg, men fasen kan også få et eget navn */}
+              <input list="fasebytte-faser" value={fase} onChange={(e) => setFase(e.target.value)} placeholder="Velg fra listen eller skriv et eget navn" />
+              <datalist id="fasebytte-faser">
+                {faser
+                  .filter((f) => f !== gammel)
+                  .map((f) => (
+                    <option key={f} value={f} />
+                  ))}
+              </datalist>
+              <span className="liten">
+                Forslagene er fase-listen under Prosjekt › Lister og valg.{ny ? ' Et nytt navn legges til i listen.' : ''}
+              </span>
             </label>
             <label className="felt">
               <span>Gjelder fra</span>
