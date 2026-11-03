@@ -14,7 +14,7 @@ function risk(nr: number, rm: 'R' | 'M', aarsak: string, hendelse: string, konse
 
 export function eksempelRegister(navn = 'Demo – Nytt kontorbygg'): Register {
   const reg = nyttRegister(navn)
-  reg.prosjekt = { nummer: '9999', navn, eier: 'Eiendom AS', sjef: 'Kari Nordmann', leder: 'Ola Hansen', fase: 'B4-B6 Produksjon', virksomhet: 'Bygg', notering: 'Eksempelregister for demonstrasjon. Alle data er oppdiktet.' }
+  reg.prosjekt = { nummer: '9999', navn, eier: 'Eiendom AS', sjef: 'Kari Nordmann', leder: 'Ola Hansen', fase: 'B4 Produksjon', virksomhet: 'Bygg', notering: 'Eksempelregister for demonstrasjon. Alle data er oppdiktet.' }
   reg.deltakere = [
     ['KN', 'Kari Nordmann', 'Prosjektsjef', 'Risikoeier'],
     ['OH', 'Ola Hansen', 'Prosjektleder', 'Risikoeier'],

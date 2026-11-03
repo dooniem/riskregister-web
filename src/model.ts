@@ -288,7 +288,7 @@ export const DEFAULT_LISTER: Lister = {
     'Prosjektutvikler', 'Prosjektøkonom', 'Tilbudsleder',
   ],
   rollerRisk: ['Administrasjon', 'Fasilitator', 'Kompetanseressurs', 'Risikoeier', 'Tiltakseier'],
-  faser: ['B0 Prospekt', 'B0-B1 Utvikling/Prosjektering', 'B2-B3 Tilbud', 'B3-B4 Mobilisering', 'B4-B6 Produksjon'],
+  faser: ['B0 Prosjektutvikling', 'B1 Tilbudsarbeid', 'B2 Skarisk gjennomført', 'B3 Mobilisering', 'B4 Produksjon', 'B5 Testing', 'B6 Prosjektlukking'],
   virksomhet: ['Anlegg', 'Bygg'],
   egendefNavn: '<egendefinert>',
   egendef: ['BH', 'Internt'],
