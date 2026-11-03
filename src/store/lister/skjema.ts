@@ -5,7 +5,7 @@
 // Kolonnene er bevisst enkle (tekst, tall og ja/nei), slik at dataene er lette å lese direkte i SharePoint
 // og å hente ut til et datavarehus. Datoer lagres som tekst på formen ÅÅÅÅ-MM-DD eller ISO-tid.
 import type { Register, Risk, Tiltak, Vedlegg } from '../../model'
-import { DEFAULT_LISTER, migrer, SCHEMA_VERSION, uid } from '../../model'
+import { DEFAULT_LISTER, migrer, oppdaterFaser, SCHEMA_VERSION, uid } from '../../model'
 
 export type ListeNavn = 'risker' | 'tiltak' | 'innstillinger' | 'tilstede' | 'snapshots' | 'snapshotdata'
 
@@ -256,7 +256,7 @@ export function byggRegister(innst: Partial<Record<string, string>>, risker: Ris
       tiltak: (perRisk.get(r.id) ?? []).sort((a, b) => a.rekkefolge - b.rekkefolge).map(({ riskId: _r, rekkefolge: _n, ...rest }) => rest),
     }))
     .sort((a, b) => a.nr - b.nr)
-  return migrer({
+  return oppdaterFaser(migrer({
     schemaVersion: SCHEMA_VERSION,
     registerId: verdi('registerId', uid()),
     opprettet: verdi('opprettet', new Date().toISOString()),
@@ -272,7 +272,7 @@ export function byggRegister(innst: Partial<Record<string, string>>, risker: Ris
     hviler: verdi<NonNullable<Register['hviler']>>('hviler', {}),
     visninger: verdi<NonNullable<Register['visninger']>>('visninger', []),
     risker: medTiltak,
-  })
+  }))
 }
 
 // Snapshot: selve registeret uten riskene lagres som JSON på snapshot-raden, riskene som egne rader i snapshotdata

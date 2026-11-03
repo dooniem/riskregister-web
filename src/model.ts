@@ -413,6 +413,30 @@ export function eksponeringNivaa(e: number): string {
 }
 
 // Oppgraderer eldre filformat ved innlesing
+// Standard faselisten før november 2026, og hva hver fase heter i den nye listen.
+// Registre som fortsatt har den gamle standardlisten uendret, får den nye når de åpnes. Egne lister røres ikke.
+const GAMLE_FASER: Record<string, string> = {
+  'B0 Prospekt': 'B0 Prosjektutvikling',
+  'B0-B1 Utvikling/Prosjektering': 'B0 Prosjektutvikling',
+  'B2-B3 Tilbud': 'B1 Tilbudsarbeid',
+  'B3-B4 Mobilisering': 'B3 Mobilisering',
+  'B4-B6 Produksjon': 'B4 Produksjon',
+}
+
+export function oppdaterFaser(doc: Register): Register {
+  const gamle = Object.keys(GAMLE_FASER)
+  const f = doc.lister.faser
+  if (f.length !== gamle.length || f.some((x, i) => x !== gamle[i])) return doc
+  const ny = (x: string) => GAMLE_FASER[x] ?? x
+  const d = structuredClone(doc)
+  d.lister.faser = [...DEFAULT_LISTER.faser]
+  d.prosjekt.fase = ny(d.prosjekt.fase)
+  // Fasebytter og hvilende risker følger med, så en risk som venter på «B4-B6 Produksjon», nå venter på «B4 Produksjon»
+  d.faseHistorikk = d.faseHistorikk?.map((b) => ({ ...b, fra: ny(b.fra), til: ny(b.til) }))
+  for (const h of Object.values(d.hviler ?? {})) if (h.fase) h.fase = ny(h.fase)
+  return d
+}
+
 export function migrer(doc: Register): Register {
   const d = structuredClone(doc)
   d.lister = { ...structuredClone(DEFAULT_LISTER), ...d.lister }
