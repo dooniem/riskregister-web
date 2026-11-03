@@ -45,6 +45,10 @@ export interface ListeLager {
   // Kolonner appen bruker som er slettet fra listene, og som kan lages på nytt (tomme)
   manglendeKolonner?(): { liste: ListeNavn; kolonne: string }[]
   opprettKolonner?(): Promise<void>
+  // Kolonner som må være indeksert (filtreres på), men ikke er det. Bare lister som finnes, tas med.
+  uindekserte?(lister: ListeNavn[]): Promise<{ liste: ListeNavn; kolonne: string }[]>
+  // Slår på indeksering av kolonnen. Krever at brukeren (og appen) kan endre listen.
+  indekser?(liste: ListeNavn, kolonne: string): Promise<void>
   // Alle lagrede utgaver av en rad, eldste først (versjonshistorikken i listen)
   versjoner?(liste: ListeNavn, id: string): Promise<RadVersjon[]>
   // Beskjed om at noe er endret, slik at klienten kan hente med en gang

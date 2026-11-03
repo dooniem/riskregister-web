@@ -13,7 +13,7 @@ import { STANDARD_VISNING, SNARVEIER, aktivGruppering, byttStjerner, grupperinge
 import { DemoFiler, type FilKilde } from '../store/filer'
 import { GraphFiler } from '../store/graphFiler'
 import { GraphLister, omraadeLenke } from '../store/lister/graphLister'
-import { LISTER } from '../store/lister/skjema'
+import { fulleInnstillinger, INNSTILLING_MAKS_TEGN, LISTER } from '../store/lister/skjema'
 import { AvklarDialog, AvvikBanner, UlagretBanner } from './Avvik'
 import { Detaljpanel } from './Detaljpanel'
 import { Filvelger } from './Filvelger'
@@ -39,7 +39,7 @@ import { StorMatrise } from './StorMatrise'
 import { Risikobilde } from './Risikobilde'
 import { PersonKontekst, deltakerOp, type Personer } from './Personer'
 import { DemoKatalog, GraphKatalog } from '../store/katalog'
-import type { SnapshotInfo } from '../store/backend'
+import type { IndeksVarsel, SnapshotInfo } from '../store/backend'
 import type { Risk } from '../model'
 import { useProfil } from '../profil'
 
@@ -232,12 +232,22 @@ export function RegisterView({ okt, tilbake }: Props) {
   const [snapshotsLukket, setSnapshotsLukket] = useState(0)
   // Det siste snapshotet, som snarveien «Nye siden siste snapshot» regner fra. Hentes på nytt når snapshotvinduet lukkes.
   const [sisteSnapshot, setSisteSnapshot] = useState<SnapshotInfo | null>(null)
+  const [indeksVarsel, setIndeksVarsel] = useState<IndeksVarsel | null>(null)
   useEffect(() => {
     if (!b.snapshots || b.snapshot) return
     let aktiv = true
-    b.snapshots
+    const snapshots = b.snapshots
+    snapshots
       .liste()
-      .then((l) => aktiv && setSisteSnapshot(l.reduce<SnapshotInfo | null>((m, x) => (!m || x.tidspunkt > m.tidspunkt ? x : m), null)))
+      .then((l) => {
+        if (!aktiv) return
+        setSisteSnapshot(l.reduce<SnapshotInfo | null>((m, x) => (!m || x.tidspunkt > m.tidspunkt ? x : m), null))
+        // Reserve i tilfelle IT ikke har indeksert snapshotlistene: prøver selv når listene nærmer seg 5 000 rader
+        void snapshots
+          .sjekkIndekser?.(l)
+          .then((v) => aktiv && setIndeksVarsel(v))
+          .catch(() => {})
+      })
       .catch(() => {
         /* snarveien vises ikke uten snapshots */
       })
@@ -686,6 +696,16 @@ export function RegisterView({ okt, tilbake }: Props) {
           </div>
         )}
         {kanSkrive && !b.snapshot && <VelgFaseBanner doc={doc} endre={endre} />}
+        {kanSkrive && !b.snapshot && <PlassVarsel doc={doc} />}
+        {indeksVarsel && !b.snapshot && (
+          <div className="banner advarsel" role="alert">
+            <span>
+              {indeksVarsel.kolonner.map((k) => `«${k.liste}» har rundt ${k.rader.toLocaleString('nb-NO')} rader, og kolonnen ${k.kolonne} er ikke indeksert.`).join(' ')} Over 5 000 rader
+              slutter snapshots å virke uten indeks. Appen fikk ikke slått på indeksen med din tilgang. Be eieren av området eller IT indeksere kolonnen i SharePoint
+              (Listeinnstillinger › Indekserte kolonner).
+            </span>
+          </div>
+        )}
         <AvklarDialog okt={okt} konflikter={snap.avklar} />
         <AvvikBanner okt={okt} />
         {manglende.length > 0 && (
@@ -1243,3 +1263,25 @@ function Kolonnevelger({ doc, visning, setVisning, lukk }: { doc: Register; visn
   )
 }
 
+
+// Hvilende risker, felles visninger osv. ligger hver i én rad i Klientinnstillinger, med en grense på antall tegn
+function PlassVarsel({ doc }: { doc: Register }) {
+  const fulle = useMemo(() => fulleInnstillinger(doc), [doc])
+  if (!fulle.length) return null
+  const andel = (tegn: number) => Math.round((tegn / INNSTILLING_MAKS_TEGN) * 100)
+  const tekst = (k: string, tegn: number) => {
+    const p = `${andel(tegn)} %`
+    if (k === 'hviler')
+      return `Listen over hvilende risker har brukt ${p} av plassen. Den teller også risker som har våknet og fortsatt har merket. Fjern «våknet»-merkene og vekk risker som ikke lenger trenger å hvile.`
+    if (k === 'visninger')
+      return `De felles visningene (de alle i registeret ser) har brukt ${p} av plassen. Slett felles visninger som ikke brukes. Personlige visninger ligger i nettleseren og teller ikke med.`
+    return `Innstillingen «${k}» har brukt ${p} av plassen den har i SharePoint.`
+  }
+  return (
+    <div className="banner advarsel" role="status">
+      <span>
+        {fulle.map((f) => tekst(f.nokkel, f.tegn)).join(' ')} Blir den full, kan ikke endringer i den lagres.
+      </span>
+    </div>
+  )
+}

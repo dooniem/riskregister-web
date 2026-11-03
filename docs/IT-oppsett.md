@@ -13,6 +13,7 @@ For å teste i en egen tenant uten IT, se [Testmiljo.md](Testmiljo.md).
 | 3 | Legge en lenke til appen på prosjektområdene, f.eks. i navigasjonen | IT eller prosjektet | [Lenke fra prosjektområdet](#2-lenke-fra-prosjektområdet) |
 | 4 | Gi oss en oversikt over listene piloten bruker i dag, så appen kan tilpasses dem | IT | [Listene](#3-listene) |
 | 5 | Kun med `Sites.Selected`: gi appen tilgang til hvert pilotområde | IT | [Sites.Selected](#alternativ-sitesselected) |
+| 6 | Indeksere noen kolonner, og øke antall versjoner på Risker og Tiltak | IT | [Indeksering og versjoner](#4-indeksering-og-versjoner) |
 
 ## Hvor appen ligger
 
@@ -122,6 +123,57 @@ Inntil oversikten finnes, bruker appen sitt eget standardoppsett. Det brukes ogs
 - Listene kan skjules fra navigasjonen. Brukerne trenger ikke å åpne dem direkte.
 - Eldre testregistre med listene «Riskregister Innstillinger» og «Riskregister Tilstede» åpnes som før.
 
+## 4. Indeksering og versjoner
+
+Gjelder lister IT lager eller allerede har satt opp. Lister appen lager selv, får indeksene automatisk, men ikke flere versjoner.
+
+### Indekser
+
+SharePoint filtrerer ikke på en kolonne uten indeks når listen har mer enn 5 000 rader (listevisningsterskelen). Appen henter snapshots ved å filtrere på `SnapshotId`. Snapshotdata får én rad per risk per snapshot, så listen passerer 5 000 rader etter noen år. Med 300 risker og ett snapshot i måneden skjer det etter halvannet år. Er kolonnen ikke indeksert da, slutter snapshots å virke.
+
+Indeksen må lages mens listen er liten. På store lister kan SharePoint nekte.
+
+| Liste (appens navn) | Kolonne (internnavn) | |
+| --- | --- | --- |
+| Riskregister Snapshotdata | `SnapshotId` | Påkrevd |
+| Riskregister Snapshots | `SnapshotId` | Påkrevd |
+| Riskregister Risker | `RiskId` | Anbefalt (nøkkel for oppslag og eksport) |
+| Riskregister Tiltak | `RiskId` | Anbefalt (nøkkel for oppslag og eksport) |
+
+Har listene andre navn hos dere, gjelder det de tilsvarende listene og kolonnene.
+
+**I SharePoint i nettleseren:** åpne listen › tannhjulet › **Listeinnstillinger** › **Indekserte kolonner** › **Opprett en ny indeks** › velg kolonnen som **Primærkolonne** › **Opprett**.
+
+**Med PnP PowerShell:**
+
+```powershell
+Connect-PnPOnline -Url <områdets adresse> -Interactive
+Set-PnPField -List "Riskregister Snapshotdata" -Identity SnapshotId -Values @{ Indexed = $true }
+Set-PnPField -List "Riskregister Snapshots"    -Identity SnapshotId -Values @{ Indexed = $true }
+Set-PnPField -List "Riskregister Risker"       -Identity RiskId     -Values @{ Indexed = $true }
+Set-PnPField -List "Riskregister Tiltak"       -Identity RiskId     -Values @{ Indexed = $true }
+```
+
+**Med Graph:** `PATCH /sites/{site-id}/lists/{list-id}/columns/{column-id}` med `{"indexed": true}`.
+
+**Reserve i appen:** Når Snapshots eller Snapshotdata har passert 4 000 rader og `SnapshotId` ikke er indeksert, prøver appen å slå på indeksen med tilgangen til brukeren som har registeret åpent. Det lykkes bare hvis brukeren kan endre listen og appen har `Sites.Manage.All` (eller `manage` med `Sites.Selected`). Ellers viser appen et varsel om at eieren av området eller IT må indeksere kolonnen. Det er en reserve. Indekser kolonnene når listene settes opp.
+
+### Versjoner
+
+Versjonshistorikken skal stå på, slik den gjør som standard. Appen bruker den til å vise historikken til en risk og til å hente tilbake tidligere verdier. SharePoint tar bare vare på et bestemt antall versjoner per rad, og sletter de eldste uten å si fra. Lister har ofte 50 som standard. En risk som følges opp i flere år, kan få mer enn 50 endringer.
+
+Vi anbefaler **500 hovedversjoner** for Risker, Tiltak og Klientinnstillinger. Radene er små, så det tar lite plass. Gevinsten er lengre historikk. Det gir ingen andre fordeler, og heller ingen ulemper for ytelsen.
+
+**I SharePoint i nettleseren:** **Listeinnstillinger** › **Innstillinger for versjonskontroll** › **Behold følgende antall hovedversjoner**: 500.
+
+**Med PnP PowerShell:**
+
+```powershell
+foreach ($liste in "Riskregister Risker", "Riskregister Tiltak", "Riskregister Klientinnstillinger") {
+  Set-PnPList -Identity $liste -EnableVersioning $true -MajorVersions 500
+}
+```
+
 ## Tilkobling i appen
 
 Prosjektet legger klient-ID og tenant-ID inn i appen. IT trenger ikke å gjøre noe her. Appen bruker den første av disse som finnes:
@@ -142,7 +194,7 @@ Listene kan fortsatt redigeres i SharePoint i nettleseren. Appen tåler det, og 
 - **Risk kopiert,** slik at samme `RiskId` finnes flere ganger: den eldste raden brukes, og kopiene kan gjøres til egne risker eller slettes.
 - **Rad i Klientinnstillinger ødelagt:** raden skrives ikke over før brukeren velger det. Versjonsloggen til raden viser tidligere verdier.
 
-Vi anbefaler at versjonshistorikken på listene står på (det gjør den som standard), slik at enkeltrader kan gjenopprettes.
+Vi anbefaler at versjonshistorikken på listene står på (det gjør den som standard), slik at enkeltrader kan gjenopprettes. Se [Versjoner](#versjoner).
 
 ## Teknisk
 
