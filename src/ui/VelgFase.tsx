@@ -6,7 +6,8 @@ import type { Op } from '../ops'
 // den første som kan skrive, blir bedt om å velge fasen. Fasen settes direkte, uten fasebytte og snapshot.
 export function VelgFaseBanner({ doc, endre }: { doc: Register; endre: (...ops: Op[]) => void }) {
   const faser = doc.lister.faser
-  const [fase, setFase] = useState(faser[0] ?? '')
+  // Den andre fasen i listen (B1 Tilbudsarbeid i standardlisten) er den vanligste når et register tas i bruk
+  const [fase, setFase] = useState(faser[1] ?? faser[0] ?? '')
   const [senere, setSenere] = useState(() => {
     try {
       return sessionStorage.getItem(`rr-fase-senere:${doc.registerId}`) === '1'

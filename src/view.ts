@@ -106,6 +106,7 @@ export const GRUPPERINGER: { key: string; tittel: string; verdi: (r: Risk, doc: 
   { key: 'status', tittel: 'Status risk', verdi: (r) => r.status || '(tom)' },
   { key: 'lukket', tittel: 'Når lukket', verdi: (r, doc) => lukketGruppe(r, doc, nyligLukketDager(doc)) },
   { key: 'fase', tittel: 'Opprettet i fase', verdi: (r, doc) => faseVed(doc, r.opprettet) ?? '(ukjent fase)' },
+  { key: 'lukketfase', tittel: 'Lukket i fase', verdi: (r, doc) => (r.status !== 'Lukket' ? 'Åpne' : (faseVed(doc, r.lukket ?? r.endret) ?? '(ukjent fase)')) },
   { key: 'hvile', tittel: 'Hviler til', verdi: (r, doc) => hvileGruppe(r, doc) },
   { key: 'tiltakstatus', tittel: 'Status på tiltak', verdi: (r) => tiltakOppsummering(r) },
   { key: 'frist', tittel: 'Neste frist', verdi: (r) => fristGruppe(r), rekkefolge: FRIST_GRUPPER },
@@ -154,8 +155,9 @@ export function grupperinger(doc: Register, fane?: Fane) {
       (g.key !== 'egendef2' || doc.lister.egendef2Aktiv) &&
       (g.key !== 'lukket' || fane === 'lukkede' || fane === 'alle') &&
       (g.key !== 'hvile' || fane === 'hviler') &&
-      // «Opprettet i fase» trenger at prosjektet har byttet fase i appen minst én gang
-      (g.key !== 'fase' || !!doc.faseHistorikk?.length),
+      // Fasegrupperingene trenger at prosjektet står i en fase eller har byttet fase i appen
+      ((g.key !== 'fase' && g.key !== 'lukketfase') || !!doc.faseHistorikk?.length || !!doc.prosjekt.fase) &&
+      (g.key !== 'lukketfase' || fane === 'lukkede' || fane === 'alle'),
   ).map((g) =>
     g.key === 'egendef' ? { ...g, tittel: doc.lister.egendefNavn || g.tittel } : g.key === 'egendef2' ? { ...g, tittel: doc.lister.egendef2Navn || g.tittel } : g,
   )
@@ -163,7 +165,7 @@ export function grupperinger(doc: Register, fane?: Fane) {
 
 // Lukkede risker eldes ut av synsfeltet: de som er lukket de siste dagene (90 som standard, kan endres for registeret)
 // står øverst, eldre grupperes per år og er slått sammen til man åpner gruppen. Ingenting slettes.
-// Har prosjektet byttet fase i appen, grupperes de eldre også på fasen de ble lukket i («Lukket i 2027 · B4 Produksjon»).
+// De eldre grupperes også på fasen de ble lukket i («Lukket i 2027 · B4 Produksjon»), ut fra fasehistorikken.
 const NYLIG_LUKKET = 'Lukket siste '
 export const LUKKET_UTEN_DATO = 'Lukket, uten dato'
 const LUKKET_AAR = 'Lukket i '
@@ -371,6 +373,10 @@ export function grupper(doc: Register, risker: Risk[], key: string): Gruppe[] {
   else if (g.rekkefolge) {
     const i = (n: string) => (g.rekkefolge!.indexOf(n) + 1 || 99)
     navn.sort((a, b) => i(a) - i(b))
+  } else if (key === 'fase' || key === 'lukketfase') {
+    // Åpne først, så fasene i samme rekkefølge som fase-listen, faser som ikke står i listen etter, og ukjent til sist
+    const i = (n: string) => (n === 'Åpne' ? 0 : n.startsWith('(') ? 999 : doc.lister.faser.indexOf(n) + 1 || 500)
+    navn.sort((a, b) => i(a) - i(b) || a.localeCompare(b, 'nb'))
   } else if (key === 'opprettet') navn.sort((a, b) => (a.startsWith('(') ? 1 : b.startsWith('(') ? -1 : b.localeCompare(a)))
   else navn.sort((a, b) => (a.startsWith('(') ? 1 : b.startsWith('(') ? -1 : a.localeCompare(b, 'nb')))
   return navn.map((n) => ({ navn: n, risker: m.get(n)! }))

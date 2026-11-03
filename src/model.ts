@@ -262,10 +262,11 @@ export interface Fasebytte {
   av?: string
 }
 
-// Fasen prosjektet var i på et tidspunkt, ut fra fasehistorikken. Undefined når registeret aldri har byttet fase i appen.
+// Fasen prosjektet var i på et tidspunkt, ut fra fasehistorikken. Uten fasebytter er det fasen prosjektet står i nå.
 export function faseVed(doc: Register, iso: string | undefined): string | undefined {
   const h = [...(doc.faseHistorikk ?? [])].sort((a, b) => a.dato.localeCompare(b.dato))
-  if (!h.length || !iso) return undefined
+  if (!iso) return undefined
+  if (!h.length) return doc.prosjekt.fase || undefined
   const d = iso.slice(0, 10)
   let fase = h[0].fra
   for (const b of h) if (b.dato <= d) fase = b.til
