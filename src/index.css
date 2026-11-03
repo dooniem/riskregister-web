@@ -4733,7 +4733,7 @@ td.aktiv .frist-tom {
   visibility: visible;
 }
 
-/* Personfilter («Bare mine») i verktøylinjen */
+/* Personfilter («Der jeg er eier») i verktøylinjen */
 .person-knapp {
   max-width: 220px;
   white-space: nowrap;
@@ -5870,4 +5870,21 @@ button.hvile-merke.vaaknet:hover {
   .kort-stjerne {
     display: none;
   }
+}
+
+/* «Der jeg er eier» med forklaring under, og grått når brukeren ikke eier noe */
+.personmeny .person-liste > button small,
+.personmeny .person-deaktivert small {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--dempet);
+}
+.personmeny .person-deaktivert {
+  padding: 7px 10px;
+  color: var(--dempet);
+  cursor: default;
+}
+.visning-knapp.folger:not(.valgt) .ikon {
+  color: #e0a100;
 }

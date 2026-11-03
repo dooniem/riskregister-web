@@ -1068,7 +1068,7 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
           {(() => {
             const paa = !!visning.stjerner?.includes(kontekst.pos.riskId)
             return (
-              <button onClick={() => (setVisning((v) => byttStjerner(v, [kontekst.pos.riskId], !paa)), setKontekst(null))} title="Stjernen er bare synlig for deg. «Mine stjerner» i personmenyen viser riskene du følger.">
+              <button onClick={() => (setVisning((v) => byttStjerner(v, [kontekst.pos.riskId], !paa)), setKontekst(null))} title="Stjernen er bare synlig for deg. «Følger» over registeret viser riskene du følger.">
                 <Stjerne fylt={paa} /> {paa ? 'Slutt å følge' : 'Følg risken'}
               </button>
             )

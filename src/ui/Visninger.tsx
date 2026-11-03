@@ -4,7 +4,7 @@ import { uid } from '../model'
 import type { Op } from '../ops'
 import type { Visning, VisningInnhold } from '../view'
 import { beskrivVisning, brukVisning, eierNavn, likVisning, STANDARD_VISNING, visningInnhold } from '../view'
-import { Felles, Pluss } from './Ikoner'
+import { Felles, Pluss, Stjerne } from './Ikoner'
 import { Modal, ModalTittel } from './Modal'
 
 // Lagrede visninger: filter, sortering, gruppering og kolonner med et navn, som knapper over registeret.
@@ -29,7 +29,7 @@ function lagrePersonlige(registerId: string, l: LagretVisning[]) {
   }
 }
 
-// Navnet brukeren har i registeret (som risiko- eller tiltakseier), så «Bare mine» kan lagres som «den som bruker visningen»
+// Navnet brukeren har i registeret (som risiko- eller tiltakseier), så «Der jeg er eier» kan lagres som «den som bruker visningen»
 export function megI(doc: Register, brukernavn: string): string | undefined {
   const b = brukernavn.trim().toLowerCase()
   return eierNavn(doc).find((n) => n.toLowerCase() === b) ?? (brukernavn.trim() || undefined)
@@ -60,6 +60,7 @@ export function VisningKnapper({ doc, visning, setVisning, brukernavn, kanLagreF
   // Felles først, så de er på samme plass for alle
   const alle: Lagret[] = useMemo(() => [...(doc.visninger ?? []).map((v) => ({ ...v, felles: true })), ...personlige.map((v) => ({ ...v, felles: false }))], [doc.visninger, personlige])
   const meg = megI(doc, brukernavn)
+  const antallStjerner = (visning.stjerner ?? []).filter((id) => doc.risker.some((r) => r.id === id)).length
   const [aktivId, setAktivId] = useState<string | null>(null)
   const [dialog, setDialog] = useState(false)
   const aktiv = alle.find((v) => v.id === aktivId)
@@ -111,6 +112,18 @@ export function VisningKnapper({ doc, visning, setVisning, brukernavn, kanLagreF
   return (
     <>
       <span className="snarvei-etikett">Visninger</span>
+      {/* Innebygd: riskene brukeren følger (stjerne). Vises bare når det finnes noen, så ingen trenger å sette den opp. */}
+      {(antallStjerner > 0 || visning.kunStjerner) && (
+        <button
+          className={'snarvei visning-knapp folger' + (visning.kunStjerner ? ' valgt' : '')}
+          aria-pressed={!!visning.kunStjerner}
+          title={visning.kunStjerner ? 'Viser bare riskene du følger. Klikk igjen for å vise alle.' : 'Vis bare riskene du følger. Følg en risk med høyreklikk › Følg risken. Stjernene er bare synlige for deg.'}
+          onClick={() => setVisning((v) => ({ ...v, kunStjerner: !v.kunStjerner }))}
+        >
+          <Stjerne str={13} fylt />
+          Følger <span className="teller">{antallStjerner}</span>
+        </button>
+      )}
       {alle.map((v) => {
         const valgt = likVisning(visning, v.innhold, meg)
         return (

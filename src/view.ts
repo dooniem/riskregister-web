@@ -3,7 +3,7 @@
 import type { Kolonne } from './columns'
 import { KOL, visTekst } from './columns'
 import type { Register, Risk } from './model'
-import { eksponering, eksponeringNivaa, faseVed, fv, hvileStatus, hvileTekst, nyligLukketDager } from './model'
+import { eksponering, eksponeringNivaa, faseVed, fv, hvileStatus, hvileTekst, markering, MARKERINGER, nyligLukketDager } from './model'
 
 export type Fane = 'aapne' | 'hviler' | 'lukkede' | 'alle' | 'skarisk'
 
@@ -41,7 +41,7 @@ export interface Visning {
   skjulMarkering?: boolean // skjul fargemarkeringene på risknummer og tiltak, f.eks. før utskrift eller presentasjon
   kostSkala?: 'prosjekt' // kostspennet i moderne utseende: egen skala per risk (standard) eller felles skala for prosjektet
   stjerner?: string[] // risker brukeren følger (personlig stjerne). Ligger i nettleseren sammen med resten av visningen
-  kunStjerner?: boolean // vis bare riskene brukeren følger («Mine stjerner» i personmenyen)
+  kunStjerner?: boolean // vis bare riskene brukeren følger (knappen «Følger» i Visninger-raden)
 }
 
 export const STANDARD_VISNING: Visning = {
@@ -91,7 +91,10 @@ export function fagNavn(r: Risk, doc: Register): string {
   return doc.lister.fag.find((f) => f.id === r.fag)?.navn ?? ''
 }
 
-export const GRUPPERINGER: { key: string; tittel: string; verdi: (r: Risk, doc: Register) => string }[] = [
+// Gruppene for «Neste frist» og «Sist endret», i den rekkefølgen de vises
+const FRIST_GRUPPER = ['Frist passert', 'Neste 7 dager', 'Neste 30 dager', 'Senere', '(ingen åpen frist)']
+const ENDRET_GRUPPER = ['Siste måned', '1–6 måneder siden', 'Mer enn 6 måneder siden', '(ukjent)']
+export const GRUPPERINGER: { key: string; tittel: string; verdi: (r: Risk, doc: Register) => string; rekkefolge?: string[] }[] = [
   { key: '', tittel: 'Ingen gruppering', verdi: () => '' },
   { key: 'fag', tittel: 'Fag', verdi: (r, doc) => fagNavn(r, doc) || '(uten fag)' },
   { key: 'kategori', tittel: 'Kategori', verdi: (r) => r.kategori || '(ingen kategori)' },
@@ -105,7 +108,43 @@ export const GRUPPERINGER: { key: string; tittel: string; verdi: (r: Risk, doc: 
   { key: 'fase', tittel: 'Opprettet i fase', verdi: (r, doc) => faseVed(doc, r.opprettet) ?? '(ukjent fase)' },
   { key: 'hvile', tittel: 'Hviler til', verdi: (r, doc) => hvileGruppe(r, doc) },
   { key: 'tiltakstatus', tittel: 'Status på tiltak', verdi: (r) => tiltakOppsummering(r) },
+  { key: 'frist', tittel: 'Neste frist', verdi: (r) => fristGruppe(r), rekkefolge: FRIST_GRUPPER },
+  { key: 'endret', tittel: 'Sist endret', verdi: (r) => endretGruppe(r), rekkefolge: ENDRET_GRUPPER },
+  { key: 'skarisk', tittel: 'Til Skarisk', verdi: (r) => (r.tilSkarisk ? 'Til Skarisk' : 'Ikke til Skarisk'), rekkefolge: ['Til Skarisk', 'Ikke til Skarisk'] },
+  { key: 'markering', tittel: 'Fargemarkering', verdi: (r) => markering(r.markering)?.navn ?? '(ingen farge)', rekkefolge: [...MARKERINGER.map((m) => m.navn), '(ingen farge)'] },
+  { key: 'opprettet', tittel: 'Opprettet (kvartal)', verdi: (r) => kvartal(r.opprettet) },
 ]
+
+// Nærmeste frist blant tiltakene som ikke er utført eller avsluttet
+function fristGruppe(r: Risk, naa = new Date()): string {
+  const frister = r.tiltak.filter((t) => t.frist && !avsluttet(t.status)).map((t) => t.frist.slice(0, 10))
+  if (!frister.length) return FRIST_GRUPPER[4]
+  const forst = frister.sort()[0]
+  const dag = (n: number) => new Date(naa.getTime() + n * 86_400_000).toLocaleDateString('sv-SE')
+  if (forst < dag(0)) return FRIST_GRUPPER[0]
+  if (forst <= dag(7)) return FRIST_GRUPPER[1]
+  if (forst <= dag(30)) return FRIST_GRUPPER[2]
+  return FRIST_GRUPPER[3]
+}
+
+// Hvor lenge siden risken sist ble endret, samme dato som snarveien «Ikke endret» bruker
+function endretGruppe(r: Risk, naa = new Date()): string {
+  const sist = r.endret ?? r.opprettet
+  if (!sist) return ENDRET_GRUPPER[3]
+  const mnd = (n: number) => {
+    const d = new Date(naa)
+    d.setMonth(d.getMonth() - n)
+    return d.getTime()
+  }
+  const t = Date.parse(sist)
+  return t >= mnd(1) ? ENDRET_GRUPPER[0] : t >= mnd(IKKE_VURDERT_MND) ? ENDRET_GRUPPER[1] : ENDRET_GRUPPER[2]
+}
+
+function kvartal(iso?: string): string {
+  if (!iso) return '(ukjent)'
+  const d = new Date(iso)
+  return `${d.getFullYear()} K${Math.floor(d.getMonth() / 3) + 1}`
+}
 
 // Grupperingene som kan velges i registeret: de egendefinerte får navnet fra prosjektet, og felt 2 er bare med når det er aktivert
 // «Når lukket» gir bare mening der det finnes lukkede risker, altså i Lukkede og Alle.
@@ -328,6 +367,11 @@ export function grupper(doc: Register, risker: Risk[], key: string): Gruppe[] {
     }
     navn.sort((a, b) => (nokkel(a) < nokkel(b) ? -1 : nokkel(a) > nokkel(b) ? 1 : 0))
   }
+  // Faste grupper står i en naturlig rekkefølge (frist, farge), kvartalene med det nyeste først
+  else if (g.rekkefolge) {
+    const i = (n: string) => (g.rekkefolge!.indexOf(n) + 1 || 99)
+    navn.sort((a, b) => i(a) - i(b))
+  } else if (key === 'opprettet') navn.sort((a, b) => (a.startsWith('(') ? 1 : b.startsWith('(') ? -1 : b.localeCompare(a)))
   else navn.sort((a, b) => (a.startsWith('(') ? 1 : b.startsWith('(') ? -1 : a.localeCompare(b, 'nb')))
   return navn.map((n) => ({ navn: n, risker: m.get(n)! }))
 }
@@ -432,8 +476,8 @@ export function beskrivVisning(doc: Register, innhold: VisningInnhold): string[]
   const ut: string[] = [`Fanen ${FANE_NAVN[innhold.fane ?? 'aapne']}`]
   const f = innhold.filter
   if (f?.snarvei) ut.push(`Snarveien «${SNARVEIER.find((s) => s.key === f.snarvei)?.tittel}»`)
-  if (innhold.person) ut.push(innhold.person === MEG ? 'Bare den som bruker visningen (risiko- eller tiltakseier)' : `Bare ${innhold.person}`)
-  if (innhold.kunStjerner) ut.push('Bare risker med stjerne (hver bruker ser sine egne)')
+  if (innhold.person) ut.push(innhold.person === MEG ? 'Der den som bruker visningen, er risikoeier eller tiltakseier' : `Bare ${innhold.person}`)
+  if (innhold.kunStjerner) ut.push('Bare riskene brukeren følger (hver bruker ser sine egne stjerner)')
   if (innhold.fag?.length) ut.push(`Fag: ${innhold.fag.map((id) => (id === UTEN_FAG ? 'uten fag' : (doc.lister.fag.find((x) => x.id === id)?.navn ?? '?'))).join(', ')}`)
   for (const [k, verdier] of Object.entries(f?.verdier ?? {})) ut.push(`${kolTittel(doc, k)}: ${verdier.map((x) => x || '(tom)').join(', ')}`)
   for (const [k, t] of Object.entries(f?.tekst ?? {})) ut.push(`${kolTittel(doc, k)} inneholder «${t}»`)
