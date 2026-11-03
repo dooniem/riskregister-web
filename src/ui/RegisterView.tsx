@@ -9,7 +9,7 @@ import type { Konflikt, Op } from '../ops'
 import { SimulertKollega } from '../sim'
 import type { Okt } from '../sync'
 import type { Snarvei, Stil, Visning } from '../view'
-import { STANDARD_VISNING, SNARVEIER, aktivGruppering, byttStjerner, grupperinger, iFane, iSnarvei, STILER, filtrer, lagreStil, lesStil } from '../view'
+import { STANDARD_VISNING, SNARVEIER, aktivGruppering, aktivUndergruppering, byttStjerner, grupperinger, iFane, iSnarvei, STILER, filtrer, lagreStil, lesStil } from '../view'
 import { DemoFiler, type FilKilde } from '../store/filer'
 import { GraphFiler } from '../store/graphFiler'
 import { GraphLister, omraadeLenke } from '../store/lister/graphLister'
@@ -376,6 +376,33 @@ export function RegisterView({ okt, tilbake }: Props) {
   const velgSnarvei = (key: Snarvei) =>
     setVisning((v) => ({ ...v, filter: v.filter.snarvei === key ? { ...v.filter, snarvei: undefined, snarveiFra: undefined } : { ...v.filter, snarvei: key, snarveiFra } }))
 
+  // «Og deretter»: undergruppering av hver gruppe. Vises når det er valgt en gruppering.
+  const undergruppering = aktivUndergruppering(visning)
+  const undervalg = grupperinger(doc, visning.fane).filter((g) => g.key !== gruppering && g.key !== 'hvile')
+  const velgUndergruppering = (key: string) => setVisning((v) => ({ ...v, undergruppering: key }))
+  const undergrupperValg = !gruppering ? null : samlet ? (
+    <label className="knapp grupper-knapp">
+      og deretter: {undergruppering ? undervalg.find((g) => g.key === undergruppering)?.tittel : 'Ingen'} <Pil />
+      <select aria-label="Og deretter grupper etter" value={undergruppering} onChange={(e) => velgUndergruppering(e.target.value)}>
+        {undervalg.map((g) => (
+          <option key={g.key} value={g.key}>
+            {g.tittel}
+          </option>
+        ))}
+      </select>
+    </label>
+  ) : (
+    <label className="velg">
+      og deretter
+      <select aria-label="Og deretter grupper etter" value={undergruppering} onChange={(e) => velgUndergruppering(e.target.value)}>
+        {undervalg.map((g) => (
+          <option key={g.key} value={g.key}>
+            {g.tittel}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
   const grupperValg = samlet ? (
     // Ser ut som en knapp («Grupper: Ingen»), men er en vanlig nedtrekksliste under, så tastatur og skjermleser virker som før
     <label className="knapp grupper-knapp">
@@ -821,6 +848,7 @@ export function RegisterView({ okt, tilbake }: Props) {
               }}
             />
             {!samlet && visning.fane !== 'hviler' && grupperValg}
+            {!samlet && visning.fane !== 'hviler' && undergrupperValg}
             <FagMeny doc={doc} visning={visning} setVisning={setVisning} endre={endre} kanSkrive={kanSkrive} />
             {personValg}
             {!mobil && !samlet && kolonneKnapp}
@@ -839,6 +867,7 @@ export function RegisterView({ okt, tilbake }: Props) {
           {samlet && (
             <div className="verktoy-hoyre">
               {visning.fane !== 'skarisk' && visning.fane !== 'hviler' && grupperValg}
+              {visning.fane !== 'skarisk' && visning.fane !== 'hviler' && undergrupperValg}
               {visning.fane !== 'skarisk' && !mobil && kolonneKnapp}
               {oversiktKnapp}
               {kanLageRisk && (
