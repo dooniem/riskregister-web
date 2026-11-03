@@ -164,11 +164,23 @@ export function Risikobilde(p: Props) {
               Sammenlign med
               <select value={p.mot?.info.id ?? ''} disabled={henter || !liste} onChange={(e) => void velg(e.target.value)}>
                 <option value="">{liste?.length === 0 ? 'Ingen snapshots ennå' : 'Ingen sammenligning'}</option>
-                {liste?.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.navn} ({new Date(s.tidspunkt).toLocaleDateString('nb-NO')})
-                  </option>
-                ))}
+                {(() => {
+                  // Milepælene i en egen gruppe øverst, så sluttstatusen for f.eks. tilbudet er lett å finne
+                  const m = p.doc.milepaeler ?? []
+                  const valg = (s: SnapshotInfo) => (
+                    <option key={s.id} value={s.id}>
+                      {s.navn} ({new Date(s.tidspunkt).toLocaleDateString('nb-NO')})
+                    </option>
+                  )
+                  const milepaeler = liste?.filter((s) => m.includes(s.id)) ?? []
+                  if (!milepaeler.length) return liste?.map(valg)
+                  return (
+                    <>
+                      <optgroup label="Milepæler">{milepaeler.map(valg)}</optgroup>
+                      <optgroup label="Andre snapshots">{liste?.filter((s) => !m.includes(s.id)).map(valg)}</optgroup>
+                    </>
+                  )
+                })()}
               </select>
             </label>
           )}

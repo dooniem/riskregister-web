@@ -30,6 +30,7 @@ import { OmDialog } from './Om'
 import { BruddDialog, bruddTekst, LaasDialog, visTid } from './LaasDialog'
 import { SnarveierDialog } from './Snarveier'
 import { SnapshotDialog } from './Snapshots'
+import { ByttFaseDialog } from './ByttFase'
 import { HistorikkDialog, HistorikkKontekst } from './Historikk'
 import { StorMatrise } from './StorMatrise'
 import { Risikobilde } from './Risikobilde'
@@ -160,6 +161,7 @@ export function RegisterView({ okt, tilbake }: Props) {
   const [historikkFor, setHistorikkFor] = useState<string | null>(null)
   const hentHistorikk = useCallback((id: string) => b.historikk?.(id) ?? Promise.resolve([]), [b])
   const [snapshots, setSnapshots] = useState<false | 'liste' | 'endringer'>(false)
+  const [byttFase, setByttFase] = useState(false)
   const [storMatrise, setStorMatrise] = useState<'R' | 'M' | null>(null)
   // Snapshotet registeret sammenlignes med akkurat nå
   const [mot, setMot] = useState<{ info: SnapshotInfo; doc: Register } | null>(null)
@@ -528,6 +530,11 @@ export function RegisterView({ okt, tilbake }: Props) {
                     </button>
                   </>
                 )}
+                {kanSkrive && !b.snapshot && (
+                  <button onClick={() => setByttFase(true)} title="Ta et milepæl-snapshot, gå gjennom de åpne riskene og sett ny fase, f.eks. fra tilbud til produksjon">
+                    Bytt fase…
+                  </button>
+                )}
                 {!moderne && <button onClick={() => setStorMatrise('R')}>Stor risikomatrise…</button>}
                 {b.lager && <button onClick={() => setRaadata(true)}>Vis rådata (listene)…</button>}
                 {b.lager instanceof GraphLister && (
@@ -895,6 +902,16 @@ export function RegisterView({ okt, tilbake }: Props) {
             aapneRisk={(id) => (setSide((x) => ({ ...x, navn: 'register' })), setDetalj(id))}
             aktiver={setMot}
             start={snapshots === 'endringer' && mot ? mot : undefined}
+            endre={kanSkrive ? endre : undefined}
+          />
+        )}
+        {byttFase && kanSkrive && (
+          <ByttFaseDialog
+            doc={doc}
+            snapshots={b.snapshot ? undefined : b.snapshots}
+            endre={endre}
+            lukk={() => (setByttFase(false), setSnapshotsLukket((n) => n + 1))}
+            melding={melding}
           />
         )}
         {storMatrise && (
