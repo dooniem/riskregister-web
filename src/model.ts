@@ -143,7 +143,14 @@ export interface Lister {
   egendef2Navn: string
   egendef2: string[]
   fag: Fag[]
+  // Hvor mange dager en lukket risk står øverst i Lukkede-fanen før den flyttes til gruppen for året den ble lukket.
+  // Gjelder for alle i registeret. Mangler den, brukes NYLIG_LUKKET_STANDARD.
+  nyligLukketDager?: number
 }
+
+export const NYLIG_LUKKET_STANDARD = 90
+export const NYLIG_LUKKET_VALG = [30, 60, 90, 180, 365]
+export const nyligLukketDager = (doc: Register) => doc.lister.nyligLukketDager || NYLIG_LUKKET_STANDARD
 
 export interface Prosjekt {
   nummer: string

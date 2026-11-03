@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Lister, Prosjekt, Register } from '../model'
-import { uid } from '../model'
+import { NYLIG_LUKKET_STANDARD, NYLIG_LUKKET_VALG, nyligLukketDager, uid } from '../model'
 import type { Op } from '../ops'
 import type { Kobling } from './Personer'
 import { KoblingListe, LeggTilFraOrg, SokFeil, finnKoblinger, usePersoner } from './Personer'
@@ -346,6 +346,24 @@ function ListerRed({ doc, endre, kanSkrive, hentOppsett }: { doc: Register; endr
         ))}
       </div>
       <p className="liten">«Status risk» er låst fordi «Lukket» styrer hvilke risker som vises under Åpne og Lukkede.</p>
+      <label className="felt">
+        <span>Lukkede risker står øverst i Lukkede i</span>
+        <select
+          value={nyligLukketDager(doc)}
+          disabled={!kanSkrive}
+          onChange={(e) => endre({ t: 'setListe', key: 'nyligLukketDager', verdi: Number(e.target.value) })}
+          style={{ maxWidth: 200 }}
+        >
+          {[...new Set([...NYLIG_LUKKET_VALG, nyligLukketDager(doc)])]
+            .sort((a, b) => a - b)
+            .map((d) => (
+              <option key={d} value={d}>
+                {d} dager{d === NYLIG_LUKKET_STANDARD ? ' (standard)' : ''}
+              </option>
+            ))}
+        </select>
+      </label>
+      <p className="liten">Eldre lukkede risker samles per år og er slått sammen til man åpner gruppen. Gjelder for alle som bruker registeret.</p>
     </div>
   )
 }
