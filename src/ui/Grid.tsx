@@ -7,7 +7,7 @@ import type { Op, RiskFelt, TiltakFelt } from '../ops'
 import type { Tilstede } from '../store/backend'
 import type { Okt } from '../sync'
 import type { Gruppe, Visning } from '../view'
-import { aktivGruppering, byttStjerner, filtrer, filterVerdier, grupper, sammenslaattSomStandard, sorter, summer } from '../view'
+import { aktivGruppering, aktivUndergruppering, byttStjerner, filtrer, filterVerdier, grupperNivaa, sammenslaattSomStandard, sorter, summer } from '../view'
 import type { Flytt } from './Editor'
 import { CelleEditor } from './Editor'
 import { FagMerke, FagVelger, fagForNyRisk } from './Fag'
@@ -176,31 +176,39 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   // Felles skala for kostspennet når brukeren har valgt det i FV-kolonnen, ellers egen skala per risk
   const kostSkala = useMemo(() => (visning.kostSkala === 'prosjekt' ? prosjektSkala(doc.risker) : undefined), [doc.risker, visning.kostSkala])
   const gruppering = aktivGruppering(visning)
-  const grupperte: Gruppe[] = useMemo(() => grupper(doc, risker, gruppering), [doc, risker, gruppering])
+  const undergruppering = aktivUndergruppering(visning)
+  const grupperte: Gruppe[] = useMemo(() => grupperNivaa(doc, risker, gruppering, undergruppering), [doc, risker, gruppering, undergruppering])
   // Når man søker, vises treffene også i gruppene som ellers er slått sammen
   const sok = !!visning.sok.trim()
+  // En gruppe er slått sammen av brukeren, eller som standard (eldre lukkede risker). Undergruppene følger hovedgruppen.
   const erLukket = useCallback(
-    (navn: string) => !!navn && (lukketGrupper.includes(navn) || (sammenslaattSomStandard(gruppering, navn) && !sok && !aapnetGrupper.includes(navn))),
+    (g: Gruppe) => {
+      const id = g.id ?? g.navn
+      return !!g.navn && (lukketGrupper.includes(id) || (sammenslaattSomStandard(g.key ?? gruppering, g.navn) && !sok && !aapnetGrupper.includes(id)))
+    },
     [lukketGrupper, aapnetGrupper, gruppering, sok],
   )
-  const byttGruppe = (navn: string) => {
-    const lukk = !erLukket(navn)
-    setLukketGrupper((l) => (lukk ? [...l, navn] : l.filter((x) => x !== navn)))
-    setAapnetGrupper((l) => (lukk ? l.filter((x) => x !== navn) : [...l, navn]))
+  const forelder = useMemo(() => new Map(grupperte.filter((g) => g.nivaa === 0).map((g) => [g.id!, g])), [grupperte])
+  const skjult = useCallback((g: Gruppe) => !!g.forelder && !!forelder.get(g.forelder) && erLukket(forelder.get(g.forelder)!), [forelder, erLukket])
+  const byttGruppe = (g: Gruppe) => {
+    const id = g.id ?? g.navn
+    const lukk = !erLukket(g)
+    setLukketGrupper((l) => (lukk ? [...l, id] : l.filter((x) => x !== id)))
+    setAapnetGrupper((l) => (lukk ? l.filter((x) => x !== id) : [...l, id]))
   }
 
   // Alle synlige linjer i rekkefølge. En risk tar like mange linjer som den har tiltak (minst én).
   const linjer = useMemo(() => {
     const ut: Linje[] = []
     for (const g of grupperte) {
-      if (erLukket(g.navn)) continue
+      if (erLukket(g) || skjult(g)) continue
       for (const r of g.risker) {
         const n = Math.max(1, r.tiltak.length)
         for (let i = 0; i < n; i++) ut.push({ risk: r, tiltak: r.tiltak[i], forste: i === 0, span: n })
       }
     }
     return ut
-  }, [grupperte, erLukket])
+  }, [grupperte, erLukket, skjult])
 
   // Riskene i den rekkefølgen de vises, for Shift-merking
   const riskRekke = useMemo(() => linjer.filter((l) => l.forste).map((l) => l.risk.id), [linjer])
@@ -896,17 +904,18 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
           </tr>
         </thead>
         {grupperte.map((g) => (
-          <Fragment key={g.navn || '_'}>
-            {g.navn && (
+          <Fragment key={g.id ?? (g.navn || '_')}>
+            {g.navn && !skjult(g) && (
               <GruppeOverskrift
                 gruppe={g}
                 antallKol={kolonner.length}
-                lukket={erLukket(g.navn)}
-                bytt={() => byttGruppe(g.navn)}
+                lukket={erLukket(g)}
+                bytt={() => byttGruppe(g)}
                 mot={mot}
               />
             )}
-            {!erLukket(g.navn) &&
+            {!erLukket(g) &&
+              !skjult(g) &&
               g.risker.map((r) => (
                 <RiskRader
                   key={r.id}
@@ -1225,22 +1234,23 @@ function nrListe(r: Risk[]) {
 }
 
 function GruppeOverskrift({ gruppe, antallKol, lukket, bytt, mot }: { gruppe: Gruppe; antallKol: number; lukket: boolean; bytt: () => void; mot?: Map<string, Risk> }) {
-  const r = summer(gruppe.risker, 'R')
-  const m = summer(gruppe.risker, 'M')
+  const alle = gruppe.alle ?? gruppe.risker
+  const r = summer(alle, 'R')
+  const m = summer(alle, 'M')
   // Samme risker slik de var i snapshotet (risker som er nye siden, teller som 0 der)
-  const gamle = mot && gruppe.risker.map((x) => mot.get(x.id)).filter((x): x is Risk => !!x)
+  const gamle = mot && alle.map((x) => mot.get(x.id)).filter((x): x is Risk => !!x)
   const endring = (rm: 'R' | 'M', naa: number) => {
     const e = gamle ? formatEndring(naa - summer(gamle, rm).fv) : ''
     return e ? ` (${e})` : ''
   }
   return (
-    <tbody className="gruppe-tbody">
+    <tbody className={'gruppe-tbody' + (gruppe.nivaa === 1 ? ' undergruppe' : '')}>
       <tr>
         <td colSpan={antallKol} onClick={bytt}>
           <span className="chevron">{lukket ? <Pil retning="hoyre" /> : <Pil />}</span>
           <strong>{gruppe.navn}</strong>
           <span className="gruppe-info">
-            {gruppe.risker.length} {gruppe.risker.length === 1 ? 'risk' : 'risker'}
+            {alle.length} {alle.length === 1 ? 'risk' : 'risker'}
             {r.antall > 0 && ` · R: FV ${formatTall(r.fv)}${endring('R', r.fv)}`}
             {m.antall > 0 && ` · M: FV ${formatTall(m.fv)}${endring('M', m.fv)}`}
           </span>

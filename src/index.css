@@ -859,6 +859,17 @@ table.grid {
   position: sticky;
   left: 0;
 }
+.gruppe-tbody.undergruppe td {
+  background: var(--flate) !important;
+  font-size: 13px;
+}
+.gruppe-tbody.undergruppe .chevron {
+  margin-left: 22px;
+}
+.kort-gruppe.undergruppe {
+  font-size: 13px;
+  padding-left: 14px;
+}
 .gruppe-info {
   color: var(--dempet);
   margin-left: 10px;

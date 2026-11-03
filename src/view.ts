@@ -28,6 +28,7 @@ export interface Visning {
   filter: Filter
   gruppering: string // '' = ingen
   grupperingLukkede?: string // egen gruppering i Lukkede-fanen. Mangler den, grupperes lukkede risker etter når de ble lukket
+  undergruppering?: string // «og deretter»: grupper hver gruppe en gang til. Maks to nivåer.
   skjulteGrupper: string[] // kolonnegrupper som er slått sammen
   skjulteKolonner: string[]
   bredder: Record<string, number>
@@ -197,6 +198,15 @@ export function aktivGruppering(v: Visning): string {
   return (v.gruppering === 'lukket' && v.fane !== 'alle') || v.gruppering === 'hvile' ? '' : v.gruppering
 }
 
+// «Og deretter»: undergrupperingen gjelder bare når det er en hovedgruppering, og ikke er den samme
+export function aktivUndergruppering(v: Visning): string {
+  const g = aktivGruppering(v)
+  const u = v.undergruppering ?? ''
+  if (!g || !u || u === g || u === 'hvile' || v.fane === 'hviler') return ''
+  if ((u === 'lukket' || u === 'lukketfase') && v.fane !== 'lukkede' && v.fane !== 'alle') return ''
+  return u
+}
+
 // Snarveier: ferdige utvalg som appen regner ut, for å finne det som haster eller er glemt når registeret har vokst
 export type Snarvei = 'frist' | 'ikkeVurdert' | 'nye' | 'utenTiltak' | 'vaaknet'
 export const IKKE_VURDERT_MND = 6
@@ -345,7 +355,22 @@ const lukketRang = (n: string) => (n === 'Åpne' ? 0 : n.startsWith(NYLIG_LUKKET
 
 export interface Gruppe {
   navn: string
-  risker: Risk[]
+  risker: Risk[] // riskene som vises rett under overskriften (tom for en hovedgruppe med undergrupper)
+  key?: string // grupperingen gruppen kommer fra
+  id?: string // unik for gruppen, også når to hovedgrupper har undergrupper med samme navn
+  nivaa?: 0 | 1
+  forelder?: string // id til hovedgruppen
+  alle?: Risk[] // alle riskene i gruppen, for antall og summer i overskriften
+}
+
+// Grupper på ett eller to nivåer. Med undergruppering kommer hver hovedgruppe først, fulgt av undergruppene sine.
+export function grupperNivaa(doc: Register, risker: Risk[], key: string, under: string): Gruppe[] {
+  const hoved = grupper(doc, risker, key).map((g): Gruppe => ({ ...g, key, id: g.navn, nivaa: 0 }))
+  if (!key || !under) return hoved
+  return hoved.flatMap((h) => [
+    { ...h, risker: [], alle: h.risker },
+    ...grupper(doc, h.risker, under).map((u): Gruppe => ({ ...u, key: under, id: `${h.navn}\u0000${u.navn}`, nivaa: 1, forelder: h.navn })),
+  ])
 }
 
 export function grupper(doc: Register, risker: Risk[], key: string): Gruppe[] {
@@ -405,7 +430,7 @@ export function summer(risker: Risk[], rm: 'R' | 'M'): Summer {
 
 // Lagrede visninger: det som bestemmer hvilke risker som vises og hvordan, med et navn.
 // Søket hører til det man leter etter akkurat nå og lagres ikke. Bredder, oversikten, fagmerker, fargemarkering og kostskala er personlige vaner og følger ikke med.
-export const VISNING_FELT = ['fane', 'sortering', 'filter', 'gruppering', 'grupperingLukkede', 'skjulteGrupper', 'skjulteKolonner', 'fag', 'person', 'kunStjerner', 'samletUtenKategori', 'samletEgendef'] as const
+export const VISNING_FELT = ['fane', 'sortering', 'filter', 'gruppering', 'grupperingLukkede', 'undergruppering', 'skjulteGrupper', 'skjulteKolonner', 'fag', 'person', 'kunStjerner', 'samletUtenKategori', 'samletEgendef'] as const
 export type VisningInnhold = Partial<Pick<Visning, (typeof VISNING_FELT)[number]>>
 
 // Personfilteret på brukeren selv lagres som MEG, så «Mine tiltak» viser tiltakene til den som bruker visningen
@@ -423,6 +448,7 @@ export function visningInnhold(v: Visning, meg?: string): VisningInnhold {
     },
     gruppering: v.gruppering,
     grupperingLukkede: v.grupperingLukkede,
+    undergruppering: v.undergruppering || undefined,
     skjulteGrupper: v.skjulteGrupper,
     skjulteKolonner: v.skjulteKolonner,
     fag: v.fag?.length ? v.fag : undefined,
@@ -450,6 +476,7 @@ export function brukVisning(v: Visning, innhold: VisningInnhold, meg: string | u
     },
     gruppering: innhold.gruppering ?? '',
     grupperingLukkede: innhold.grupperingLukkede,
+    undergruppering: innhold.undergruppering,
     skjulteGrupper: innhold.skjulteGrupper ?? [],
     skjulteKolonner: innhold.skjulteKolonner ?? [],
     fag: innhold.fag ?? [],
@@ -490,7 +517,9 @@ export function beskrivVisning(doc: Register, innhold: VisningInnhold): string[]
   if (f?.matrise) ut.push(`Sannsynlighet ${f.matrise.s}, konsekvens ${f.matrise.k}`)
   if (innhold.sortering?.length) ut.push(`Sortert på ${innhold.sortering.map((s) => `${kolTittel(doc, s.key)} (${s.stigende ? 'stigende' : 'synkende'})`).join(', ')}`)
   const g = aktivGruppering({ ...STANDARD_VISNING, ...innhold } as Visning)
-  if (g) ut.push(`Gruppert på ${(GRUPPERINGER.find((x) => x.key === g)?.tittel ?? g).toLowerCase()}`)
+  const u = aktivUndergruppering({ ...STANDARD_VISNING, ...innhold } as Visning)
+  const tittel = (k: string) => (GRUPPERINGER.find((x) => x.key === k)?.tittel ?? k).toLowerCase()
+  if (g) ut.push(`Gruppert på ${tittel(g)}${u ? ` og deretter ${tittel(u)}` : ''}`)
   const skjult = (innhold.skjulteKolonner?.length ?? 0) + (innhold.skjulteGrupper?.length ?? 0)
   if (skjult)
     ut.push(
