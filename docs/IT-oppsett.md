@@ -14,8 +14,6 @@ Appen:
 
 Alle registerdata blir dermed liggende i prosjektets SharePoint-område.
 
-For testing i en separat tenant uten bistand fra IT, se [Testmiljo.md](Testmiljo.md).
-
 ---
 
 ## 2. Dette må avklares eller utføres av IT
