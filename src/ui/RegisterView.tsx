@@ -922,6 +922,14 @@ export function RegisterView({ okt, tilbake }: Props) {
             </div>
           )}
         </div>
+        {/* Forklaring for dem som ikke var med da riskene ble lagt til hvile. Vises bare mens snarveien er valgt. */}
+        {visning.filter.snarvei === 'vaaknet' && visning.fane !== 'skarisk' && (
+          <div className="vaaknet-info banner info" role="note">
+            <b>Våknet</b> er risker som noen la til hvile til en dato eller en fase, fordi de ikke var aktuelle ennå. Nå er tiden ute, og de er tilbake blant de åpne. Gå gjennom dem, gjerne i riskmøtet: er risken fortsatt aktuell, oppdater vurdering, tiltak og frist, ellers lukk den.
+            {kanSkrive && ' Når en risk er gjennomgått, klikker du på «våknet»-merket i Nr.-kolonnen. Da blir den en vanlig åpen risk og forsvinner herfra.'}
+            {' '}Hold musen over merket for å se hvem som la den til hvile, og til når.
+          </div>
+        )}
 
         <div className="hovedflate">
           {visning.fane === 'skarisk' ? (

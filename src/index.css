@@ -5876,3 +5876,17 @@ button.hvile-merke.vaaknet:hover {
   background: var(--flate);
   width: 100%;
 }
+.vaaknet-info {
+  display: block;
+  margin: 0 14px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.stil-moderne .vaaknet-info {
+  margin: 0 20px 12px;
+}
+@media print {
+  .vaaknet-info {
+    display: none;
+  }
+}
