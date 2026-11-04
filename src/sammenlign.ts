@@ -1,7 +1,7 @@
 // Sammenligner to utgaver av et register, f.eks. et snapshot og registeret slik det er nå.
 // Riskene og tiltakene kobles på id, så endret tekst og nytt nummer ikke gjør at de regnes som nye.
 import type { Register, Risk, Tiltak } from './model'
-import { eksponering, fv } from './model'
+import { egendef2IBruk, eksponering, fv } from './model'
 
 export interface FeltEndring {
   felt: string
@@ -63,7 +63,7 @@ function riskFelt(doc: Register): [string, (r: Risk) => string][] {
     ['WC', (r) => tall(r.wc)],
     ['Til Skarisk', (r) => jaNei(r.tilSkarisk)],
   ]
-  if (doc.lister.egendef2Aktiv) felt.push([doc.lister.egendef2Navn || 'Egendefinert 2', (r) => r.egendef2 ?? ''])
+  if (egendef2IBruk(doc)) felt.push([doc.lister.egendef2Navn || 'Egendefinert 2', (r) => r.egendef2 ?? ''])
   return felt
 }
 

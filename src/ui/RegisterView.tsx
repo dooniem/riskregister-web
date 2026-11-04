@@ -9,7 +9,7 @@ import type { Konflikt, Op } from '../ops'
 import { SimulertKollega } from '../sim'
 import type { Okt } from '../sync'
 import type { Snarvei, Stil, Visning } from '../view'
-import { STANDARD_VISNING, SNARVEIER, aktivGruppering, aktivUndergruppering, byttStjerner, grupperinger, iFane, iSnarvei, STILER, filtrer, lagreStil, lesStil } from '../view'
+import { STANDARD_VISNING, SNARVEIER, aktivGruppering, aktivUndergruppering, byttStjerner, grupperinger, iFane, iSnarvei, kolonneSkjult, STILER, filtrer, lagreStil, lesStil, visKolonne } from '../view'
 import { DemoFiler, type FilKilde } from '../store/filer'
 import { GraphFiler } from '../store/graphFiler'
 import { GraphLister, omraadeLenke } from '../store/lister/graphLister'
@@ -1169,7 +1169,7 @@ function SamletKolonnevelger({ doc, visning, setVisning, lukk }: { doc: Register
       {(
         [
           ['egendef', doc.lister.egendefNavn],
-          ...(doc.lister.egendef2Aktiv ? [['egendef2', doc.lister.egendef2Navn]] : []),
+          ['egendef2', doc.lister.egendef2Navn],
         ] as [string, string][]
       ).map(([key, navn]) => (
         <label key={key} className="kollabel underkol">
@@ -1239,9 +1239,9 @@ function Kolonnevelger({ doc, visning, setVisning, lukk }: { doc: Register; visn
       </div>
       <div className="meny-tittel">Kolonner</div>
       {GRUPPER.filter((g) => g.key !== 'fast').map((g) => {
-        const kols = KOLONNER.filter((k) => k.gruppe === g.key && (k.key !== 'egendef2' || doc.lister.egendef2Aktiv))
+        const kols = KOLONNER.filter((k) => k.gruppe === g.key)
         const valgbare = kols.filter((k) => !k.frosset).map((k) => k.key)
-        const synlige = valgbare.filter((key) => !visning.skjulteKolonner.includes(key)).length
+        const synlige = valgbare.filter((key) => !kolonneSkjult(visning, key, doc.lister.egendef2Aktiv)).length
         const sammen = visning.skjulteGrupper.includes(g.key)
         return (
           <div key={g.key} className={'kolgruppe' + (sammen ? ' sammen' : '')}>
@@ -1251,12 +1251,7 @@ function Kolonnevelger({ doc, visning, setVisning, lukk }: { doc: Register; visn
                 <AlleValgt
                   alle={synlige === valgbare.length}
                   noen={synlige > 0 && synlige < valgbare.length}
-                  onChange={(paa) =>
-                    setVisning((v) => ({
-                      ...v,
-                      skjulteKolonner: paa ? v.skjulteKolonner.filter((x) => !valgbare.includes(x)) : [...v.skjulteKolonner.filter((x) => !valgbare.includes(x)), ...valgbare],
-                    }))
-                  }
+                  onChange={(paa) => setVisning((v) => valgbare.reduce((ny, key) => visKolonne(ny, key, paa), v))}
                 />
                 <strong>{g.tittel}</strong>
               </label>
@@ -1274,10 +1269,8 @@ function Kolonnevelger({ doc, visning, setVisning, lukk }: { doc: Register; visn
                 <input
                   type="checkbox"
                   disabled={!!k.frosset}
-                  checked={!visning.skjulteKolonner.includes(k.key)}
-                  onChange={(e) =>
-                    setVisning((v) => ({ ...v, skjulteKolonner: e.target.checked ? v.skjulteKolonner.filter((x) => x !== k.key) : [...v.skjulteKolonner, k.key] }))
-                  }
+                  checked={!kolonneSkjult(visning, k.key, doc.lister.egendef2Aktiv)}
+                  onChange={(e) => setVisning((v) => visKolonne(v, k.key, e.target.checked))}
                 />
                 {k.tittel(doc)}
               </label>
@@ -1285,7 +1278,7 @@ function Kolonnevelger({ doc, visning, setVisning, lukk }: { doc: Register; visn
           </div>
         )
       })}
-      <button className="lenkeknapp" onClick={() => setVisning((v) => ({ ...v, skjulteGrupper: [], skjulteKolonner: [], bredder: {} }))}>
+      <button className="lenkeknapp" onClick={() => setVisning((v) => ({ ...v, skjulteGrupper: [], skjulteKolonner: [], visEgendef2: undefined, bredder: {} }))}>
         Tilbakestill kolonner og bredder
       </button>
     </div>
