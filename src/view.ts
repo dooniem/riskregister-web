@@ -306,6 +306,8 @@ export function eierNavn(doc: Register): string[] {
 }
 
 export function filtrer(doc: Register, v: Visning, ignorer?: string): Risk[] {
+  // Til Skarisk viser alltid alle åpne risker merket for Skarisk. Søk og filtre er skjult der og skal ikke gjelde, heller ikke i summene.
+  if (v.fane === 'skarisk') return doc.risker.filter((r) => iFane(r, 'skarisk', doc))
   const sok = v.sok.trim().toLowerCase()
   return doc.risker.filter((r) => {
     if (!iFane(r, v.fane, doc)) return false
