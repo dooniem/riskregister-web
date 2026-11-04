@@ -3,6 +3,7 @@ import type { Register } from '../model'
 import { hvileStatus } from '../model'
 import type { Op } from '../ops'
 import type { Snapshots } from '../store/backend'
+import { FaseVelger } from './FaseVelger'
 import { Modal, ModalTittel } from './Modal'
 
 interface Props {
@@ -142,19 +143,12 @@ export function ByttFaseDialog({ doc, snapshots, endre, lukk, melding }: Props) 
           <div className="skjema">
             <label className="felt">
               <span>Ny fase</span>
-              {/* Forslagene kommer fra fase-listen under Lister og valg, men fasen kan også få et eget navn */}
-              <input list="fasebytte-faser" value={fase} onChange={(e) => setFase(e.target.value)} placeholder="Velg fra listen eller skriv et eget navn" />
-              <datalist id="fasebytte-faser">
-                {faser
-                  .filter((f) => f !== gammel)
-                  .map((f) => (
-                    <option key={f} value={f} />
-                  ))}
-              </datalist>
+              {/* Fasene kommer fra fase-listen under Lister og valg, men fasen kan også få et eget navn */}
+              <FaseVelger faser={faser.filter((f) => f !== gammel)} verdi={fase} sett={setFase} etikett="Ny fase" egetHint="Skriv navnet på fasen" />
               <span className="liten">
                 {ny
                   ? `«${fase.trim()}» er et nytt navn. Det legges til i fase-listen (Prosjekt › Lister og valg) når du bytter fase.`
-                  : 'Velg en fase fra listen, eller skriv et nytt navn. Et nytt navn legges til i fase-listen når du bytter fase.'}
+                  : 'Velg en fase fra listen, eller velg «Eget navn…». Et nytt navn legges til i fase-listen når du bytter fase.'}
               </span>
             </label>
             <label className="felt">

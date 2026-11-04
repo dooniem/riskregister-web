@@ -606,6 +606,9 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (redigerer) return
+    // Dialoger som åpnes fra tabellen (f.eks. Hvil risken), ligger inni den i React-treet, så tastene bobler hit.
+    // Uten denne gikk første tegn i et tekstfelt i dialogen til den markerte cellen i stedet.
+    if (e.target instanceof Element && e.target.closest('dialog')) return
     const mod = e.ctrlKey || e.metaKey
     if (mod && e.key.toLowerCase() === 'z') {
       e.preventDefault()
