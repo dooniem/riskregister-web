@@ -4,11 +4,15 @@ import { omMnd, sjekkHvile, standardHvile, tilHvile } from '../hvile'
 import type { Register, Risk } from '../model'
 import { hvileTekst } from '../model'
 import type { Op } from '../ops'
+import { FaseVelger } from './FaseVelger'
 import { Modal, ModalTittel } from './Modal'
 
 // Velger for dato eller fase. Brukes både i Hvil-dialogen og i Bytt fase.
-export function HvileFelt({ doc, verdi, sett, utenFase }: { doc: Register; verdi: HvileValg; sett: (v: HvileValg) => void; utenFase?: string }) {
-  const faser = doc.lister.faser.filter((f) => f !== doc.prosjekt.fase && f !== utenFase)
+export function HvileFelt({ doc, verdi, sett }: { doc: Register; verdi: HvileValg; sett: (v: HvileValg) => void }) {
+  // Bare fasene etter den prosjektet er i nå. En fase som er passert, ville aldri vekket risken.
+  const alle = doc.lister.faser
+  const naa = alle.indexOf(doc.prosjekt.fase)
+  const faser = naa >= 0 ? alle.slice(naa + 1) : alle.filter((f) => f !== doc.prosjekt.fase)
   const ukjent = verdi.type === 'fase' && !!verdi.fase.trim() && !doc.lister.faser.includes(verdi.fase.trim())
   return (
     <div className="hvile-felt">
@@ -30,15 +34,12 @@ export function HvileFelt({ doc, verdi, sett, utenFase }: { doc: Register; verdi
         </div>
       ) : (
         <>
-          <input list="hvile-faser" aria-label="Fase" value={verdi.fase} onChange={(e) => sett({ ...verdi, fase: e.target.value })} placeholder="Velg fra fase-listen" />
-          <datalist id="hvile-faser">
-            {faser.map((f) => (
-              <option key={f} value={f} />
-            ))}
-          </datalist>
+          <FaseVelger faser={faser} verdi={verdi.fase} sett={(fase) => sett({ ...verdi, fase })} etikett="Fase" egetHint="Skriv fasenavnet" />
           <span className="liten">
             {ukjent
               ? `«${verdi.fase.trim()}» står ikke i fase-listen. Risken våkner bare hvis prosjektet byttes til akkurat dette navnet.`
+              : !faser.length
+              ? 'Prosjektet er i den siste fasen i fase-listen. Velg en dato, eller skriv et eget navn.'
               : 'Risken våkner når prosjektet bytter til fasen, med Mer › Bytt fase eller i prosjektinfo.'}
           </span>
         </>

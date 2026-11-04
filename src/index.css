@@ -5861,3 +5861,18 @@ button.hvile-merke.vaaknet:hover {
 .visning-knapp.folger:not(.valgt) .ikon {
   color: #e0a100;
 }
+.fase-velger {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 320px;
+}
+.fase-velger select,
+.fase-velger input {
+  border: 1px solid var(--linje-sterk);
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: var(--flate);
+  width: 100%;
+}
