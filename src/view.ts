@@ -305,21 +305,24 @@ export function eierNavn(doc: Register): string[] {
   return [...s.values()].sort((a, b) => a.localeCompare(b, 'nb'))
 }
 
+function iSok(r: Risk, sok: string): boolean {
+  if (!sok) return true
+  const hay = [r.nr, r.aarsak, r.hendelse, r.konsekvenser, r.eier, r.kategori, r.egendef, r.egendef2, ...r.tiltak.flatMap((t) => [t.tekst, t.eier, t.beskrivelse])]
+    .join(' ')
+    .toLowerCase()
+  return hay.includes(sok)
+}
+
 export function filtrer(doc: Register, v: Visning, ignorer?: string): Risk[] {
-  // Til Skarisk viser alltid alle åpne risker merket for Skarisk. Søk og filtre er skjult der og skal ikke gjelde, heller ikke i summene.
-  if (v.fane === 'skarisk') return doc.risker.filter((r) => iFane(r, 'skarisk', doc))
   const sok = v.sok.trim().toLowerCase()
+  // Til Skarisk har bare søket. De andre filtrene er skjult der og skal ikke gjelde, heller ikke i summene.
+  if (v.fane === 'skarisk') return doc.risker.filter((r) => iFane(r, 'skarisk', doc) && iSok(r, sok))
   return doc.risker.filter((r) => {
     if (!iFane(r, v.fane, doc)) return false
     if (!iFag(r, doc, v.fag)) return false
     if (v.person && !harPerson(r, v.person)) return false
     if (v.kunStjerner && !v.stjerner?.includes(r.id)) return false
-    if (sok) {
-      const hay = [r.nr, r.aarsak, r.hendelse, r.konsekvenser, r.eier, r.kategori, r.egendef, r.egendef2, ...r.tiltak.flatMap((t) => [t.tekst, t.eier, t.beskrivelse])]
-        .join(' ')
-        .toLowerCase()
-      if (!hay.includes(sok)) return false
-    }
+    if (!iSok(r, sok)) return false
     for (const [key, tillatt] of Object.entries(v.filter.verdier)) {
       if (key === ignorer || !KOL[key]) continue
       if (!filterVerdier(KOL[key], r).some((x) => tillatt.includes(x))) return false
