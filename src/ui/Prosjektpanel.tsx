@@ -330,18 +330,13 @@ function ListerRed({ doc, endre, kanSkrive, hentOppsett }: { doc: Register; endr
         <span>Navn på den egendefinerte kolonnen</span>
         <Inn verdi={doc.lister.egendefNavn} disabled={!kanSkrive} onLagre={(v) => endre({ t: 'setListe', key: 'egendefNavn', verdi: v })} />
       </label>
-      <label className="avkrysning">
-        <input type="checkbox" checked={doc.lister.egendef2Aktiv} disabled={!kanSkrive} onChange={(e) => endre({ t: 'setListe', key: 'egendef2Aktiv', verdi: e.target.checked })} />
-        Bruk en egendefinert kolonne nr. 2
+      <label className="felt">
+        <span>Navn på egendefinert kolonne nr. 2</span>
+        <Inn verdi={doc.lister.egendef2Navn} disabled={!kanSkrive} onLagre={(v) => endre({ t: 'setListe', key: 'egendef2Navn', verdi: v })} />
       </label>
-      {doc.lister.egendef2Aktiv && (
-        <label className="felt">
-          <span>Navn på egendefinert kolonne nr. 2</span>
-          <Inn verdi={doc.lister.egendef2Navn} disabled={!kanSkrive} onLagre={(v) => endre({ t: 'setListe', key: 'egendef2Navn', verdi: v })} />
-        </label>
-      )}
+      <p className="liten">Begge de egendefinerte kolonnene hentes fram med Kolonner-knappen over registeret. Kolonne nr. 2 er skjult til noen gjør det.</p>
       <div className="liste-rutenett">
-        {LISTE_TITLER.filter(([k]) => k !== 'egendef2' || doc.lister.egendef2Aktiv).map(([k, t]) => (
+        {LISTE_TITLER.map(([k, t]) => (
           <ListeBoks key={k} tittel={k === 'egendef' ? doc.lister.egendefNavn : k === 'egendef2' ? doc.lister.egendef2Navn : t} verdier={doc.lister[k] as string[]} laast={k === 'statusRisk' || !kanSkrive} onLagre={(v) => endre({ t: 'setListe', key: k, verdi: v })} />
         ))}
       </div>

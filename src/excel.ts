@@ -1,7 +1,7 @@
 // Import fra eksisterende Riskregister-XLSM og eksport til Excel.
 import * as XLSX from 'xlsx'
 import type { Deltaker, Register, Risk, Tiltak } from './model'
-import { DEFAULT_LISTER, FAG_FARGER, SANNSYNLIGHET, fv, kortFag, nyttRegister, uid } from './model'
+import { DEFAULT_LISTER, egendef2IBruk, FAG_FARGER, SANNSYNLIGHET, fv, kortFag, nyttRegister, uid } from './model'
 
 const RAD_START = 7 // første datarad i arket (1-basert), som i VBA-koden
 
@@ -324,7 +324,8 @@ function riskArk(reg: Register, risker: Risk[], lukket: boolean): Ark {
   for (const [adr, v] of hode) sett(adr, v)
   for (const c of ['C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'S', 'T', 'U', 'V', 'W', 'X']) flett(`${c}5:${c}6`)
   flett('O5:Q5')
-  if (reg.lister.egendef2Aktiv) sett(`${WEB_KOL.egendef2}5`, reg.lister.egendef2Navn)
+  const medEgendef2 = egendef2IBruk(reg)
+  if (medEgendef2) sett(`${WEB_KOL.egendef2}5`, reg.lister.egendef2Navn)
   if (reg.lister.fag.length) sett(`${WEB_KOL.fag}5`, 'Fag')
 
   let rad = RAD_START
@@ -350,7 +351,7 @@ function riskArk(reg: Register, risker: Risk[], lukket: boolean): Ark {
     sett(RK.fv + rad, Math.round(fv(r) * 100) / 100 || 0)
     sett(RK.skarisk + rad, r.tilSkarisk ? 1 : 0)
     sett(RK.unikId + rad, `${nokkel.ac2}${nokkel.ac3}${String.fromCharCode(244)}${r.nr}`)
-    if (reg.lister.egendef2Aktiv) sett(WEB_KOL.egendef2 + rad, r.egendef2)
+    if (medEgendef2) sett(WEB_KOL.egendef2 + rad, r.egendef2)
     if (reg.lister.fag.length) sett(WEB_KOL.fag + rad, reg.lister.fag.find((f) => f.id === r.fag)?.navn)
     r.tiltak.forEach((t, i) => {
       sett(RK.tiltak + (rad + i), t.tekst)

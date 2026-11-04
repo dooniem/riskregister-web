@@ -38,6 +38,7 @@ export interface Visning {
   skjulFag?: boolean // skjul fagmerkene i Nr.-kolonnen og på kortene (også i utskrift)
   person?: string // vis bare risker der personen er risikoeier eller tiltakseier
   samletUtenKategori?: boolean // skjul kategorien under risikoeieren i samlet utseende (egen innstilling, så Klassisk ikke påvirkes)
+  visEgendef2?: boolean // egendefinert kolonne 2 er hentet fram (true) eller skjult (false) under Kolonner. Mangler den, gjelder registerets standard
   samletEgendef?: string[] // egendefinerte felt som vises i risikokortet i samlet utseende ('egendef', 'egendef2'). Tom = ingen
   skjulMarkering?: boolean // skjul fargemarkeringene på risknummer og tiltak, f.eks. før utskrift eller presentasjon
   kostSkala?: 'prosjekt' // kostspennet i moderne utseende: egen skala per risk (standard) eller felles skala for prosjektet
@@ -148,12 +149,24 @@ function kvartal(iso?: string): string {
   return `${d.getFullYear()} K${Math.floor(d.getMonth() / 3) + 1}`
 }
 
-// Grupperingene som kan velges i registeret: de egendefinerte får navnet fra prosjektet, og felt 2 er bare med når det er aktivert
+// Om en kolonne er skjult i registeret. Egendefinert kolonne 2 er skjult til brukeren henter den fram under Kolonner,
+// unntatt i registre der det gamle valget «Bruk en egendefinert kolonne nr. 2» var slått på. Der vises den som før.
+export function kolonneSkjult(v: Visning, key: string, egendef2Standard: boolean): boolean {
+  if (v.skjulteKolonner.includes(key)) return true
+  return key === 'egendef2' && !(v.visEgendef2 ?? egendef2Standard)
+}
+
+// Vis eller skjul en kolonne. For egendefinert kolonne 2 huskes valget også i visEgendef2, så det overstyrer registerets standard.
+export function visKolonne(v: Visning, key: string, vis: boolean): Visning {
+  const andre = v.skjulteKolonner.filter((x) => x !== key)
+  return { ...v, skjulteKolonner: vis ? andre : [...andre, key], ...(key === 'egendef2' ? { visEgendef2: vis } : {}) }
+}
+
+// Grupperingene som kan velges i registeret: de egendefinerte får navnet fra prosjektet
 // «Når lukket» gir bare mening der det finnes lukkede risker, altså i Lukkede og Alle.
 export function grupperinger(doc: Register, fane?: Fane) {
   return GRUPPERINGER.filter(
     (g) =>
-      (g.key !== 'egendef2' || doc.lister.egendef2Aktiv) &&
       (g.key !== 'lukket' || fane === 'lukkede' || fane === 'alle') &&
       (g.key !== 'hvile' || fane === 'hviler') &&
       // Fasegrupperingene trenger at prosjektet står i en fase eller har byttet fase i appen
@@ -430,7 +443,7 @@ export function summer(risker: Risk[], rm: 'R' | 'M'): Summer {
 
 // Lagrede visninger: det som bestemmer hvilke risker som vises og hvordan, med et navn.
 // Søket hører til det man leter etter akkurat nå og lagres ikke. Bredder, oversikten, fagmerker, fargemarkering og kostskala er personlige vaner og følger ikke med.
-export const VISNING_FELT = ['fane', 'sortering', 'filter', 'gruppering', 'grupperingLukkede', 'undergruppering', 'skjulteGrupper', 'skjulteKolonner', 'fag', 'person', 'kunStjerner', 'samletUtenKategori', 'samletEgendef'] as const
+export const VISNING_FELT = ['fane', 'sortering', 'filter', 'gruppering', 'grupperingLukkede', 'undergruppering', 'skjulteGrupper', 'skjulteKolonner', 'fag', 'person', 'kunStjerner', 'samletUtenKategori', 'samletEgendef', 'visEgendef2'] as const
 export type VisningInnhold = Partial<Pick<Visning, (typeof VISNING_FELT)[number]>>
 
 // Personfilteret på brukeren selv lagres som MEG, så «Mine tiltak» viser tiltakene til den som bruker visningen
@@ -456,6 +469,7 @@ export function visningInnhold(v: Visning, meg?: string): VisningInnhold {
     kunStjerner: v.kunStjerner || undefined,
     samletUtenKategori: v.samletUtenKategori || undefined,
     samletEgendef: v.samletEgendef?.length ? v.samletEgendef : undefined,
+    visEgendef2: v.visEgendef2,
   }
   // Tomme felt tas ikke med, så sammenligningen under ikke skiller på «mangler» og «tom»
   for (const k of VISNING_FELT) if (ut[k] === undefined) delete ut[k]
@@ -484,6 +498,7 @@ export function brukVisning(v: Visning, innhold: VisningInnhold, meg: string | u
     kunStjerner: innhold.kunStjerner,
     samletUtenKategori: innhold.samletUtenKategori,
     samletEgendef: innhold.samletEgendef,
+    visEgendef2: innhold.visEgendef2,
   }
 }
 

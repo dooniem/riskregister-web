@@ -70,7 +70,7 @@ export interface Risk {
   status: string // 'Åpen' | 'Lukket'
   kategori: string
   egendef: string
-  egendef2?: string // egendefinert kolonne 2, brukes bare når lister.egendef2Aktiv er satt
+  egendef2?: string // egendefinert kolonne 2, skjult i registeret til brukeren henter den fram under Kolonner
   fag?: string // id i lister.fag
   sannsynlighet: number // 0 = ikke satt, ellers 1–5
   konsekvens: number // 0 = ikke satt, ellers 1–5
@@ -140,7 +140,7 @@ export interface Lister {
   virksomhet: string[]
   egendefNavn: string
   egendef: string[]
-  egendef2Aktiv: boolean
+  egendef2Aktiv: boolean // gammelt valg «Bruk en egendefinert kolonne nr. 2». Avgjør bare om kolonnen vises som standard
   egendef2Navn: string
   egendef2: string[]
   fag: Fag[]
@@ -151,6 +151,11 @@ export interface Lister {
 
 export const NYLIG_LUKKET_STANDARD = 90
 export const NYLIG_LUKKET_VALG = [30, 60, 90, 180, 365]
+// Om registeret bruker egendefinert kolonne 2: valget var slått på, kolonnen har fått navn eller valg, eller en risk har en verdi.
+// Brukes der kolonnen bare skal med når den er i bruk, som i Excel-eksporten og snapshot-sammenligningen.
+export const egendef2IBruk = (doc: Register) =>
+  doc.lister.egendef2Aktiv || doc.lister.egendef2.length > 0 || (!!doc.lister.egendef2Navn && doc.lister.egendef2Navn !== DEFAULT_LISTER.egendef2Navn) || doc.risker.some((r) => !!r.egendef2)
+
 export const nyligLukketDager = (doc: Register) => doc.lister.nyligLukketDager || NYLIG_LUKKET_STANDARD
 
 export interface Prosjekt {

@@ -7,7 +7,7 @@ import type { Op, RiskFelt, TiltakFelt } from '../ops'
 import type { Tilstede } from '../store/backend'
 import type { Okt } from '../sync'
 import type { Gruppe, Visning } from '../view'
-import { aktivGruppering, aktivUndergruppering, byttStjerner, filtrer, filterVerdier, grupperNivaa, sammenslaattSomStandard, sorter, summer } from '../view'
+import { aktivGruppering, aktivUndergruppering, byttStjerner, filtrer, filterVerdier, grupperNivaa, kolonneSkjult, sammenslaattSomStandard, sorter, summer, visKolonne } from '../view'
 import type { Flytt } from './Editor'
 import { CelleEditor } from './Editor'
 import { FagMerke, FagVelger, fagForNyRisk } from './Fag'
@@ -97,14 +97,13 @@ const EGENDEF = ['egendef', 'egendef2']
 const EIER_SAMLET = ['kategori']
 const BESKRIVELSE_NAVN: Record<string, string> = { hendelse: 'Hendelse', aarsak: 'Årsak', konsekvenser: 'Konsekvens' }
 
-export function synligeKolonner(v: Visning, egendef2Aktiv = false, moderne = false, samlet = false): Kolonne[] {
+export function synligeKolonner(v: Visning, egendef2Standard = false, moderne = false, samlet = false): Kolonne[] {
   const sammen = samlet ? [...v.skjulteGrupper, ...SAMLET_GRUPPER] : v.skjulteGrupper
   return KOLONNER.filter((k) => {
-    if (k.key === 'egendef2' && !egendef2Aktiv) return false
     if (moderne && SAMLET_I_MODERNE.includes(k.key)) return false
     if (samlet && k.key === 'rm') return false
     // Beskrivelsen kan ikke skjules i samlet utseende, den er hele poenget
-    if (v.skjulteKolonner.includes(k.key) && !(samlet && k.key === 'hendelse')) return false
+    if (kolonneSkjult(v, k.key, egendef2Standard) && !(samlet && k.key === 'hendelse')) return false
     // FV og eksponering er alene i gruppene sine i moderne utseende, så de vises selv om gruppen er slått sammen
     if (moderne && ENKEL_GRUPPE.includes(k.gruppe)) return true
     if (sammen.includes(k.gruppe)) return GRUPPER.find((g) => g.key === k.gruppe)?.hoved === k.key
@@ -153,10 +152,10 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   const [merket, setMerket] = useState<string[]>([])
   const merkeAnker = useRef<string | null>(null)
 
-  const egendef2 = doc.lister.egendef2Aktiv
+  const egendef2Standard = doc.lister.egendef2Aktiv
   // Egendefinerte felt som vises i risikokortet i samlet utseende. Ingen som standard.
-  const egendefKort = useMemo(() => (samlet ? (visning.samletEgendef ?? []).filter((k) => k === 'egendef' || (k === 'egendef2' && egendef2)) : []), [samlet, visning.samletEgendef, egendef2])
-  const kolonner = useMemo(() => synligeKolonner(visning, egendef2, moderne, samlet), [visning, egendef2, moderne, samlet])
+  const egendefKort = useMemo(() => (samlet ? (visning.samletEgendef ?? []).filter((k) => EGENDEF.includes(k)) : []), [samlet, visning.samletEgendef])
+  const kolonner = useMemo(() => synligeKolonner(visning, egendef2Standard, moderne, samlet), [visning, egendef2Standard, moderne, samlet])
   // Gruppene som er slått sammen. I moderne utseende viser da hovedkolonnen mer av det som er skjult.
   const sammen = useMemo(
     () => (samlet ? [...new Set([...visning.skjulteGrupper, ...SAMLET_GRUPPER])] : moderne ? visning.skjulteGrupper : []),
@@ -796,10 +795,9 @@ export function Grid({ okt, doc, andre, visning, setVisning, endre, angre, aapne
   function menyFelter(key: string): Kolonne[] {
     const kol = KOL[key]
     if (!kol) return []
-    const medEgendef2 = (x: Kolonne) => x.key !== 'egendef2' || doc.lister.egendef2Aktiv
-    if (samlet && key === 'hendelse') return [...BESKRIVELSE, 'rm', ...EGENDEF].map((x) => KOL[x]).filter(medEgendef2)
+    if (samlet && key === 'hendelse') return [...BESKRIVELSE, 'rm', ...EGENDEF].map((x) => KOL[x])
     if (sammen.includes(kol.gruppe) && GRUPPER.find((g) => g.key === kol.gruppe)?.hoved === key)
-      return KOLONNER.filter((x) => x.gruppe === kol.gruppe && medEgendef2(x) && !(samlet && kol.gruppe === 'eierskap' && EGENDEF.includes(x.key)))
+      return KOLONNER.filter((x) => x.gruppe === kol.gruppe && !(samlet && kol.gruppe === 'eierskap' && EGENDEF.includes(x.key)))
     return [kol]
   }
   const harFilter = (key: string) => menyFelter(key).some((f) => (visning.filter.verdier[f.key]?.length ?? 0) > 0 || !!visning.filter.tekst[f.key])
@@ -1991,7 +1989,7 @@ function KolonneMeny({
       )}
       <hr />
       {!hode.frosset && (
-        <button onClick={() => (setVisning((v) => ({ ...v, skjulteKolonner: [...v.skjulteKolonner, hode.key] })), lukk())}>Skjul kolonnen</button>
+        <button onClick={() => (setVisning((v) => visKolonne(v, hode.key, false)), lukk())}>Skjul kolonnen</button>
       )}
       <button onClick={lukk}>Lukk</button>
     </div>

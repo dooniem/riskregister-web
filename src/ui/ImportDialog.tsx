@@ -76,7 +76,7 @@ export function ImportDialog({ doc, kilde, filnavn, bruker, endre, ferdig, lukk 
     }
     utvid('egendef', valgte.map((r) => r.egendef))
     utvid('kategorier', valgte.map((r) => r.kategori))
-    if (l.egendef2Aktiv) utvid('egendef2', valgte.map((r) => r.egendef2))
+    utvid('egendef2', valgte.map((r) => r.egendef2))
     if (deltakere)
       for (const d of nyeDeltakere) {
         const k = koblinger?.find((x) => x.deltaker.id === d.id)
