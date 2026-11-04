@@ -444,9 +444,9 @@ function dataArk(reg: Register): Ark {
   return ferdig()
 }
 
-export function skariskRader(reg: Register): unknown[][] {
-  return reg.risker
-    .filter((r) => r.tilSkarisk && r.status !== 'Lukket')
+// Uten liste: alle åpne risker merket «Til Skarisk». Med liste: bare de (for eksempel treffene på et søk).
+export function skariskRader(reg: Register, risker: Risk[] = reg.risker.filter((r) => r.tilSkarisk && r.status !== 'Lukket')): unknown[][] {
+  return [...risker]
     .sort((a, b) => a.nr - b.nr)
     .map((r) => [r.nr, r.rm, r.aarsak, `[ID:${r.nr}] ${r.hendelse}`, r.bc, r.ml, r.wc])
 }

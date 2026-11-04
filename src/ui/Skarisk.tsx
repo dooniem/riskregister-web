@@ -1,12 +1,30 @@
+import { useEffect, useRef } from 'react'
 import { formatTall } from '../columns'
-import type { Register } from '../model'
+import type { Register, Risk } from '../model'
 import { skariskRader } from '../excel'
 
-// Tilsvarer arkfanen «Poster til Skarisk»: åpne risker merket «Til Skarisk», sortert på nummer
-export function SkariskVisning({ doc, aapneDetalj, melding }: { doc: Register; aapneDetalj: (id: string) => void; melding: (t: string) => void }) {
-  const risker = doc.risker.filter((r) => r.tilSkarisk && r.status !== 'Lukket').sort((a, b) => a.nr - b.nr)
+interface Props {
+  doc: Register
+  risker: Risk[] // åpne risker merket «Til Skarisk» som passer med søket
+  sok: string
+  aapneDetalj: (id: string) => void
+  melding: (t: string) => void
+  forsteTreffTeller: number // øker når man trykker Enter i søkefeltet
+}
+
+// Tilsvarer arkfanen «Poster til Skarisk»: åpne risker merket «Til Skarisk», sortert på nummer. Søket filtrerer listen, og Kopier tar med det som vises.
+export function SkariskVisning({ doc, risker: utvalg, sok, aapneDetalj, melding, forsteTreffTeller }: Props) {
+  const risker = [...utvalg].sort((a, b) => a.nr - b.nr)
+  // Enter i søkefeltet åpner første treff, som i registeret
+  const forrige = useRef(forsteTreffTeller)
+  useEffect(() => {
+    if (forsteTreffTeller === forrige.current) return
+    forrige.current = forsteTreffTeller
+    if (risker[0]) aapneDetalj(risker[0].id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forsteTreffTeller])
   const kopier = () => {
-    const tsv = skariskRader(doc)
+    const tsv = skariskRader(doc, risker)
       .map((r) => r.map((c) => String(c).replace(/[\t\r\n]+/g, ' ')).join('\t'))
       .join('\n')
     navigator.clipboard.writeText(tsv).then(
@@ -73,7 +91,8 @@ export function SkariskVisning({ doc, aapneDetalj, melding }: { doc: Register; a
             ))}
           </tbody>
         </table>
-        {!risker.length && (
+        {!risker.length && sok && <div className="tomt">Ingen risker til Skarisk passer med søket «{sok}».</div>}
+        {!risker.length && !sok && (
           <div className="tomt">Ingen åpne risker er merket «Til Skarisk». Kryss av i kolonnen «Til Skarisk» i registeret for å ta dem med her.</div>
         )}
       </div>

@@ -824,9 +824,7 @@ export function RegisterView({ okt, tilbake }: Props) {
               </button>
             ))}
           </nav>
-          {visning.fane !== 'skarisk' && (
-            <>
-            <input
+          <input
               ref={sokRef}
               className="sok"
               placeholder="Søk i alle felt…"
@@ -847,6 +845,8 @@ export function RegisterView({ okt, tilbake }: Props) {
                 }
               }}
             />
+          {visning.fane !== 'skarisk' && (
+            <>
             {!samlet && visning.fane !== 'hviler' && grupperValg}
             {!samlet && visning.fane !== 'hviler' && undergrupperValg}
             <FagMeny doc={doc} visning={visning} setVisning={setVisning} endre={endre} kanSkrive={kanSkrive} />
@@ -855,12 +855,19 @@ export function RegisterView({ okt, tilbake }: Props) {
             </>
           )}
           {!samlet && oversiktKnapp}
-          {filterAktivt && visning.fane !== 'skarisk' && (
+          {(visning.fane === 'skarisk' ? !!visning.sok.trim() : filterAktivt) && (
             <span className="filterinfo">
               Viser {antall.vist} av {antall[visning.fane]}
-              <button className="lenkeknapp" onClick={() => setVisning((v) => ({ ...v, sok: '', fag: [], person: undefined, kunStjerner: false, filter: { verdier: {}, tekst: {} } }))}>
-                Fjern alle filtre
-              </button>
+              {visning.fane === 'skarisk' ? (
+                // Til Skarisk har bare søket, så filtrene fra de andre fanene får stå
+                <button className="lenkeknapp" onClick={() => setVisning((v) => ({ ...v, sok: '' }))}>
+                  Tøm søket
+                </button>
+              ) : (
+                <button className="lenkeknapp" onClick={() => setVisning((v) => ({ ...v, sok: '', fag: [], person: undefined, kunStjerner: false, filter: { verdier: {}, tekst: {} } }))}>
+                  Fjern alle filtre
+                </button>
+              )}
             </span>
           )}
           {/* Samlet: visningsvalgene og Ny risk samlet til høyre */}
@@ -918,7 +925,7 @@ export function RegisterView({ okt, tilbake }: Props) {
 
         <div className="hovedflate">
           {visning.fane === 'skarisk' ? (
-            <SkariskVisning doc={doc} aapneDetalj={setDetalj} melding={melding} />
+            <SkariskVisning doc={doc} risker={filtrer(doc, visning)} sok={visning.sok.trim()} aapneDetalj={setDetalj} melding={melding} forsteTreffTeller={forsteTreffTeller} />
           ) : mobil ? (
             <div className="mobilflate">
               {kanSkrive && (
