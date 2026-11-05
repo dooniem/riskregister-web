@@ -90,17 +90,61 @@ export async function initAuth(c: AuthConfig): Promise<AccountInfo | null> {
     cache: { cacheLocation: 'localStorage' },
   })
   await pca.initialize()
-  const svar = await pca.handleRedirectPromise()
+  let svar
+  try {
+    svar = await pca.handleRedirectPromise()
+  } catch (e) {
+    // Innloggingen ble avbrutt eller feilet: vis feilen på adressen brukeren kom fra, så «Logg inn» prøver samme register igjen
+    gaaTilbake(null)
+    throw e
+  }
   if (svar?.account) {
     konto = svar.account
-    const retur = sessionStorage.getItem(RETUR_KEY)
-    sessionStorage.removeItem(RETUR_KEY)
-    if (retur && retur !== window.location.href) window.history.replaceState(null, '', retur)
+    gaaTilbake(svar.state)
   } else {
     konto = pca.getActiveAccount() ?? pca.getAllAccounts()[0] ?? null
   }
   if (konto) pca.setActiveAccount(konto)
   return konto
+}
+
+// Microsoft sender brukeren tilbake til appens hovedadresse, uten ?site= og andre parametre.
+// Sett adressen tilbake til den brukeren kom fra, så lenken til registeret virker også rett etter innlogging.
+// Adressen ligger både i sessionStorage og i state (som Microsoft sender tilbake), i tilfelle det ene mangler.
+function gaaTilbake(state: string | null | undefined) {
+  let retur: string | null = null
+  try {
+    retur = sessionStorage.getItem(RETUR_KEY)
+    sessionStorage.removeItem(RETUR_KEY)
+  } catch {
+    /* ignorer */
+  }
+  if (!retur && state) {
+    try {
+      retur = JSON.parse(state).retur ?? null
+    } catch {
+      /* ikke vår state */
+    }
+  }
+  if (!retur || retur === window.location.href) return
+  try {
+    const u = new URL(retur)
+    // Bare adresser i denne appen
+    if (u.origin === window.location.origin) window.history.replaceState(null, '', u.pathname + u.search + u.hash)
+  } catch {
+    /* ugyldig adresse */
+  }
+}
+
+// Husk adressen før vi sender brukeren til Microsoft
+function husk() {
+  const retur = window.location.href
+  try {
+    sessionStorage.setItem(RETUR_KEY, retur)
+  } catch {
+    /* ignorer */
+  }
+  return JSON.stringify({ retur })
 }
 
 export function aktivKonto() {
@@ -109,8 +153,7 @@ export function aktivKonto() {
 
 export async function loggInn() {
   if (!pca) throw new Error('Innlogging er ikke konfigurert')
-  sessionStorage.setItem(RETUR_KEY, window.location.href)
-  await pca.loginRedirect({ scopes, prompt: 'select_account' })
+  await pca.loginRedirect({ scopes, prompt: 'select_account', state: husk() })
 }
 
 export async function loggUt() {
@@ -125,8 +168,7 @@ export async function token(): Promise<string> {
     return r.accessToken
   } catch (e) {
     if (e instanceof InteractionRequiredAuthError) {
-      sessionStorage.setItem(RETUR_KEY, window.location.href)
-      await pca.acquireTokenRedirect({ scopes, account: konto })
+      await pca.acquireTokenRedirect({ scopes, account: konto, state: husk() })
     }
     throw e
   }
