@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { LagretVisning, Register } from '../model'
 import { uid } from '../model'
 import type { Op } from '../ops'
 import type { Visning, VisningInnhold } from '../view'
 import { beskrivVisning, brukVisning, eierNavn, filtrer, likVisning, STANDARD_VISNING, visningInnhold } from '../view'
-import { Felles, Pluss, Stjerne } from './Ikoner'
+import { Blyant, Felles, Pluss, Stjerne } from './Ikoner'
 import { Modal, ModalTittel } from './Modal'
 
 // Lagrede visninger: filter, sortering, gruppering og kolonner med et navn, som knapper over registeret.
@@ -113,7 +113,32 @@ export function VisningKnapper({ doc, visning, setVisning, brukernavn, kanLagreF
     melding(`Visningen «${v.navn}» er slettet.`)
   }
 
+  // Nytt navn på en lagret visning. Innholdet er det samme.
+  const giNyttNavn = (v: Lagret, navn: string) => {
+    const { felles: _f, ...fra } = v
+    const ny: LagretVisning = { ...fra, navn, endret: new Date().toISOString() }
+    if (v.felles) endre({ t: 'setFellesVisning', id: v.id, visning: ny, fra })
+    else settPersonlige((l) => l.map((x) => (x.id === v.id ? ny : x)))
+    melding(`Visningen heter nå «${navn}».`)
+  }
+
   const kanEndre = (v: Lagret) => !v.felles || kanLagreFelles
+
+  // Høyreklikk på en visning gir «Rediger…», som åpner et vindu for å endre navnet eller slette den
+  const [meny, setMeny] = useState<{ v: Lagret; x: number; y: number } | null>(null)
+  const [redigeres, setRedigeres] = useState<Lagret | null>(null)
+  const menyRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!meny) return
+    const ned = (e: MouseEvent) => !menyRef.current?.contains(e.target as Node) && setMeny(null)
+    const tast = (e: KeyboardEvent) => e.key === 'Escape' && setMeny(null)
+    document.addEventListener('mousedown', ned, true)
+    document.addEventListener('keydown', tast)
+    return () => {
+      document.removeEventListener('mousedown', ned, true)
+      document.removeEventListener('keydown', tast)
+    }
+  }, [meny])
 
   return (
     <>
@@ -144,9 +169,14 @@ export function VisningKnapper({ doc, visning, setVisning, brukernavn, kanLagreF
               (v.felles ? `Felles visning${v.av ? `, lagret av ${v.av}` : ''}` : 'Personlig visning, bare du ser den') +
               ':\n' +
               beskrivVisning(doc, v.innhold).join('\n') +
-              (valgt ? '\n\nKlikk igjen for å gå tilbake til standard.' : '')
+              (valgt ? '\n\nKlikk igjen for å gå tilbake til standard.' : '') +
+              (kanEndre(v) ? '\nHøyreklikk for å endre navnet eller slette visningen.' : '')
             }
             onClick={() => velg(v)}
+            onContextMenu={(e) => {
+              e.preventDefault()
+              setMeny({ v, x: e.clientX, y: e.clientY })
+            }}
           >
             {v.felles && <Felles str={13} />}
             {v.navn}
@@ -162,6 +192,29 @@ export function VisningKnapper({ doc, visning, setVisning, brukernavn, kanLagreF
       <button className="snarvei ny-visning" onClick={() => setDialog(true)} title="Lagre filter, sortering, gruppering og kolonner som vises nå, eller slett lagrede visninger">
         <Pluss str={12} /> Lagre visning
       </button>
+      {meny && (
+        <div ref={menyRef} className="kontekstmeny visning-meny" role="menu" style={{ left: Math.min(meny.x, window.innerWidth - 240), top: Math.min(meny.y, window.innerHeight - 80) }}>
+          <button
+            role="menuitem"
+            className="meny-uthevet"
+            autoFocus
+            disabled={!kanEndre(meny.v)}
+            title={kanEndre(meny.v) ? 'Endre navnet på visningen eller slett den' : 'Felles visninger kan bare endres når du kan redigere registeret.'}
+            onClick={() => (setRedigeres(meny.v), setMeny(null))}
+          >
+            <Blyant /> Rediger…
+          </button>
+        </div>
+      )}
+      {redigeres && (
+        <RedigerVisning
+          v={redigeres}
+          alle={alle}
+          giNyttNavn={(navn) => giNyttNavn(redigeres, navn)}
+          slett={() => slett(redigeres)}
+          lukk={() => setRedigeres(null)}
+        />
+      )}
       {dialog && (
         <VisningDialog doc={doc} innhold={visningInnhold(visning, meg)} alle={alle} kanLagreFelles={kanLagreFelles} lagre={lagre} slett={slett} kanEndre={kanEndre} lukk={() => setDialog(false)} />
       )}
@@ -284,6 +337,64 @@ function VisningDialog({
             ))}
           </div>
         )}
+      </form>
+    </Modal>
+  )
+}
+
+// Rediger en lagret visning: nytt navn eller slett. Åpnes med høyreklikk › Rediger… på visningen.
+function RedigerVisning({ v, alle, giNyttNavn, slett, lukk }: { v: Lagret; alle: Lagret[]; giNyttNavn: (navn: string) => void; slett: () => void; lukk: () => void }) {
+  const [navn, setNavn] = useState(v.navn)
+  const [feil, setFeil] = useState('')
+  const [bekreft, setBekreft] = useState(false)
+  const n = navn.trim()
+  const send = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!n) return setFeil('Gi visningen et navn.')
+    if (alle.some((x) => x.id !== v.id && x.felles === v.felles && x.navn.toLowerCase() === n.toLowerCase()))
+      return setFeil(`Det finnes allerede en ${v.felles ? 'felles' : 'personlig'} visning som heter «${n}».`)
+    if (n !== v.navn) giNyttNavn(n)
+    lukk()
+  }
+  return (
+    <Modal className="visning-dialog" lukk={lukk}>
+      <header>
+        <ModalTittel>Rediger visning</ModalTittel>
+        <button className="ikonknapp" onClick={lukk} aria-label="Lukk" title="Lukk">
+          ✕
+        </button>
+      </header>
+      <form className="modal-innhold skjema" onSubmit={send}>
+        <label className="felt">
+          <span>Navn</span>
+          <input autoFocus value={navn} maxLength={40} onChange={(e) => (setNavn(e.target.value), setFeil(''))} onFocus={(e) => e.currentTarget.select()} />
+          <small>{v.felles ? `Felles visning${v.av ? `, lagret av ${v.av}` : ''}. Navnet endres for alle i registeret.` : 'Personlig visning, bare du ser den.'}</small>
+        </label>
+        {feil && <div className="banner feil">{feil}</div>}
+        <div className="knapperad">
+          {bekreft ? (
+            <span className="visning-slett">
+              <button type="button" className="knapp fare" onClick={() => (slett(), lukk())}>
+                Slett «{v.navn}»
+              </button>
+              <button type="button" className="knapp" onClick={() => setBekreft(false)}>
+                Behold
+              </button>
+            </span>
+          ) : (
+            <button type="button" className="knapp fare" onClick={() => setBekreft(true)} title={v.felles ? 'Sletter visningen for alle i registeret' : 'Sletter visningen'}>
+              Slett visningen…
+            </button>
+          )}
+          <span style={{ flex: 1 }} />
+          <button type="button" className="knapp" onClick={lukk}>
+            Avbryt
+          </button>
+          <button type="submit" className="knapp primær">
+            Lagre navnet
+          </button>
+        </div>
+        {bekreft && v.felles && <div className="liten">Visningen forsvinner for alle i registeret.</div>}
       </form>
     </Modal>
   )
