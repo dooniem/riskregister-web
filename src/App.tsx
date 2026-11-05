@@ -19,7 +19,9 @@ type Tilstand =
   | { t: 'feil'; tekst: string; loggInn?: boolean }
   | { t: 'velgLister'; feil: ListerMangler; aapnet: (lager: GraphLister) => Promise<void> }
 
-const params = new URLSearchParams(window.location.search)
+// Parametrene leses på nytt hver gang: etter en innlogging setter initAuth adressen tilbake til lenken
+// brukeren åpnet (Microsoft sender tilbake til appens hovedadresse uten ?site=)
+const params = () => new URLSearchParams(window.location.search)
 
 function demoBruker(): Bruker | null {
   try {
@@ -36,7 +38,7 @@ export default function App() {
 
   // Åpner registeret, eller et snapshot av det hvis adressen har &snapshot=<id>
   const aapne = async (backend: ListeBackend, tittel: (doc: Okt['doc']) => string) => {
-    const snapshotId = params.get('snapshot')
+    const snapshotId = params().get('snapshot')
     if (snapshotId) {
       if (!backend.snapshots) throw new Error('Dette registeret har ikke snapshots.')
       setTilstand({ t: 'laster', tekst: 'Henter snapshotet…' })
@@ -56,12 +58,13 @@ export default function App() {
   useEffect(() => {
     void (async () => {
       try {
-        const demo = params.get('demo')
+        const demo = params().get('demo')
         if (demo) {
-          if (params.has('ny')) {
+          const p = params()
+          if (p.has('ny')) {
             sessionStorage.removeItem('rr-demo-bruker')
-            params.delete('ny')
-            window.history.replaceState(null, '', '?' + params.toString())
+            p.delete('ny')
+            window.history.replaceState(null, '', '?' + p.toString())
           }
           if (!demoFinnes(demo)) return setTilstand({ t: 'feil', tekst: `Fant ikke demoregisteret «${demo}» i denne nettleseren.` })
           const b = demoBruker()
@@ -73,12 +76,12 @@ export default function App() {
           const k = await initAuth(config)
           if (k) setKonto({ navn: k.name ?? k.username, epost: k.username })
         }
-        if (params.get('reg'))
+        if (params().get('reg'))
           return setTilstand({
             t: 'feil',
             tekst: 'Lenken går til et register i en SharePoint-mappe (register.json). Registeret ligger nå i SharePoint-lister, ett register per område. Åpne området fra startsiden i stedet.',
           })
-        const site = params.get('site')
+        const site = params().get('site')
         if (!site) return setTilstand({ t: 'start', config })
         if (!config) return setTilstand({ t: 'feil', tekst: 'SharePoint-tilkoblingen er ikke satt opp ennå (mangler appregistrering). Se Tilkoblingsinnstillinger på startsiden.' })
         const k = aktivKonto()
