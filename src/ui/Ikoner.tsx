@@ -119,3 +119,12 @@ export function AapenLaas({ str = 16 }: { str?: number }) {
     </svg>
   )
 }
+
+// Blyant foran «Rediger…» i høyreklikkmenyen på visningene
+export function Blyant({ str = 16 }: { str?: number }) {
+  return (
+    <svg className="ikon" width={str} height={str} viewBox="0 0 24 24" aria-hidden="true" {...strek}>
+      <path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4" />
+    </svg>
+  )
+}
