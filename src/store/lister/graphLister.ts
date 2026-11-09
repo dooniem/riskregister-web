@@ -5,6 +5,7 @@ import { batch, batchFeil, graph, GraphFeil, graphJson, jsonInit } from '../grap
 import type { Element, Endring, ListeLager, RadVersjon, Resultat } from './lager'
 import type { Kolonne, ListeNavn } from './skjema'
 import { LISTER } from './skjema'
+import { feilsok } from './feilsok'
 
 export interface Omraade {
   id: string
@@ -345,6 +346,11 @@ export class GraphLister implements ListeLager {
 
   listeUrl(liste: ListeNavn) {
     return this.lister[liste]?.webUrl
+  }
+
+  // Rapport for feilsøking når SharePoint avviser lagringen. Se feilsok.ts.
+  feilsok() {
+    return feilsok(this.omraade, this.lister.innstillinger?.id)
   }
 
   private sti(liste: ListeNavn) {

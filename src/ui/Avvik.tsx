@@ -5,6 +5,7 @@ import { nyRisk } from '../model'
 import type { Konflikt } from '../ops'
 import { loggInn } from '../store/auth'
 import { ListeBackend } from '../store/listeBackend'
+import { GraphLister } from '../store/lister/graphLister'
 import type { Okt, Snapshot } from '../sync'
 import { Modal, ModalTittel } from './Modal'
 
@@ -50,6 +51,8 @@ function Handling({ tekst, onKlikk, primaer, bekreft, oppdater }: { tekst: strin
 // Endringer som ikke er lagret: synlig når lagringen feiler, og når en tidligere økt etterlot endringer i nettleseren
 export function UlagretBanner({ okt, snap }: { okt: Okt; snap: Snapshot }) {
   const b = okt.backend
+  const [feilsok, setFeilsok] = useState(false)
+  const lager = b instanceof ListeBackend && b.lager instanceof GraphLister ? b.lager : undefined
   // Varselet står så lenge en lagring har feilet og endringene venter, også mens appen prøver på nytt og mens henting går bra.
   // Ellers kommer og går det i takt med forsøkene og flytter hele skjermbildet.
   const problem = snap.ventende > 0 && (!!snap.lagreFeil || snap.status === 'frakoblet' || snap.status === 'feil' || !b.kanSkrive)
@@ -91,9 +94,53 @@ export function UlagretBanner({ okt, snap }: { okt: Okt; snap: Snapshot }) {
               Logg inn på nytt
             </button>
           )}
+          {lager && b.kanSkrive && !innlogging && (
+            <button className="knapp" onClick={() => setFeilsok(true)}>
+              Feilsøk
+            </button>
+          )}
         </div>
       )}
+      {feilsok && lager && <FeilsokDialog lager={lager} lukk={() => setFeilsok(false)} />}
     </>
+  )
+}
+
+// Kjører feilsøkingen og viser rapporten, så brukeren kan kopiere den og sende den videre
+function FeilsokDialog({ lager, lukk }: { lager: GraphLister; lukk: () => void }) {
+  const [rapport, setRapport] = useState<string>()
+  const [kjorer, setKjorer] = useState(false)
+  const [kopiert, setKopiert] = useState(false)
+  const kjor = () => {
+    setKjorer(true)
+    lager
+      .feilsok()
+      .then(setRapport, (e) => setRapport(`Feilsøkingen stoppet: ${e instanceof Error ? e.message : String(e)}`))
+      .finally(() => setKjorer(false))
+  }
+  return (
+    <Modal className="feilsok" lukk={lukk}>
+      <header>
+        <ModalTittel>Feilsøk lagringen</ModalTittel>
+      </header>
+      <div className="modal-innhold">
+        <p>
+          Henter lagringsplass og versjoner fra innstillingslisten, og prøver å lagre raden som ble avvist på nytt med den samme verdien. En prøverad legges til og slettes
+          igjen. Ingen innhold endres.
+        </p>
+        {rapport && <pre className="feilsok-rapport">{rapport}</pre>}
+        <div className="knapperad">
+          {rapport && (
+            <button className="knapp" onClick={() => void navigator.clipboard.writeText(rapport).then(() => setKopiert(true))}>
+              {kopiert ? 'Kopiert' : 'Kopier rapporten'}
+            </button>
+          )}
+          <button className="knapp primær" disabled={kjorer} onClick={kjor}>
+            {kjorer ? 'Kjører…' : rapport ? 'Kjør på nytt' : 'Kjør feilsøking'}
+          </button>
+        </div>
+      </div>
+    </Modal>
   )
 }
 

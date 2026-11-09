@@ -5890,3 +5890,15 @@ button.hvile-merke.vaaknet:hover {
     display: none;
   }
 }
+
+/* Feilsøkingsrapport for lagring */
+.feilsok-rapport {
+  max-height: 50vh;
+  overflow: auto;
+  padding: 8px 10px;
+  border: 1px solid var(--linje, #ddd);
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

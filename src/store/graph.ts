@@ -64,6 +64,9 @@ export async function feiltekst(r: Response) {
   return feilmelding(r.status, melding, kode)
 }
 
+// Siste kall i en $batch som SharePoint avviste, med svaret slik det kom. Brukes i feilsøkingsrapporten.
+export let sisteBatchFeil: { tid: string; kall: { method: string; url: string; headers?: Record<string, string>; bodyLengde: number }; status: number; headers?: Record<string, string>; body?: unknown } | undefined
+
 export interface BatchKall {
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE'
   url: string // relativ til /v1.0, f.eks. /sites/…/lists/…/items
@@ -96,7 +99,13 @@ export async function batch(kall: BatchKall[]): Promise<BatchSvar[]> {
         if (s.status === 429 || s.status === 503) {
           neste.push(n)
           ventSek = Math.max(ventSek, Number(s.headers?.['Retry-After']) || 2 ** runde)
-        } else svar[n] = { status: s.status, body: s.body }
+        } else {
+          svar[n] = { status: s.status, body: s.body }
+          if (s.status >= 400) {
+            const k = kall[n]
+            sisteBatchFeil = { tid: new Date().toISOString(), kall: { method: k.method, url: k.url, headers: k.headers, bodyLengde: k.body === undefined ? 0 : JSON.stringify(k.body).length }, status: s.status, headers: s.headers, body: s.body }
+          }
+        }
       }
     }
     gjenstaar = neste
