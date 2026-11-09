@@ -284,7 +284,15 @@ export class ListeBackend implements Backend {
     // Nøkler som ikke er i bruk, slettes ikke
     // Innstillinger som ikke kan leses, skrives ikke over før brukeren har bestemt det
     const innstJobber = this.jobber(this.innst, innst, 'innstillinger').filter((j) => j.endring.type !== 'slett' && !this.avvik.innstillinger.includes(j.nokkel))
-    if (!(await this.utfor(innstJobber))) return { ok: false, konflikt: true }
+    // Feiler en innstilling av andre grunner enn konflikt (f.eks. 507 fra SharePoint), lagres riskene likevel, og feilen kastes etterpå.
+    // Ellers blir en ny risk aldri lagret, og den får nytt nummer og skriver nesteNr på nytt ved hvert forsøk.
+    let innstFeil: unknown
+    try {
+      if (!(await this.utfor(innstJobber))) return { ok: false, konflikt: true }
+    } catch (e) {
+      if (e instanceof GraphFeil && e.status === 403) throw e
+      innstFeil = e
+    }
 
     const risker = new Map(doc.risker.map((r) => [r.id, riskTilFelt(r)]))
     const tiltak = new Map(doc.risker.flatMap((r) => r.tiltak.map((t, i) => [t.id, tiltakTilFelt(t, r.id, i)] as const)))
@@ -293,6 +301,7 @@ export class ListeBackend implements Backend {
     const tiltakJobber = this.jobber(this.tiltak, tiltak, 'tiltak').filter((j) => !(j.endring.type === 'slett' && forelderlose.has(j.nokkel)))
     const ok = await this.utfor([...this.jobber(this.risker, risker, 'risker'), ...tiltakJobber])
     if (!ok) return { ok: false, konflikt: true }
+    if (innstFeil) throw innstFeil
     // Egen etag som ikke stemmer med listene, så neste sjekk henter registeret med eventuelle endringer fra andre
     return { ok: true, etag: 'lokal:' + uid() }
   }
