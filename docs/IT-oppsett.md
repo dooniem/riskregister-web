@@ -93,7 +93,8 @@ Tillatelsen påvirkes ikke av hvor appen publiseres. Den delegerte Graph-tilgang
 Gå til:
 
 **Microsoft Entra ID → App registrations → New registration**
-entra.microsoft.com
+
+[entra.microsoft.com](https://entra.microsoft.com)
 
 Bruk følgende innstillinger:
 
