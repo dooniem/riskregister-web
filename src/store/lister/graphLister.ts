@@ -350,7 +350,7 @@ export class GraphLister implements ListeLager {
 
   // Rapport for feilsøking når SharePoint avviser lagringen. Se feilsok.ts.
   feilsok() {
-    return feilsok(this.omraade, this.lister.innstillinger?.id)
+    return feilsok(this.omraade, this.lister.innstillinger?.id, this.lister.tilstede?.id)
   }
 
   private sti(liste: ListeNavn) {

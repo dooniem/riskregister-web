@@ -25,7 +25,7 @@ async function prov(navn: string, f: () => Promise<string>) {
   }
 }
 
-export async function feilsok(omraade: Omraade, innstListeId: string | undefined): Promise<string> {
+export async function feilsok(omraade: Omraade, innstListeId: string | undefined, tilstedeListeId?: string): Promise<string> {
   const ut: string[] = [`Feilsøking ${new Date().toISOString()}`, `Område: ${omraade.webUrl}`, '']
   const sist = sisteBatchFeil
   ut.push('Siste avviste kall:', sist ? JSON.stringify(sist, null, 1) : '(ingen i denne økten)', '')
@@ -36,6 +36,18 @@ export async function feilsok(omraade: Omraade, innstListeId: string | undefined
       return JSON.stringify(d.quota)
     }),
   )
+  // Skriving i en annen liste (tilstedeværelse), så vi ser om feilen gjelder hele området eller bare innstillingslisten
+  if (tilstedeListeId)
+    ut.push(
+      await prov('Ny prøverad i tilstedelisten', async () => {
+        const l = `/sites/${omraade.id}/lists/${tilstedeListeId}`
+        const r = await graph(`${l}/items`, jsonInit('POST', { fields: { Title: 'rr-feilsok' } }))
+        const status = await svar(r.clone())
+        if (!r.ok) return status
+        const sl = await graph(`${l}/items/${((await r.json()) as Rad).id}`, { method: 'DELETE' })
+        return `${status}, slettet igjen: ${sl.status}`
+      }),
+    )
   if (!innstListeId) return [...ut, 'Fant ikke innstillingslisten.'].join('\n')
   const liste = `/sites/${omraade.id}/lists/${innstListeId}`
 
