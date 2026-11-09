@@ -40,22 +40,28 @@ export const jsonInit = (method: string, body: unknown, headers: Record<string, 
   body: JSON.stringify(body),
 })
 
-export function feilmelding(status: number, melding = '') {
+export function feilmelding(status: number, melding = '', kode = '') {
+  if (status === 507)
+    return `SharePoint sier at en lagringsgrense er nådd (507${kode ? ' ' + kode : ''}). Sjekk lagringsplassen på nettstedet og versjonsloggen i listene.`
   if (status === 401) return 'Innloggingen er utløpt. Last siden på nytt.'
   if (status === 403) return 'Du har ikke tilgang til dette i SharePoint.'
   if (status === 404) return 'Fant det ikke i SharePoint. Er adressen riktig, og har du tilgang?'
-  return melding || `Feil fra SharePoint (${status})`
+  if (status === 429) return `SharePoint begrenser antall kall akkurat nå (429${kode ? ' ' + kode : ''}${melding ? ': ' + melding : ''}). Appen prøver igjen.`
+  // Statuskoden og feilkoden står med, så det går an å finne ut hva SharePoint mente
+  return melding ? `${melding} (${[status, kode].filter(Boolean).join(' ')})` : `Feil fra SharePoint (${status})`
 }
 
 export async function feiltekst(r: Response) {
   let melding = ''
+  let kode = ''
   try {
     const j = await r.json()
     melding = j?.error?.message ?? ''
+    kode = j?.error?.code ?? ''
   } catch {
     // ingen feiltekst i svaret
   }
-  return feilmelding(r.status, melding)
+  return feilmelding(r.status, melding, kode)
 }
 
 export interface BatchKall {
@@ -101,6 +107,6 @@ export async function batch(kall: BatchKall[]): Promise<BatchSvar[]> {
 }
 
 export function batchFeil(s: BatchSvar) {
-  const melding = (s.body as { error?: { message?: string } } | undefined)?.error?.message
-  return new GraphFeil(s.status, feilmelding(s.status, melding))
+  const feil = (s.body as { error?: { message?: string; code?: string } } | undefined)?.error
+  return new GraphFeil(s.status, feilmelding(s.status, feil?.message, feil?.code))
 }

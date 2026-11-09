@@ -13,6 +13,8 @@ export interface Snapshot {
   doc: Register
   status: Status
   feil?: string
+  // Siste feil ved lagring. Står til en lagring lykkes, slik at varselet ikke blinker mens appen prøver på nytt.
+  lagreFeil?: string
   andre: Tilstede[] // andre brukere som er inne nå
   sistHentet: number
   ventende: number
@@ -40,6 +42,8 @@ export class Okt {
   private visning!: Register
   private status: Status = 'laster'
   private feil?: string
+  private lagreFeil?: string
+  private feiledeLagringer = 0
   private andre: Tilstede[] = []
   private sistHentet = 0
   private lagrer = false
@@ -159,6 +163,7 @@ export class Okt {
       doc: this.visning,
       status: this.status,
       feil: this.feil,
+      lagreFeil: this.ventende.length ? this.lagreFeil : undefined,
       andre: this.andre,
       sistHentet: this.sistHentet,
       ventende: this.ventende.length,
@@ -228,6 +233,8 @@ export class Okt {
         }
         const svar = await this.backend.lagre(doc, this.etag)
         if (svar.ok) {
+          this.lagreFeil = undefined
+          this.feiledeLagringer = 0
           this.base = doc
           this.etag = svar.etag
           this.ventende.splice(0, n)
@@ -252,12 +259,15 @@ export class Okt {
       this.visning = brukAlle(this.base, this.ventende, this.backend.bruker).doc
       this.status = senere || !this.ventende.length ? 'lagret' : 'feil'
       this.feil = this.status === 'feil' ? 'Klarte ikke å lagre etter flere forsøk' : undefined
+      if (this.feil) this.lagreFeil = this.feil
       if (senere) this.planleggLagring()
     } catch (e) {
       this.status = 'frakoblet'
       this.feil = e instanceof Error ? e.message : String(e)
+      this.lagreFeil = this.feil
       this.ventende.forEach((o) => this.sjekkes.add(o))
-      window.setTimeout(() => void this.lagre(), 5000)
+      // Vent lenger for hver gang det feiler (5 s, 10 s, 20 s … maks 1 min), så appen ikke gjør strupingen fra SharePoint verre
+      window.setTimeout(() => void this.lagre(), Math.min(60_000, 5000 * 2 ** this.feiledeLagringer++))
     } finally {
       this.lagrer = false
       this.oppdaterSnap()

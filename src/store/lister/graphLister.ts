@@ -400,7 +400,10 @@ export class GraphLister implements ListeLager {
         if (!this.manglende.some((k) => k.liste === e.liste && k.kolonne === borte)) this.manglende = [...this.manglende, { liste: e.liste, kolonne: borte }]
         return { ok: false, konflikt: false, feil: new GraphFeil(400, `Kolonnen «${borte}» finnes ikke lenger i listen «${LISTER[e.liste].visningsnavn}» i SharePoint. Endringen lagres uten den ved neste forsøk.`) }
       }
-      return { ok: false, konflikt: false, feil: batchFeil(s) }
+      // Listen og raden står med, så det går an å finne raden i SharePoint
+      const f = batchFeil(s)
+      const hvor = `listen «${LISTER[e.liste].visningsnavn}»${e.type !== 'ny' ? `, rad ${e.id}` : ''}`
+      return { ok: false, konflikt: false, feil: new GraphFeil(f.status, `${f.message.replace(/\.$/, '')} (${hvor}).`) }
     })
   }
 

@@ -50,8 +50,11 @@ function Handling({ tekst, onKlikk, primaer, bekreft, oppdater }: { tekst: strin
 // Endringer som ikke er lagret: synlig når lagringen feiler, og når en tidligere økt etterlot endringer i nettleseren
 export function UlagretBanner({ okt, snap }: { okt: Okt; snap: Snapshot }) {
   const b = okt.backend
-  const problem = snap.ventende > 0 && (snap.status === 'frakoblet' || snap.status === 'feil' || !b.kanSkrive)
-  const innlogging = /innlogg|login|interaction/i.test(snap.feil ?? '')
+  // Varselet står så lenge en lagring har feilet og endringene venter, også mens appen prøver på nytt og mens henting går bra.
+  // Ellers kommer og går det i takt med forsøkene og flytter hele skjermbildet.
+  const problem = snap.ventende > 0 && (!!snap.lagreFeil || snap.status === 'frakoblet' || snap.status === 'feil' || !b.kanSkrive)
+  const feil = snap.lagreFeil ?? snap.feil
+  const innlogging = /innlogg|login|interaction/i.test(feil ?? '')
   return (
     <>
       {snap.ulagret && b.kanSkrive && (
@@ -78,7 +81,7 @@ export function UlagretBanner({ okt, snap }: { okt: Okt; snap: Snapshot }) {
               </>
             ) : (
               <>
-                {snap.ventende === 1 ? 'Én endring' : `${snap.ventende} endringer`} er ikke lagret ennå{snap.feil ? `: ${snap.feil}` : '.'} De er tatt vare på i denne nettleseren og
+                {snap.ventende === 1 ? 'Én endring' : `${snap.ventende} endringer`} er ikke lagret ennå{feil ? `: ${feil.replace(/[.\s]*$/, '.')}` : '.'} De er tatt vare på i denne nettleseren og
                 lagres så snart det går.
               </>
             )}
