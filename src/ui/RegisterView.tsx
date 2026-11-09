@@ -343,7 +343,8 @@ export function RegisterView({ okt, tilbake }: Props) {
   const filterAktivt = !!visning.sok || Object.keys(visning.filter.verdier).length > 0 || Object.values(visning.filter.tekst).some(Boolean) || !!visning.filter.matrise || !!visning.filter.snarvei || !!visning.fag?.length || !!visning.person || !!visning.kunStjerner
   const tittel = [doc.prosjekt.nummer, doc.prosjekt.navn].filter(Boolean).join(' ') || 'Riskregister uten navn'
   // Endringer samles noen sekunder før de lagres. Så lenge noen venter, sier vi det i stedet for «lagret».
-  const visStatus = status === 'lagret' && snap.ventende ? 'lagrer' : status
+  // Etter en feilet lagring står det «Frakoblet» til en lagring lykkes, så statusen ikke veksler mellom forsøkene.
+  const visStatus = snap.lagreFeil && status !== 'feil' ? 'frakoblet' : status === 'lagret' && snap.ventende ? 'lagrer' : status
   // Søk i organisasjonen for risikoeier, tiltakseier og deltakere. Demoen har en oppdiktet organisasjon.
   const personer = useMemo<Personer | null>(
     () =>
@@ -489,7 +490,7 @@ export function RegisterView({ okt, tilbake }: Props) {
               ))}
             </nav>
           )}
-          <div className={'lagrestatus ' + visStatus} title={snap.feil || statusTekst}>
+          <div className={'lagrestatus ' + visStatus} title={snap.lagreFeil || snap.feil || statusTekst}>
             <span className="prikk" /> <span className="lagrestatus-tekst">{statusTekst}</span>
           </div>
           <div className="tilstede">
