@@ -363,7 +363,12 @@ export function RegisterView({ okt, tilbake }: Props) {
   // Lukkede-fanen husker sin egen gruppering, så «Når lukket» der ikke endrer grupperingen i de andre fanene
   const gruppering = aktivGruppering(visning)
   const usikre = useMemo(() => usikreFaser(doc), [doc])
-  const velgGruppering = (key: string) => setVisning((v) => (v.fane === 'lukkede' ? { ...v, grupperingLukkede: key } : { ...v, gruppering: key }))
+  // Fjernes grupperingen, tømmes også «og deretter», så den ikke kommer tilbake når man grupperer på nytt
+  const velgGruppering = (key: string) =>
+    setVisning((v) => {
+      const ny = v.fane === 'lukkede' ? { ...v, grupperingLukkede: key } : { ...v, gruppering: key }
+      return key ? ny : { ...ny, undergruppering: undefined }
+    })
 
   // Snarveiene teller i fanen som vises, uten de andre filtrene, så tallene står fast mens man filtrerer
   const visSnarveier = !b.snapshot && (visning.fane === 'aapne' || visning.fane === 'alle')
