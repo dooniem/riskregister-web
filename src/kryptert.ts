@@ -3,7 +3,7 @@
 // En kryptert fil er en CFB-beholder med strømmene EncryptionInfo og EncryptedPackage. Excel 2010 og nyere bruker
 // «Agile»-kryptering: AES med nøkkel avledet fra passordet med SHA-512 i 100 000 runder (MS-OFFCRYPTO 2.3.4.10–2.3.4.15).
 // Passordet forlater aldri nettleseren.
-import * as XLSX from 'xlsx'
+import * as XLSX from 'xlsx-js-style'
 
 export class FeilPassord extends Error {
   constructor() {
