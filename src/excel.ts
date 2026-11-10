@@ -1,5 +1,5 @@
 // Import fra eksisterende Riskregister-XLSM og eksport til Excel.
-import * as XLSX from 'xlsx'
+import * as XLSX from 'xlsx-js-style'
 import type { Deltaker, Register, Risk, Tiltak } from './model'
 import { DEFAULT_LISTER, egendef2IBruk, FAG_FARGER, SANNSYNLIGHET, fv, kortFag, nyttRegister, uid } from './model'
 
@@ -310,6 +310,8 @@ function excelNokkel(reg: Register) {
 function riskArk(reg: Register, risker: Risk[], lukket: boolean): Ark {
   const { sett, flett, ferdig } = nyttArk()
   const nokkel = excelNokkel(reg)
+  // Ikke en overskrift eller et ord Oppgrader leter etter (den søker etter «Årsak» i A3:AA7 og «Nr» på overskriftsraden)
+  sett('A1', `Eksportert fra Riskregister på web ${new Date().toLocaleDateString('nb-NO', { day: '2-digit', month: '2-digit', year: 'numeric' })}. Ved behov kan filen hentes inn i det makroaktiverte Excel-riskregisteret med «Oppgrader» i importvinduet.`)
   sett('F2', lukket ? 'RISKREGISTER - Lukket' : 'RISKREGISTER')
   flett('F2:J4')
   sett('AC2', nokkel.ac2)
@@ -328,6 +330,7 @@ function riskArk(reg: Register, risker: Risk[], lukket: boolean): Ark {
   if (medEgendef2) sett(`${WEB_KOL.egendef2}5`, reg.lister.egendef2Navn)
   if (reg.lister.fag.length) sett(`${WEB_KOL.fag}5`, 'Fag')
 
+  const blokker: [number, number][] = []
   let rad = RAD_START
   for (const r of [...risker].sort((a, b) => a.nr - b.nr)) {
     // Minst tre rader per risk, som i Excel-malen
@@ -361,11 +364,77 @@ function riskArk(reg: Register, risker: Risk[], lukket: boolean): Ark {
       sett(RK.tstatus + (rad + i), statusTiltakExcel(reg, t.status))
     })
     for (const c of RISK_KOLONNER) flett(`${c}${rad}:${c}${rad + n - 1}`)
+    blokker.push([rad, rad + n - 1])
     rad += n
   }
   const ws = ferdig()
+  const webKolonner = [medEgendef2 && WEB_KOL.egendef2, reg.lister.fag.length > 0 && WEB_KOL.fag].filter((c): c is string => !!c)
+  stilRiskArk(ws, blokker, webKolonner)
   ws['!cols'] = Array.from({ length: 35 }, (_, i) => ({ wch: [2, 2, 6, 5, 40, 40, 40, 20, 10, 18, 14, 14, 14, 10, 9, 9, 9, 9, 45, 20, 12, 35, 14, 9][i] ?? 10 }))
+  // UnikID (AC) er skjult i Excel-registeret også
+  ws['!cols'][kol(RK.unikId)] = { wch: 10, hidden: true }
+  ws['!rows'] = [{ hpt: 15 }, { hpt: 15 }, { hpt: 15.75 }, { hpt: 15.75 }, {}, { hpt: 30.75 }]
   return ws
+}
+
+// ---- Utseende ----
+// Farger og stil fra Excel-registeret (beta26): blå overskrifter med hvit, fet skrift, kantlinjer rundt hver celle
+// og tykkere linje mellom riskene. Bare utseende, Oppgrader leser verdiene som før.
+type Stil = Record<string, unknown>
+const BLAA = 'FF0078D2'
+const SVART = 'FF000000'
+const linje = (style: 'thin' | 'medium') => ({ style, color: { rgb: SVART } })
+const kant = (topp: 'thin' | 'medium', bunn: 'thin' | 'medium') => ({ left: linje('thin'), right: linje('thin'), top: linje(topp), bottom: linje(bunn) })
+const fyll = (rgb: string) => ({ patternType: 'solid', fgColor: { rgb } })
+const OVERSKRIFT_FARGE: Record<string, string> = { O6: 'FF548235', P6: 'FFFFC000', Q6: 'FFC00000' }
+
+// Stil per kolonne for dataradene
+function dataStil(c: string): Stil {
+  const font = { name: 'Arial', sz: 11, color: { rgb: SVART } }
+  if (c === RK.nr) return { font: { ...font, sz: 12, bold: true }, alignment: { horizontal: 'center', vertical: 'center' } }
+  if ([RK.aarsak, RK.hendelse, RK.konsekvenser, RK.tiltak, RK.tbeskr].includes(c)) return { font, alignment: { horizontal: 'left', vertical: 'top', wrapText: true } }
+  if ([RK.bc, RK.ml, RK.wc, RK.fv].includes(c)) return { font: { ...font, bold: c === RK.fv }, alignment: { horizontal: 'right', vertical: 'center' }, numFmt: '#,##0' }
+  if (c === RK.frist) return { font, alignment: { horizontal: 'center', vertical: 'center' }, numFmt: 'dd.mm.yyyy' }
+  if ([RK.rm, RK.ekspo, RK.skarisk].includes(c)) return { font, alignment: { horizontal: 'center', vertical: 'center' } }
+  return { font, alignment: { horizontal: 'left', vertical: 'center', wrapText: true } }
+}
+
+function stilRiskArk(ws: Ark, blokker: [number, number][], webKolonner: string[]) {
+  const stil = (adr: string, s: Stil) => {
+    // Tomme celler får bare stil. Den tomme verdien fjernes når filen skrives (se skrivExcel).
+    const cel = (ws[adr] ??= { t: 's', v: '' }) as XLSX.CellObject & { s?: Stil }
+    cel.s = s
+  }
+  const kolonner: string[] = []
+  for (let c = kol('C'); c <= kol('X'); c++) kolonner.push(XLSX.utils.encode_col(c))
+  kolonner.push(...webKolonner)
+
+  stil('A1', { font: { name: 'Calibri', sz: 10, italic: true, color: { rgb: 'FF595959' } } })
+  for (let c = kol('F'); c <= kol('J'); c++)
+    for (let r = 2; r <= 4; r++)
+      stil(XLSX.utils.encode_col(c) + r, {
+        font: { name: 'Calibri', sz: 36, bold: true, color: { rgb: 'FF305496' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: r === 4 ? { bottom: linje('thin') } : {},
+      })
+
+  for (const c of kolonner)
+    for (const r of [5, 6]) {
+      const adr = c + r
+      const bc = OVERSKRIFT_FARGE[adr]
+      stil(adr, {
+        fill: fyll(bc ?? BLAA),
+        font: { name: 'Calibri', sz: bc ? 12 : 11, bold: true, color: { rgb: 'FFFFFFFF' } },
+        alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+        border: kant('thin', r === 6 ? 'medium' : 'thin'),
+      })
+    }
+
+  for (const [fra, til] of blokker)
+    for (const c of kolonner) {
+      const s = dataStil(c)
+      for (let r = fra; r <= til; r++) stil(c + r, { ...s, border: kant(r === fra ? 'medium' : 'thin', r === til ? 'medium' : 'thin') })
+    }
 }
 
 function deltagerArk(reg: Register): Ark {
@@ -472,11 +541,38 @@ export function lagExcelBok(reg: Register): XLSX.WorkBook {
   return wb
 }
 
+// Skriver boka til bytes. Biblioteket kan ikke slå av rutenettet, låse overskriftene eller skrive en celle med bare stil,
+// så det rettes i XML-en etterpå: tomme celler med stil blir stående uten verdi, og riskarkene får frosne overskrifter
+// (rad 1–6) og ikke noe rutenett, som i Excel-registeret.
+export function skrivExcel(wb: XLSX.WorkBook): ArrayBuffer {
+  const data = XLSX.write(wb, { bookType: 'xlsx', type: 'array', compression: true }) as ArrayBuffer
+  const zip = XLSX.CFB.read(new Uint8Array(data), { type: 'array' })
+  const riskark = ['Riskregister', 'Riskregister - Lukket'].map((n) => wb.SheetNames.indexOf(n) + 1)
+  wb.SheetNames.forEach((_, i) => {
+    const idx = (zip.FullPaths as string[]).findIndex((p) => p.endsWith(`/xl/worksheets/sheet${i + 1}.xml`))
+    if (idx < 0) return
+    const fil = zip.FileIndex[idx]
+    let xml = new TextDecoder().decode(new Uint8Array(fil.content))
+    xml = xml.replace(/<c r="([A-Z]+\d+)" s="(\d+)" t="str"><v><\/v><\/c>/g, '<c r="$1" s="$2"/>')
+    if (riskark.includes(i + 1))
+      xml = xml.replace(
+        '<sheetView workbookViewId="0"/>',
+        '<sheetView showGridLines="0" workbookViewId="0"><pane ySplit="6" topLeftCell="A7" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="C7" sqref="C7"/></sheetView>',
+      )
+    const ut = new TextEncoder().encode(xml)
+    fil.content = ut
+    fil.size = ut.length
+  })
+  const ut = XLSX.CFB.write(zip, { fileType: 'zip', type: 'array', compression: true }) as Uint8Array | number[]
+  const u = ut instanceof Uint8Array ? ut : new Uint8Array(ut)
+  return u.buffer.slice(u.byteOffset, u.byteOffset + u.byteLength) as ArrayBuffer
+}
+
 // Eksportfilen som bytes, med et filnavn ut fra prosjektet og dagens dato
 export function excelFil(reg: Register): { navn: string; data: ArrayBuffer } {
   const p = reg.prosjekt
   const navn = ([p.nummer, p.navn].filter(Boolean).join(' ') || 'Riskregister').replace(/[^\w æøåÆØÅ.-]+/g, '-')
-  const data = XLSX.write(lagExcelBok(reg), { bookType: 'xlsx', type: 'array' }) as ArrayBuffer
+  const data = skrivExcel(lagExcelBok(reg))
   return { navn: `Riskregister ${navn} ${new Date().toISOString().slice(0, 10)}.xlsx`, data }
 }
 

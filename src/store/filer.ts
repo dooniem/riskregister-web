@@ -1,10 +1,9 @@
 // Filer i SharePoint (eller en liksom-SharePoint i demomodus) for import og eksport av Excel-filer.
 // Nettleserens egen fildialog kan ikke åpnes i en bestemt SharePoint-mappe, så appen viser mappen selv via Graph.
 import { eksempelRegister } from '../eksempel'
-import { lagExcelBok } from '../excel'
+import { lagExcelBok, skrivExcel } from '../excel'
 import type { Register, Risk } from '../model'
 import { uid } from '../model'
-import * as XLSX from 'xlsx'
 
 export interface FilElement {
   id: string
@@ -75,7 +74,7 @@ function node(navn: string, forelder: string | undefined, mappe: boolean, data?:
   return n.id
 }
 
-const bok = (reg: Register) => XLSX.write(lagExcelBok(reg), { bookType: 'xlsx', type: 'array' }) as ArrayBuffer
+const bok = (reg: Register) => skrivExcel(lagExcelBok(reg))
 
 const nyRisk = (r: Partial<Risk> & Pick<Risk, 'aarsak' | 'hendelse'>): Risk => ({
   id: uid(), nr: 0, rm: 'R', konsekvenser: '', eier: '', status: 'Åpen', kategori: 'UE', egendef: '', sannsynlighet: 3, konsekvens: 3,
